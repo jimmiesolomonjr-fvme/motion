@@ -177,6 +177,19 @@ export default function Profile() {
   const prompts = profile.profilePrompts || [];
   const showNudge = isOwnProfile && !editing && !nudgeDismissed && (photos.length < 2 || prompts.length === 0);
 
+  const getLastOnlineLabel = () => {
+    if (isOwnProfile || !profile.lastOnline) return null;
+    const diff = Date.now() - new Date(profile.lastOnline).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 5) return 'Online now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 48) return `${hrs}h ago`;
+    return null; // beyond 48h, don't show
+  };
+
+  const lastOnlineLabel = getLastOnlineLabel();
+
   return (
     <AppLayout>
       {/* Photo Gallery */}
@@ -186,6 +199,14 @@ export default function Profile() {
         ) : (
           <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
             <span className="text-6xl">👤</span>
+          </div>
+        )}
+
+        {lastOnlineLabel && (
+          <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
+            lastOnlineLabel === 'Online now' ? 'bg-green-500/90 text-white' : 'bg-black/70 text-gray-200'
+          }`}>
+            {lastOnlineLabel}
           </div>
         )}
 
