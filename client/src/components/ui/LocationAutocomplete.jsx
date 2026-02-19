@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 let googleScriptLoaded = false;
 let googleScriptLoading = false;
+let googleScriptFailed = false;
 const loadCallbacks = [];
 
 function loadGoogleMaps() {
   const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
-  if (!apiKey) return Promise.resolve(false);
+  if (!apiKey || googleScriptFailed) return Promise.resolve(false);
   if (googleScriptLoaded && window.google?.maps?.places) return Promise.resolve(true);
   if (googleScriptLoading) {
     return new Promise((resolve) => loadCallbacks.push(resolve));
@@ -21,11 +22,14 @@ function loadGoogleMaps() {
     script.onload = () => {
       googleScriptLoaded = true;
       googleScriptLoading = false;
-      loadCallbacks.forEach((cb) => cb(true));
+      const ok = !!window.google?.maps?.places;
+      if (!ok) googleScriptFailed = true;
+      loadCallbacks.forEach((cb) => cb(ok));
       loadCallbacks.length = 0;
     };
     script.onerror = () => {
       googleScriptLoading = false;
+      googleScriptFailed = true;
       loadCallbacks.forEach((cb) => cb(false));
       loadCallbacks.length = 0;
     };
@@ -36,34 +40,43 @@ function loadGoogleMaps() {
 export default function LocationAutocomplete({ label, value, onChange, placeholder, name, className = '', ...props }) {
   const inputRef = useRef(null);
   const autocompleteRef = useRef(null);
-  const [ready, setReady] = useState(!!window.google?.maps?.places);
+  const skipNextChange = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
     loadGoogleMaps().then((loaded) => {
-      if (loaded) setReady(true);
+      if (cancelled || !loaded || !inputRef.current || autocompleteRef.current) return;
+      try {
+        const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+          types: ['(cities)'],
+          fields: ['formatted_address', 'name'],
+        });
+
+        autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace();
+          if (!place) return;
+          const val = place.formatted_address || place.name || '';
+          if (val) {
+            skipNextChange.current = true;
+            onChange({ target: { name, value: val } });
+          }
+        });
+
+        autocompleteRef.current = autocomplete;
+      } catch {
+        // Google Places failed to initialize — input works as plain text
+      }
     });
+    return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
-    if (!ready || !inputRef.current || autocompleteRef.current) return;
-
-    const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-      types: ['(cities)'],
-      fields: ['formatted_address', 'name'],
-    });
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      const val = place.formatted_address || place.name || inputRef.current.value;
-      onChange({ target: { name, value: val } });
-    });
-
-    autocompleteRef.current = autocomplete;
-  }, [ready]);
-
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
+    if (skipNextChange.current) {
+      skipNextChange.current = false;
+      return;
+    }
     onChange(e);
-  };
+  }, [onChange]);
 
   return (
     <div className={className}>
@@ -71,7 +84,7 @@ export default function LocationAutocomplete({ label, value, onChange, placehold
       <input
         ref={inputRef}
         name={name}
-        value={value}
+        value={value || ''}
         onChange={handleChange}
         placeholder={placeholder}
         className="input-field"
