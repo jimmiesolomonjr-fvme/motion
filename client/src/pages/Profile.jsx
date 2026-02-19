@@ -1,0 +1,238 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import AppLayout from '../components/layout/AppLayout';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+import Button from '../components/ui/Button';
+import Input, { Textarea } from '../components/ui/Input';
+import Modal from '../components/ui/Modal';
+import VibeScore from '../components/vibe-check/VibeScore';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles } from 'lucide-react';
+import { isOnline } from '../utils/formatters';
+import { REPORT_REASONS } from '../utils/constants';
+
+export default function Profile() {
+  const { userId } = useParams();
+  const { user: currentUser, refreshUser } = useAuth();
+  const navigate = useNavigate();
+  const isOwnProfile = !userId || userId === currentUser?.id;
+
+  const [profile, setProfile] = useState(null);
+  const [vibeScore, setVibeScore] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({});
+  const [reportModal, setReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      setLoading(true);
+      try {
+        const endpoint = isOwnProfile ? '/users/profile' : `/users/profile/${userId}`;
+        const { data } = await api.get(endpoint);
+        setProfile(data);
+        setEditForm({ displayName: data.displayName, bio: data.bio || '', city: data.city, lookingFor: data.lookingFor || '' });
+
+        if (!isOwnProfile) {
+          const { data: score } = await api.get(`/vibe/score/${userId}`);
+          setVibeScore(score.score);
+        }
+      } catch {
+        navigate('/feed');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [userId]);
+
+  const handleSave = async () => {
+    try {
+      await api.post('/users/profile', { ...editForm, age: profile.age });
+      setProfile({ ...profile, ...editForm });
+      setEditing(false);
+      refreshUser();
+    } catch (err) {
+      console.error('Save error:', err);
+    }
+  };
+
+  const handleReport = async () => {
+    if (!reportReason) return;
+    try {
+      await api.post('/reports', { reportedId: userId, reason: reportReason, details: reportDetails });
+      setReportModal(false);
+      setReportReason('');
+      setReportDetails('');
+    } catch (err) {
+      console.error('Report error:', err);
+    }
+  };
+
+  const handleBlock = async () => {
+    try {
+      await api.post('/reports/block', { blockedId: userId });
+      navigate('/feed');
+    } catch (err) {
+      console.error('Block error:', err);
+    }
+  };
+
+  const handleLike = async () => {
+    try {
+      await api.post(`/likes/${userId}`);
+    } catch (err) {
+      console.error('Like error:', err);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const files = e.target.files;
+    if (!files.length) return;
+    const formData = new FormData();
+    Array.from(files).forEach((f) => formData.append('photos', f));
+    try {
+      const { data } = await api.post('/users/photos', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setProfile({ ...profile, photos: data.photos });
+    } catch (err) {
+      console.error('Upload error:', err);
+    }
+  };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!profile) return null;
+
+  const photos = profile.photos || [];
+
+  return (
+    <AppLayout>
+      {/* Photo Gallery */}
+      <div className="relative rounded-2xl overflow-hidden mb-4">
+        {photos.length > 0 ? (
+          <img src={photos[0]} alt="" className="w-full aspect-[3/4] object-cover" />
+        ) : (
+          <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
+            <span className="text-6xl">👤</span>
+          </div>
+        )}
+
+        {isOwnProfile && (
+          <label className="absolute bottom-3 right-3 w-10 h-10 bg-gold rounded-full flex items-center justify-center cursor-pointer">
+            <Camera className="text-dark" size={18} />
+            <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+          </label>
+        )}
+      </div>
+
+      {/* Photo thumbnails */}
+      {photos.length > 1 && (
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {photos.map((p, i) => (
+            <img key={i} src={p} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+          ))}
+        </div>
+      )}
+
+      {/* Profile Info */}
+      <div className="space-y-4">
+        {editing ? (
+          <div className="space-y-3">
+            <Input label="Display Name" value={editForm.displayName} onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })} />
+            <Textarea label="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
+            <Input label="City" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+            <Input label="Looking For" value={editForm.lookingFor} onChange={(e) => setEditForm({ ...editForm, lookingFor: e.target.value })} />
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setEditing(false)}>Cancel</Button>
+              <Button variant="gold" className="flex-1" onClick={handleSave}>Save</Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl font-bold text-white">{profile.displayName}, {profile.age}</h1>
+                  {profile.isVerified && <BadgeCheck className="text-blue-400" size={20} />}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={profile.role === 'STEPPER' ? 'badge-stepper' : 'badge-baddie'}>
+                    {profile.role === 'STEPPER' ? <><Crown size={10} className="inline mr-1" />Stepper</> : <><Sparkles size={10} className="inline mr-1" />Baddie</>}
+                  </span>
+                  <span className="flex items-center gap-1 text-sm text-gray-400">
+                    <MapPin size={14} /> {profile.city}
+                  </span>
+                </div>
+              </div>
+              {!isOwnProfile && vibeScore !== null && <VibeScore score={vibeScore} size="lg" />}
+            </div>
+
+            {profile.bio && <p className="text-gray-300 leading-relaxed">{profile.bio}</p>}
+            {profile.lookingFor && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-400 mb-1">Looking for</h3>
+                <p className="text-white">{profile.lookingFor}</p>
+              </div>
+            )}
+
+            {/* Actions */}
+            {isOwnProfile ? (
+              <Button variant="outline" className="w-full" onClick={() => setEditing(true)}>
+                <Edit3 size={16} className="inline mr-2" /> Edit Profile
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <Button variant="gold" className="w-full" onClick={handleLike}>
+                  <Heart size={16} className="inline mr-2" /> Like
+                </Button>
+                <div className="flex gap-2">
+                  <Button variant="ghost" className="flex-1 text-sm" onClick={() => setReportModal(true)}>
+                    <Flag size={14} className="inline mr-1" /> Report
+                  </Button>
+                  <Button variant="ghost" className="flex-1 text-sm text-red-400" onClick={handleBlock}>
+                    <Ban size={14} className="inline mr-1" /> Block
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Report Modal */}
+      <Modal isOpen={reportModal} onClose={() => setReportModal(false)} title="Report User">
+        <div className="space-y-3">
+          <div className="space-y-2">
+            {REPORT_REASONS.map((r) => (
+              <button
+                key={r.value}
+                onClick={() => setReportReason(r.value)}
+                className={`w-full text-left p-3 rounded-xl text-sm transition-colors ${
+                  reportReason === r.value ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-dark-100 text-gray-400'
+                }`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <Textarea placeholder="Additional details (optional)..." value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} />
+          <Button variant="danger" className="w-full" onClick={handleReport} disabled={!reportReason}>
+            Submit Report
+          </Button>
+        </div>
+      </Modal>
+    </AppLayout>
+  );
+}

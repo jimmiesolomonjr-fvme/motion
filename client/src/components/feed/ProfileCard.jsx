@@ -1,0 +1,62 @@
+import { Link } from 'react-router-dom';
+import { Heart, MapPin, BadgeCheck, Sparkles } from 'lucide-react';
+import { isOnline } from '../../utils/formatters';
+
+export default function ProfileCard({ user, onLike }) {
+  const photo = user.profile?.photos?.[0];
+
+  return (
+    <div className="card-elevated overflow-hidden group">
+      <Link to={`/profile/${user.id}`}>
+        <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-3">
+          {photo ? (
+            <img src={photo} alt={user.profile?.displayName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          ) : (
+            <div className="w-full h-full bg-dark-100 flex items-center justify-center">
+              <span className="text-4xl">👤</span>
+            </div>
+          )}
+
+          {/* Online indicator */}
+          {isOnline(user.lastOnline) && (
+            <span className="absolute top-2 right-2 w-3 h-3 bg-green-500 rounded-full border-2 border-dark" />
+          )}
+
+          {/* Vibe score */}
+          {user.vibeScore !== null && (
+            <span className="absolute top-2 left-2 vibe-score flex items-center gap-1">
+              <Sparkles size={10} />
+              {user.vibeScore}%
+            </span>
+          )}
+
+          {/* Bottom gradient */}
+          <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
+
+          {/* Info overlay */}
+          <div className="absolute bottom-2 left-2 right-2">
+            <div className="flex items-center gap-1.5">
+              <h3 className="font-bold text-white text-sm truncate">
+                {user.profile?.displayName}, {user.profile?.age}
+              </h3>
+              {user.isVerified && <BadgeCheck size={14} className="text-blue-400 flex-shrink-0" />}
+            </div>
+            <div className="flex items-center gap-1 text-gray-300 text-xs">
+              <MapPin size={10} />
+              <span>{user.profile?.city}</span>
+              {user.distance !== null && <span>· {user.distance}mi</span>}
+            </div>
+          </div>
+        </div>
+      </Link>
+
+      <button
+        onClick={() => onLike(user.id)}
+        className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-gold hover:bg-gold/10 rounded-lg transition-colors"
+      >
+        <Heart size={16} />
+        Like
+      </button>
+    </div>
+  );
+}

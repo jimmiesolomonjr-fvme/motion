@@ -1,0 +1,161 @@
+import { Router } from 'express';
+import { PrismaClient } from '@prisma/client';
+import { authenticate } from '../middleware/auth.js';
+
+const router = Router();
+const prisma = new PrismaClient();
+
+// Create a Move (Steppers only)
+router.post('/', authenticate, async (req, res) => {
+  try {
+    if (req.userRole !== 'STEPPER') {
+      return res.status(403).json({ error: 'Only Steppers can create Moves' });
+    }
+
+    const { title, description, date, location, maxInterest = 10 } = req.body;
+
+    if (!title || !description || !date || !location) {
+      return res.status(400).json({ error: 'Title, description, date, and location are required' });
+    }
+
+    const move = await prisma.move.create({
+      data: {
+        stepperId: req.userId,
+        title,
+        description,
+        date: new Date(date),
+        location,
+        maxInterest,
+      },
+      include: { stepper: { include: { profile: true } } },
+    });
+
+    res.status(201).json(move);
+  } catch (error) {
+    console.error('Create move error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get active Moves
+router.get('/', authenticate, async (req, res) => {
+  try {
+    const moves = await prisma.move.findMany({
+      where: {
+        isActive: true,
+        date: { gte: new Date() },
+      },
+      include: {
+        stepper: { include: { profile: true } },
+        _count: { select: { interests: true } },
+      },
+      orderBy: { date: 'asc' },
+    });
+
+    // If user is a Stepper, show their own moves with interest details
+    // If Baddie, show all active moves
+    const result = moves.map((m) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      date: m.date,
+      location: m.location,
+      maxInterest: m.maxInterest,
+      interestCount: m._count.interests,
+      createdAt: m.createdAt,
+      stepper: {
+        id: m.stepper.id,
+        isVerified: m.stepper.isVerified,
+        profile: m.stepper.profile,
+      },
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Get moves error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get Stepper's own moves with interests
+router.get('/mine', authenticate, async (req, res) => {
+  try {
+    if (req.userRole !== 'STEPPER') {
+      return res.status(403).json({ error: 'Only Steppers have Moves' });
+    }
+
+    const moves = await prisma.move.findMany({
+      where: { stepperId: req.userId },
+      include: {
+        interests: {
+          include: { baddie: { include: { profile: true } } },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(moves);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Express interest in a Move (Baddies only)
+router.post('/:moveId/interest', authenticate, async (req, res) => {
+  try {
+    if (req.userRole !== 'BADDIE') {
+      return res.status(403).json({ error: 'Only Baddies can express interest in Moves' });
+    }
+
+    const move = await prisma.move.findUnique({
+      where: { id: req.params.moveId },
+      include: { _count: { select: { interests: true } } },
+    });
+
+    if (!move || !move.isActive) {
+      return res.status(404).json({ error: 'Move not found or no longer active' });
+    }
+
+    if (move._count.interests >= move.maxInterest) {
+      return res.status(400).json({ error: 'This Move has reached maximum interest' });
+    }
+
+    const interest = await prisma.moveInterest.create({
+      data: {
+        moveId: req.params.moveId,
+        baddieId: req.userId,
+        message: req.body.message || null,
+      },
+    });
+
+    res.status(201).json(interest);
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'Already expressed interest' });
+    }
+    console.error('Move interest error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a Move (Stepper only)
+router.delete('/:moveId', authenticate, async (req, res) => {
+  try {
+    const move = await prisma.move.findUnique({ where: { id: req.params.moveId } });
+    if (!move || move.stepperId !== req.userId) {
+      return res.status(404).json({ error: 'Move not found' });
+    }
+
+    await prisma.move.update({
+      where: { id: req.params.moveId },
+      data: { isActive: false },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+export default router;

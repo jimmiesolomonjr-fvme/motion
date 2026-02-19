@@ -1,0 +1,9 @@
+{
+  "name": "motion",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix client && npm install --prefix server && npm run build --prefix client && cd server && npx prisma generate",
+    "start": "npm start --prefix server"
+  }
+}

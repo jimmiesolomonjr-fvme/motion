@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STEPPER
+  BADDIE
+}
+
+enum ContentType {
+  TEXT
+  VOICE
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTIONED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role
+  isPremium    Boolean  @default(false)
+  isVerified   Boolean  @default(false)
+  isBanned     Boolean  @default(false)
+  isAdmin      Boolean  @default(false)
+  lastOnline   DateTime @default(now())
+  locationLat  Float?
+  locationLng  Float?
+  createdAt    DateTime @default(now())
+
+  profile      Profile?
+  subscription Subscription?
+
+  sentLikes     Like[]    @relation("LikerLikes")
+  receivedLikes Like[]    @relation("LikedLikes")
+  matches1      Match[]   @relation("MatchUser1")
+  matches2      Match[]   @relation("MatchUser2")
+  conversations1 Conversation[] @relation("ConvUser1")
+  conversations2 Conversation[] @relation("ConvUser2")
+  sentMessages  Message[]
+  sentReports   Report[]  @relation("Reporter")
+  receivedReports Report[] @relation("Reported")
+  blocks        Block[]   @relation("Blocker")
+  blockedBy     Block[]   @relation("Blocked")
+  vibeAnswers   VibeAnswer[]
+  moves         Move[]
+  moveInterests MoveInterest[]
+}
+
+model Profile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  displayName String
+  bio         String?
+  age         Int
+  city        String
+  photos      Json     @default("[]")
+  lookingFor  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id            String   @id @default(uuid())
+  user1Id       String
+  user2Id       String
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  user1    User      @relation("ConvUser1", fields: [user1Id], references: [id])
+  user2    User      @relation("ConvUser2", fields: [user2Id], references: [id])
+  messages Message[]
+
+  @@unique([user1Id, user2Id])
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  contentType    ContentType @default(TEXT)
+  readAt         DateTime?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  likerId   String
+  likedId   String
+  createdAt DateTime @default(now())
+
+  liker User @relation("LikerLikes", fields: [likerId], references: [id])
+  liked User @relation("LikedLikes", fields: [likedId], references: [id])
+
+  @@unique([likerId, likedId])
+}
+
+model Match {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user2Id   String
+  createdAt DateTime @default(now())
+
+  user1 User @relation("MatchUser1", fields: [user1Id], references: [id])
+  user2 User @relation("MatchUser2", fields: [user2Id], references: [id])
+
+  @@unique([user1Id, user2Id])
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String
+  reportedId String
+  reason     String
+  details    String?
+  status     ReportStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+
+  reporter User @relation("Reporter", fields: [reporterId], references: [id])
+  reported User @relation("Reported", fields: [reportedId], references: [id])
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id])
+  blocked User @relation("Blocked", fields: [blockedId], references: [id])
+
+  @@unique([blockerId, blockedId])
+}
+
+model VibeQuestion {
+  id           String   @id @default(uuid())
+  questionText String
+  category     String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  answers VibeAnswer[]
+}
+
+model VibeAnswer {
+  id         String   @id @default(uuid())
+  userId     String
+  questionId String
+  answer     Boolean
+  answeredAt DateTime @default(now())
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question VibeQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+}
+
+model Subscription {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  status               String   @default("inactive")
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Move {
+  id          String   @id @default(uuid())
+  stepperId   String
+  title       String
+  description String
+  date        DateTime
+  location    String
+  maxInterest Int      @default(10)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  stepper   User           @relation(fields: [stepperId], references: [id])
+  interests MoveInterest[]
+}
+
+model MoveInterest {
+  id        String   @id @default(uuid())
+  moveId    String
+  baddieId  String
+  message   String?
+  createdAt DateTime @default(now())
+
+  move   Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  baddie User @relation(fields: [baddieId], references: [id])
+
+  @@unique([moveId, baddieId])
+}

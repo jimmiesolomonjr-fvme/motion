@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-dark text-white antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-dark-100;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-dark-50 rounded-full;
+  }
+
+  input, textarea, select {
+    @apply bg-dark-50 border-dark-50 text-white placeholder-gray-500;
+  }
+}
+
+@layer components {
+  .btn-gold {
+    @apply bg-gradient-gold text-dark font-semibold px-6 py-3 rounded-xl
+           hover:shadow-gold transition-all duration-300 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply border border-gold text-gold px-6 py-3 rounded-xl
+           hover:bg-gold hover:text-dark transition-all duration-300 active:scale-95;
+  }
+
+  .btn-purple {
+    @apply bg-gradient-purple text-white font-semibold px-6 py-3 rounded-xl
+           hover:shadow-purple transition-all duration-300 active:scale-95;
+  }
+
+  .card {
+    @apply bg-dark-50 rounded-2xl border border-dark-50 p-4;
+  }
+
+  .card-elevated {
+    @apply bg-dark-50 rounded-2xl border border-dark-50 p-4
+           shadow-lg hover:border-gold/20 transition-all duration-300;
+  }
+
+  .input-field {
+    @apply w-full bg-dark-100 border border-dark-50 rounded-xl px-4 py-3
+           text-white placeholder-gray-500 focus:border-gold focus:ring-1 focus:ring-gold
+           transition-all duration-200;
+  }
+
+  .badge-stepper {
+    @apply bg-gradient-gold text-dark text-xs font-bold px-2 py-0.5 rounded-full;
+  }
+
+  .badge-baddie {
+    @apply bg-gradient-purple text-white text-xs font-bold px-2 py-0.5 rounded-full;
+  }
+
+  .badge-verified {
+    @apply bg-blue-500/20 text-blue-400 text-xs font-bold px-2 py-0.5 rounded-full;
+  }
+
+  .vibe-score {
+    @apply bg-purple-accent/20 text-purple-glow text-xs font-bold px-2 py-1 rounded-full;
+  }
+}
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-gradient-gold bg-clip-text text-transparent;
+  }
+
+  .text-gradient-purple {
+    @apply bg-gradient-purple bg-clip-text text-transparent;
+  }
+
+  .glass {
+    @apply bg-dark-50/80 backdrop-blur-lg;
+  }
+}
