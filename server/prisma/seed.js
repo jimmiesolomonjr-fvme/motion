@@ -159,9 +159,17 @@ async function main() {
   }
   console.log(`Created ${steppers.length} dummy Steppers (with photos)`);
 
+  // baddiePhotos[0-8] = grid photos, [9-10] = Jasmine W dedicated photos
+  // Jasmine W is index 3 — give her the 2 dedicated photos
+  // Sasha D is index 9 — give her the grid photo that was at slot 3
+  const baddiePhotoMap = {};
+  for (let i = 0; i < 9; i++) baddiePhotoMap[i] = [baddiePhotos[i]];
+  baddiePhotoMap[3] = [baddiePhotos[9], baddiePhotos[10]]; // Jasmine W gets her 2 photos
+  baddiePhotoMap[9] = [baddiePhotos[3]]; // Sasha D gets the freed grid photo
+
   for (let i = 0; i < baddies.length; i++) {
     const b = baddies[i];
-    const photo = baddiePhotos[i] || null; // 9 photos for 10 baddies
+    const photos = baddiePhotoMap[i] || [];
     const user = await prisma.user.upsert({
       where: { email: b.email },
       update: {},
@@ -169,8 +177,8 @@ async function main() {
     });
     await prisma.profile.upsert({
       where: { userId: user.id },
-      update: { photos: photo ? [photo] : [] },
-      create: { userId: user.id, displayName: b.displayName, age: b.age, city: b.city, bio: b.bio, lookingFor: b.lookingFor, photos: photo ? [photo] : [] },
+      update: { photos },
+      create: { userId: user.id, displayName: b.displayName, age: b.age, city: b.city, bio: b.bio, lookingFor: b.lookingFor, photos },
     });
   }
   console.log(`Created ${baddies.length} dummy Baddies (with photos)`);
