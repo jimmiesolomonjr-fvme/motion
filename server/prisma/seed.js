@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { baddiePhotos } from './baddie-photos.js';
 
 const prisma = new PrismaClient();
 
@@ -155,7 +156,9 @@ async function main() {
   }
   console.log(`Created ${steppers.length} dummy Steppers`);
 
-  for (const b of baddies) {
+  for (let i = 0; i < baddies.length; i++) {
+    const b = baddies[i];
+    const photo = baddiePhotos[i] || null; // 9 photos for 10 baddies
     const user = await prisma.user.upsert({
       where: { email: b.email },
       update: {},
@@ -163,11 +166,11 @@ async function main() {
     });
     await prisma.profile.upsert({
       where: { userId: user.id },
-      update: {},
-      create: { userId: user.id, displayName: b.displayName, age: b.age, city: b.city, bio: b.bio, lookingFor: b.lookingFor },
+      update: { photos: photo ? [photo] : [] },
+      create: { userId: user.id, displayName: b.displayName, age: b.age, city: b.city, bio: b.bio, lookingFor: b.lookingFor, photos: photo ? [photo] : [] },
     });
   }
-  console.log(`Created ${baddies.length} dummy Baddies`);
+  console.log(`Created ${baddies.length} dummy Baddies (with photos)`);
 
   // Seed default app settings
   await prisma.appSetting.upsert({
