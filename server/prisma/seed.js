@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { baddiePhotos } from './baddie-photos.js';
+import { stepperPhotos } from './stepper-photos.js';
 
 const prisma = new PrismaClient();
 
@@ -142,7 +143,9 @@ async function main() {
     { email: 'sasha.d@motion.app', displayName: 'Sasha D', age: 26, city: 'Charlotte, NC', bio: 'Interior designer. Aesthetic queen. Good vibes and good wine.', lookingFor: 'A man with taste and vision' },
   ];
 
-  for (const s of steppers) {
+  for (let i = 0; i < steppers.length; i++) {
+    const s = steppers[i];
+    const photo = stepperPhotos[i] || null;
     const user = await prisma.user.upsert({
       where: { email: s.email },
       update: {},
@@ -150,11 +153,11 @@ async function main() {
     });
     await prisma.profile.upsert({
       where: { userId: user.id },
-      update: {},
-      create: { userId: user.id, displayName: s.displayName, age: s.age, city: s.city, bio: s.bio, lookingFor: s.lookingFor },
+      update: { photos: photo ? [photo] : [] },
+      create: { userId: user.id, displayName: s.displayName, age: s.age, city: s.city, bio: s.bio, lookingFor: s.lookingFor, photos: photo ? [photo] : [] },
     });
   }
-  console.log(`Created ${steppers.length} dummy Steppers`);
+  console.log(`Created ${steppers.length} dummy Steppers (with photos)`);
 
   for (let i = 0; i < baddies.length; i++) {
     const b = baddies[i];
