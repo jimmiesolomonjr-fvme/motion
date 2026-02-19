@@ -152,7 +152,20 @@ router.get('/feed', authenticate, async (req, res) => {
     });
     const blockedIds = blocks.map((b) => (b.blockerId === req.userId ? b.blockedId : b.blockerId));
 
-    const excludeIds = [...new Set([req.userId, ...blockedIds])];
+    // Get admin-hidden pairs (both directions)
+    const hiddenPairs = await prisma.hiddenPair.findMany({
+      where: { OR: [{ user1Id: req.userId }, { user2Id: req.userId }] },
+    });
+    const hiddenIds = hiddenPairs.map((h) => (h.user1Id === req.userId ? h.user2Id : h.user1Id));
+
+    const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds])];
+
+    // Get already-liked user IDs (for hasLiked flag)
+    const likes = await prisma.like.findMany({
+      where: { likerId: req.userId },
+      select: { likedId: true },
+    });
+    const likedIds = new Set(likes.map((l) => l.likedId));
 
     // Show opposite role in feed
     const targetRole = currentUser.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
@@ -205,6 +218,7 @@ router.get('/feed', authenticate, async (req, res) => {
           profile: user.profile,
           distance,
           vibeScore,
+          hasLiked: likedIds.has(user.id),
         };
       })
     );

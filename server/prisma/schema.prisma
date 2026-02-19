@@ -55,6 +55,8 @@ model User {
   vibeAnswers   VibeAnswer[]
   moves         Move[]
   moveInterests MoveInterest[]
+  hiddenFrom    HiddenPair[] @relation("HiddenUser1")
+  hiddenTo      HiddenPair[] @relation("HiddenUser2")
 }
 
 model Profile {
@@ -209,4 +211,17 @@ model MoveInterest {
   baddie User @relation(fields: [baddieId], references: [id])
 
   @@unique([moveId, baddieId])
+}
+
+model HiddenPair {
+  id        String   @id @default(uuid())
+  user1Id   String
+  user2Id   String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user1 User @relation("HiddenUser1", fields: [user1Id], references: [id])
+  user2 User @relation("HiddenUser2", fields: [user2Id], references: [id])
+
+  @@unique([user1Id, user2Id])
 }

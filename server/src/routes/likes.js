@@ -51,6 +51,22 @@ router.post('/:userId', authenticate, async (req, res) => {
         update: {},
         create: { user1Id: u1, user2Id: u2 },
       });
+
+      // Notify the other user about the match via socket
+      try {
+        const { io } = await import('../../server.js');
+        const currentProfile = await prisma.profile.findUnique({ where: { userId: req.userId } });
+        io.to(likedId).emit('match-notification', {
+          matchId: match.id,
+          user: {
+            id: req.userId,
+            displayName: currentProfile?.displayName,
+            photo: currentProfile?.photos?.[0] || null,
+          },
+        });
+      } catch {
+        // Socket notification is best-effort
+      }
     }
 
     res.json({ liked: true, matched: !!match, match });

@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 
@@ -226,6 +226,18 @@ export default function Profile() {
                 <Button variant="gold" className="w-full" onClick={handleLike}>
                   <Heart size={16} className="inline mr-2" /> Like
                 </Button>
+                {currentUser?.role === 'BADDIE' && profile.role === 'STEPPER' && (
+                  <Button variant="outline" className="w-full" onClick={async () => {
+                    try {
+                      const { data } = await api.post(`/messages/start/${userId}`);
+                      navigate(`/chat/${data.id}`);
+                    } catch (err) {
+                      console.error('Start conversation error:', err);
+                    }
+                  }}>
+                    <MessageCircle size={16} className="inline mr-2" /> Message
+                  </Button>
+                )}
                 <div className="flex gap-2">
                   <Button variant="ghost" className="flex-1 text-sm" onClick={() => setReportModal(true)}>
                     <Flag size={14} className="inline mr-1" /> Report

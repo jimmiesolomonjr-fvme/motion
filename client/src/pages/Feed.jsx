@@ -35,7 +35,7 @@ export default function Feed() {
   const handleLike = async (userId) => {
     try {
       const { data } = await api.post(`/likes/${userId}`);
-      setUsers((prev) => prev.filter((u) => u.id !== userId));
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
 
       if (data.matched) {
         const matched = users.find((u) => u.id === userId);

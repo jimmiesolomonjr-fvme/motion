@@ -128,18 +128,32 @@ router.post('/start/:userId', authenticate, async (req, res) => {
     });
 
     if (!match) {
-      // Check for MoveInterest: one user is stepper who created move, other is baddie who expressed interest
-      const moveInterest = await prisma.moveInterest.findFirst({
-        where: {
-          OR: [
-            { baddieId: otherUserId, move: { stepperId: req.userId } },
-            { baddieId: req.userId, move: { stepperId: otherUserId } },
-          ],
-        },
+      // Allow Baddies to message Steppers directly (no match required)
+      const currentUserData = await prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { role: true },
+      });
+      const otherUserData = await prisma.user.findUnique({
+        where: { id: otherUserId },
+        select: { role: true },
       });
 
-      if (!moveInterest) {
-        return res.status(400).json({ error: 'You must match with a user or have a move interest before messaging' });
+      const baddieToStepper = currentUserData?.role === 'BADDIE' && otherUserData?.role === 'STEPPER';
+
+      if (!baddieToStepper) {
+        // Check for MoveInterest as fallback
+        const moveInterest = await prisma.moveInterest.findFirst({
+          where: {
+            OR: [
+              { baddieId: otherUserId, move: { stepperId: req.userId } },
+              { baddieId: req.userId, move: { stepperId: otherUserId } },
+            ],
+          },
+        });
+
+        if (!moveInterest) {
+          return res.status(400).json({ error: 'You must match with a user or have a move interest before messaging' });
+        }
       }
     }
 

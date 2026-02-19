@@ -50,13 +50,20 @@ export default function ProfileCard({ user, onLike }) {
         </div>
       </Link>
 
-      <button
-        onClick={() => onLike(user.id)}
-        className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-gold hover:bg-gold/10 rounded-lg transition-colors"
-      >
-        <Heart size={16} />
-        Like
-      </button>
+      {user.hasLiked ? (
+        <div className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-pink-400 opacity-70">
+          <Heart size={16} fill="currentColor" />
+          Liked
+        </div>
+      ) : (
+        <button
+          onClick={() => onLike(user.id)}
+          className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-gold hover:bg-gold/10 rounded-lg transition-colors"
+        >
+          <Heart size={16} />
+          Like
+        </button>
+      )}
     </div>
   );
 }

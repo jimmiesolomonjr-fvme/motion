@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import ConversationList from '../components/messaging/ConversationList';
 import api from '../services/api';
-import { useSocket } from '../context/SocketContext';
+import { useSocket, useNotifications } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/ui/Avatar';
 import { Link } from 'react-router-dom';
@@ -15,6 +15,7 @@ export default function Messages() {
   const [moveInterests, setMoveInterests] = useState([]);
   const [loading, setLoading] = useState(true);
   const socket = useSocket();
+  const { setUnreadCount } = useNotifications();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,6 +31,8 @@ export default function Messages() {
         setConversations(results[0].data);
         setMatches(results[1].data);
         if (results[2]) setMoveInterests(results[2].data);
+        // Clear unread badge when viewing messages
+        setUnreadCount(0);
       } catch (err) {
         console.error('Messages error:', err);
       } finally {

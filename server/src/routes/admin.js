@@ -202,4 +202,62 @@ router.delete('/vibe-questions/:id', authenticate, requireAdmin, async (req, res
   }
 });
 
+// ===== Hidden Pairs =====
+
+// List all hidden pairs
+router.get('/hidden-pairs', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const pairs = await prisma.hiddenPair.findMany({
+      include: {
+        user1: { include: { profile: true } },
+        user2: { include: { profile: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(pairs.map((p) => ({
+      id: p.id,
+      reason: p.reason,
+      createdAt: p.createdAt,
+      user1: { id: p.user1.id, email: p.user1.email, displayName: p.user1.profile?.displayName },
+      user2: { id: p.user2.id, email: p.user2.email, displayName: p.user2.profile?.displayName },
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create hidden pair
+router.post('/hidden-pairs', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { user1Id, user2Id, reason } = req.body;
+    if (!user1Id || !user2Id) {
+      return res.status(400).json({ error: 'user1Id and user2Id are required' });
+    }
+    if (user1Id === user2Id) {
+      return res.status(400).json({ error: 'Cannot hide a user from themselves' });
+    }
+    // Sort IDs for consistent unique constraint
+    const [u1, u2] = [user1Id, user2Id].sort();
+    const pair = await prisma.hiddenPair.create({
+      data: { user1Id: u1, user2Id: u2, reason },
+    });
+    res.status(201).json(pair);
+  } catch (error) {
+    if (error.code === 'P2002') {
+      return res.status(409).json({ error: 'This pair is already hidden' });
+    }
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete hidden pair
+router.delete('/hidden-pairs/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await prisma.hiddenPair.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;
