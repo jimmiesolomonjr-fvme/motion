@@ -111,6 +111,77 @@ async function main() {
   });
 
   console.log('Created admin user: admin@motion.app / admin12345');
+
+  // Create dummy users
+  const dummyPassword = await bcrypt.hash('motion123', 12);
+
+  const steppers = [
+    { email: 'marcus.j@motion.app', displayName: 'Marcus J', age: 27, city: 'Atlanta, GA', bio: 'Entrepreneur. Building my empire one day at a time. Love good food and better conversation.', lookingFor: 'A queen who matches my ambition' },
+    { email: 'darius.w@motion.app', displayName: 'Darius W', age: 30, city: 'Houston, TX', bio: 'Software engineer by day, DJ by night. Always in motion.', lookingFor: 'Someone who vibes with versatility' },
+    { email: 'khalil.m@motion.app', displayName: 'Khalil M', age: 25, city: 'New York, NY', bio: 'Finance bro with a creative soul. Gallery openings and basketball games.', lookingFor: 'A woman with depth and style' },
+    { email: 'jamal.r@motion.app', displayName: 'Jamal R', age: 28, city: 'Chicago, IL', bio: 'Real estate investor. Family first, always. Let me show you the city.', lookingFor: 'My future wife, no games' },
+    { email: 'trevon.b@motion.app', displayName: 'Trevon B', age: 26, city: 'Los Angeles, CA', bio: 'Personal trainer and model. Health is wealth. Positive energy only.', lookingFor: 'A baddie who takes care of herself too' },
+    { email: 'andre.c@motion.app', displayName: 'Andre C', age: 32, city: 'Miami, FL', bio: 'Restaurant owner. I cook, I clean, I provide. Old school values.', lookingFor: 'A partner to build with' },
+    { email: 'isaiah.t@motion.app', displayName: 'Isaiah T', age: 24, city: 'Dallas, TX', bio: 'Music producer. Grammy season coming soon. Watch the moves.', lookingFor: 'My muse and my peace' },
+    { email: 'cameron.d@motion.app', displayName: 'Cameron D', age: 29, city: 'Washington, DC', bio: 'Attorney by trade. Sneakerhead by passion. Let\'s debate over dinner.', lookingFor: 'Smart, beautiful, and driven' },
+    { email: 'xavier.l@motion.app', displayName: 'Xavier L', age: 31, city: 'Philadelphia, PA', bio: 'Tech startup founder. Building the future. Need a queen who gets the grind.', lookingFor: 'Someone who supports the vision' },
+    { email: 'jaylen.h@motion.app', displayName: 'Jaylen H', age: 27, city: 'Charlotte, NC', bio: 'Dentist. Smile specialist on and off the clock. Adventure seeker.', lookingFor: 'A genuine connection' },
+  ];
+
+  const baddies = [
+    { email: 'aisha.k@motion.app', displayName: 'Aisha K', age: 25, city: 'Atlanta, GA', bio: 'Makeup artist & influencer. Soft life advocate. Travel is my therapy.', lookingFor: 'A provider who moves with intention' },
+    { email: 'maya.s@motion.app', displayName: 'Maya S', age: 23, city: 'New York, NY', bio: 'Fashion designer in the making. Runway to real life. Always camera ready.', lookingFor: 'A stepper who matches my energy' },
+    { email: 'zara.p@motion.app', displayName: 'Zara P', age: 26, city: 'Los Angeles, CA', bio: 'Registered nurse. Healing hands and a beautiful soul. Brunch is life.', lookingFor: 'Stability and spontaneity' },
+    { email: 'jasmine.w@motion.app', displayName: 'Jasmine W', age: 28, city: 'Houston, TX', bio: 'Marketing exec. Boss moves only. Wine nights and weekend getaways.', lookingFor: 'A man who leads with confidence' },
+    { email: 'nia.r@motion.app', displayName: 'Nia R', age: 24, city: 'Miami, FL', bio: 'Fitness model. Beach days and green smoothies. Living my best life.', lookingFor: 'Someone who keeps up' },
+    { email: 'brianna.t@motion.app', displayName: 'Brianna T', age: 27, city: 'Chicago, IL', bio: 'Law student. Future judge. Netflix and case studies. Feed me tacos.', lookingFor: 'Ambition is the biggest turn on' },
+    { email: 'taylor.m@motion.app', displayName: 'Taylor M', age: 22, city: 'Dallas, TX', bio: 'Content creator. 200k followers and counting. Let\'s make memories.', lookingFor: 'A stepper with substance' },
+    { email: 'destiny.j@motion.app', displayName: 'Destiny J', age: 29, city: 'Washington, DC', bio: 'Pharmacist. Independent queen. Love to cook, love to be spoiled.', lookingFor: 'A gentleman and a go-getter' },
+    { email: 'kayla.b@motion.app', displayName: 'Kayla B', age: 25, city: 'Philadelphia, PA', bio: 'Hair stylist & salon owner. Creative energy. Loyalty above everything.', lookingFor: 'Real love, no situationships' },
+    { email: 'sasha.d@motion.app', displayName: 'Sasha D', age: 26, city: 'Charlotte, NC', bio: 'Interior designer. Aesthetic queen. Good vibes and good wine.', lookingFor: 'A man with taste and vision' },
+  ];
+
+  for (const s of steppers) {
+    const user = await prisma.user.upsert({
+      where: { email: s.email },
+      update: {},
+      create: { email: s.email, passwordHash: dummyPassword, role: 'STEPPER', isDummy: true },
+    });
+    await prisma.profile.upsert({
+      where: { userId: user.id },
+      update: {},
+      create: { userId: user.id, displayName: s.displayName, age: s.age, city: s.city, bio: s.bio, lookingFor: s.lookingFor },
+    });
+  }
+  console.log(`Created ${steppers.length} dummy Steppers`);
+
+  for (const b of baddies) {
+    const user = await prisma.user.upsert({
+      where: { email: b.email },
+      update: {},
+      create: { email: b.email, passwordHash: dummyPassword, role: 'BADDIE', isDummy: true },
+    });
+    await prisma.profile.upsert({
+      where: { userId: user.id },
+      update: {},
+      create: { userId: user.id, displayName: b.displayName, age: b.age, city: b.city, bio: b.bio, lookingFor: b.lookingFor },
+    });
+  }
+  console.log(`Created ${baddies.length} dummy Baddies`);
+
+  // Seed default app settings
+  await prisma.appSetting.upsert({
+    where: { key: 'freeMessaging' },
+    update: {},
+    create: { key: 'freeMessaging', value: 'true' },
+  });
+  await prisma.appSetting.upsert({
+    where: { key: 'showDummyUsers' },
+    update: {},
+    create: { key: 'showDummyUsers', value: 'true' },
+  });
+  console.log('Seeded app settings');
+
   console.log('Seed complete!');
 }
 

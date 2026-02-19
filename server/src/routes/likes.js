@@ -76,6 +76,18 @@ router.post('/:userId', authenticate, async (req, res) => {
   }
 });
 
+// Check if current user has liked a specific user
+router.get('/check/:userId', authenticate, async (req, res) => {
+  try {
+    const like = await prisma.like.findUnique({
+      where: { likerId_likedId: { likerId: req.userId, likedId: req.params.userId } },
+    });
+    res.json({ hasLiked: !!like });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Unlike a user
 router.delete('/:userId', authenticate, async (req, res) => {
   try {

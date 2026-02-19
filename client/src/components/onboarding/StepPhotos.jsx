@@ -46,7 +46,7 @@ export default function StepPhotos({ onComplete }) {
     <div className="space-y-6">
       <div className="text-center">
         <h2 className="text-2xl font-bold mb-2">Add Photos</h2>
-        <p className="text-gray-400">Add up to 6 photos to your profile</p>
+        <p className="text-gray-400">Add at least 1 photo (up to 6) to your profile</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -80,12 +80,18 @@ export default function StepPhotos({ onComplete }) {
       {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
       <div className="space-y-3">
-        <button onClick={onComplete} className="w-full btn-gold">
-          {photos.length > 0 ? "Let's Go" : 'Skip for Now'}
+        <button
+          onClick={onComplete}
+          disabled={photos.length === 0}
+          className="w-full btn-gold disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {photos.length > 0 ? "Let's Go" : 'Upload at least 1 photo'}
         </button>
-        <p className="text-center text-xs text-gray-500">
-          You can always add photos later from your profile
-        </p>
+        {photos.length === 0 && (
+          <p className="text-center text-xs text-gray-400">
+            A photo is required to complete your profile
+          </p>
+        )}
       </div>
     </div>
   );

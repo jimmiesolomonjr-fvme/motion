@@ -95,6 +95,7 @@ router.get('/users', authenticate, requireAdmin, async (req, res) => {
         role: u.role,
         isPremium: u.isPremium,
         isBanned: u.isBanned,
+        isHidden: u.isHidden,
         isVerified: u.isVerified,
         createdAt: u.createdAt,
         profile: u.profile,
@@ -255,6 +256,51 @@ router.delete('/hidden-pairs/:id', authenticate, requireAdmin, async (req, res) 
   try {
     await prisma.hiddenPair.delete({ where: { id: req.params.id } });
     res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== App Settings =====
+
+// Get all settings
+router.get('/settings', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const settings = await prisma.appSetting.findMany();
+    const obj = {};
+    settings.forEach((s) => { obj[s.key] = s.value; });
+    res.json(obj);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update a setting
+router.put('/settings/:key', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { value } = req.body;
+    const setting = await prisma.appSetting.upsert({
+      where: { key: req.params.key },
+      update: { value: String(value) },
+      create: { key: req.params.key, value: String(value) },
+    });
+    res.json(setting);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== Shadow-hide user from all =====
+
+// Toggle isHidden for a user
+router.put('/users/:userId/hide', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { hidden } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.params.userId },
+      data: { isHidden: !!hidden },
+    });
+    res.json({ id: user.id, isHidden: user.isHidden });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

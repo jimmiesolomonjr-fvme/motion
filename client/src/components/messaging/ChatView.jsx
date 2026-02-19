@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Square, ArrowLeft, Crown } from 'lucide-react';
+import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
@@ -17,14 +17,18 @@ export default function ChatView({ conversationId, otherUser }) {
   const [typing, setTyping] = useState(false);
   const [socketError, setSocketError] = useState('');
   const [upgrading, setUpgrading] = useState(false);
+  const [freeMessaging, setFreeMessaging] = useState(true);
   const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
-  const needsPremium = user?.role === 'STEPPER' && !user?.isPremium;
+  const needsPremium = user?.role === 'STEPPER' && !user?.isPremium && !freeMessaging;
 
   useEffect(() => {
     api.get(`/messages/${conversationId}`).then(({ data }) => setMessages(data));
+    api.get('/payments/status').then(({ data }) => {
+      if (data.freeMessaging !== undefined) setFreeMessaging(data.freeMessaging);
+    }).catch(() => {});
   }, [conversationId]);
 
   useEffect(() => {
@@ -149,6 +153,21 @@ export default function ChatView({ conversationId, otherUser }) {
     }
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      await api.post(`/messages/${conversationId}/image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    } catch {
+      // Handle silently
+    }
+    e.target.value = '';
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] max-w-lg mx-auto">
       {/* Header */}
@@ -193,6 +212,10 @@ export default function ChatView({ conversationId, otherUser }) {
           <>
             {socketError && <p className="text-xs text-red-400 mb-2 text-center">{socketError}</p>}
             <div className="flex items-center gap-2">
+              <label className="p-2.5 rounded-xl bg-dark-50 text-gray-400 hover:text-white transition-colors cursor-pointer">
+                <ImagePlus size={18} />
+                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              </label>
               <button
                 onClick={recording ? stopRecording : startRecording}
                 className={`p-2.5 rounded-xl transition-colors ${

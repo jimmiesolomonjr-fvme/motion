@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requirePremium } from '../middleware/premium.js';
-import { uploadVoice, toDataUrl } from '../middleware/upload.js';
+import { upload, uploadVoice, toDataUrl } from '../middleware/upload.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -210,6 +210,48 @@ router.post('/:conversationId/voice', authenticate, requirePremium, uploadVoice.
     res.status(201).json(message);
   } catch (error) {
     console.error('Voice upload error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Upload image in chat
+router.post('/:conversationId/image', authenticate, requirePremium, upload.single('image'), async (req, res) => {
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: req.params.conversationId },
+    });
+
+    if (!conversation || (conversation.user1Id !== req.userId && conversation.user2Id !== req.userId)) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const message = await prisma.message.create({
+      data: {
+        conversationId: req.params.conversationId,
+        senderId: req.userId,
+        content: req.file.buffer ? toDataUrl(req.file) : `/uploads/${req.file.filename}`,
+        contentType: 'IMAGE',
+      },
+    });
+
+    await prisma.conversation.update({
+      where: { id: req.params.conversationId },
+      data: { lastMessageAt: new Date() },
+    });
+
+    // Emit via socket so chat updates in real-time
+    try {
+      const { io } = await import('../../server.js');
+      io.to(`conv:${req.params.conversationId}`).emit('new-message', message);
+      const otherUserId = conversation.user1Id === req.userId ? conversation.user2Id : conversation.user1Id;
+      io.to(otherUserId).emit('message-notification', { conversationId: req.params.conversationId, message });
+    } catch {
+      // Socket notification is best-effort
+    }
+
+    res.status(201).json(message);
+  } catch (error) {
+    console.error('Image upload error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

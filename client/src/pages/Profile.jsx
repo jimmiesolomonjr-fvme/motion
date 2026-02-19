@@ -27,6 +27,8 @@ export default function Profile() {
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [freeMessaging, setFreeMessaging] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -38,8 +40,14 @@ export default function Profile() {
         setEditForm({ displayName: data.displayName, bio: data.bio || '', city: data.city, lookingFor: data.lookingFor || '' });
 
         if (!isOwnProfile) {
-          const { data: score } = await api.get(`/vibe/score/${userId}`);
-          setVibeScore(score.score);
+          const [scoreRes, likeRes, payRes] = await Promise.all([
+            api.get(`/vibe/score/${userId}`),
+            api.get(`/likes/check/${userId}`),
+            api.get('/payments/status').catch(() => ({ data: {} })),
+          ]);
+          setVibeScore(scoreRes.data.score);
+          setLiked(likeRes.data.hasLiked);
+          if (payRes.data.freeMessaging !== undefined) setFreeMessaging(payRes.data.freeMessaging);
         }
       } catch {
         navigate('/feed');
@@ -84,7 +92,8 @@ export default function Profile() {
 
   const handleLike = async () => {
     try {
-      await api.post(`/likes/${userId}`);
+      const { data } = await api.post(`/likes/${userId}`);
+      setLiked(true);
     } catch (err) {
       console.error('Like error:', err);
     }
@@ -223,10 +232,17 @@ export default function Profile() {
               </Button>
             ) : (
               <div className="space-y-2">
-                <Button variant="gold" className="w-full" onClick={handleLike}>
-                  <Heart size={16} className="inline mr-2" /> Like
-                </Button>
-                {currentUser?.role === 'BADDIE' && profile.role === 'STEPPER' && (
+                {liked ? (
+                  <Button variant="outline" className="w-full text-pink-400 border-pink-400/30" disabled>
+                    <Heart size={16} className="inline mr-2" fill="currentColor" /> Liked
+                  </Button>
+                ) : (
+                  <Button variant="gold" className="w-full" onClick={handleLike}>
+                    <Heart size={16} className="inline mr-2" /> Like
+                  </Button>
+                )}
+                {((currentUser?.role === 'BADDIE' && profile.role === 'STEPPER') ||
+                  (currentUser?.role === 'STEPPER' && profile.role === 'BADDIE' && (freeMessaging || currentUser?.isPremium))) && (
                   <Button variant="outline" className="w-full" onClick={async () => {
                     try {
                       const { data } = await api.post(`/messages/start/${userId}`);

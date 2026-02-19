@@ -13,8 +13,14 @@ export async function requirePremium(req, res, next) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Baddies message freely, Steppers need premium
+    // Baddies message freely
     if (user.role === 'BADDIE') {
+      return next();
+    }
+
+    // Check if free messaging is enabled
+    const freeMessaging = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } });
+    if (freeMessaging?.value === 'true') {
       return next();
     }
 

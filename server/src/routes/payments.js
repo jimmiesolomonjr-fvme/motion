@@ -51,13 +51,17 @@ router.post('/checkout', authenticate, async (req, res) => {
 // Get subscription status
 router.get('/status', authenticate, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      include: { subscription: true },
-    });
+    const [user, freeMessaging] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: req.userId },
+        include: { subscription: true },
+      }),
+      prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } }),
+    ]);
 
     res.json({
       isPremium: user?.isPremium || false,
+      freeMessaging: freeMessaging?.value === 'true',
       subscription: user?.subscription
         ? {
             status: user.subscription.status,

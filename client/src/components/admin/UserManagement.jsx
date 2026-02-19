@@ -3,7 +3,7 @@ import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import api from '../../services/api';
-import { BadgeCheck, Ban, Shield } from 'lucide-react';
+import { BadgeCheck, Ban, EyeOff } from 'lucide-react';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -29,6 +29,11 @@ export default function UserManagement() {
     fetchUsers();
   };
 
+  const toggleHide = async (userId, currentHidden) => {
+    await api.put(`/admin/users/${userId}/hide`, { hidden: !currentHidden });
+    fetchUsers();
+  };
+
   return (
     <div>
       <Input
@@ -48,6 +53,7 @@ export default function UserManagement() {
                 <span className={u.role === 'STEPPER' ? 'badge-stepper' : 'badge-baddie'}>{u.role}</span>
                 {u.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
                 {u.isBanned && <span className="text-xs text-red-400 font-bold">BANNED</span>}
+                {u.isHidden && <span className="text-xs text-orange-400 font-bold">HIDDEN</span>}
               </div>
               <p className="text-xs text-gray-500">{u.email}</p>
             </div>
@@ -58,6 +64,13 @@ export default function UserManagement() {
                 title={u.isVerified ? 'Remove verification' : 'Verify user'}
               >
                 <BadgeCheck size={16} />
+              </button>
+              <button
+                onClick={() => toggleHide(u.id, u.isHidden)}
+                className={`p-1.5 rounded-lg transition-colors ${u.isHidden ? 'bg-orange-500/20 text-orange-400' : 'bg-dark-50 text-gray-500'}`}
+                title={u.isHidden ? 'Unhide from all' : 'Hide from all'}
+              >
+                <EyeOff size={16} />
               </button>
               <button
                 onClick={() => toggleBan(u.id, u.isBanned)}

@@ -51,15 +51,18 @@ export function setupSocketHandlers(io) {
         if (!conversation) return;
         if (conversation.user1Id !== socket.userId && conversation.user2Id !== socket.userId) return;
 
-        // Premium check for Steppers
+        // Premium check for Steppers (unless free messaging is on)
         if (socket.userRole === 'STEPPER') {
-          const user = await prisma.user.findUnique({
-            where: { id: socket.userId },
-            select: { isPremium: true },
-          });
-          if (!user?.isPremium) {
-            socket.emit('error', { message: 'Premium subscription required' });
-            return;
+          const freeMessaging = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } }).catch(() => null);
+          if (freeMessaging?.value !== 'true') {
+            const user = await prisma.user.findUnique({
+              where: { id: socket.userId },
+              select: { isPremium: true },
+            });
+            if (!user?.isPremium) {
+              socket.emit('error', { message: 'Premium subscription required' });
+              return;
+            }
           }
         }
 

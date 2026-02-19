@@ -40,11 +40,21 @@ router.post('/', authenticate, async (req, res) => {
 // Get active Moves
 router.get('/', authenticate, async (req, res) => {
   try {
+    // Steppers only see their own moves (unless admin)
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { isAdmin: true },
+    });
+    const whereClause = {
+      isActive: true,
+      date: { gte: new Date() },
+    };
+    if (req.userRole === 'STEPPER' && !currentUser?.isAdmin) {
+      whereClause.stepperId = req.userId;
+    }
+
     const moves = await prisma.move.findMany({
-      where: {
-        isActive: true,
-        date: { gte: new Date() },
-      },
+      where: whereClause,
       include: {
         stepper: { include: { profile: true } },
         _count: { select: { interests: true } },

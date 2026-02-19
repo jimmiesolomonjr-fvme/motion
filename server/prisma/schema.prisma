@@ -15,6 +15,7 @@ enum Role {
 enum ContentType {
   TEXT
   VOICE
+  IMAGE
 }
 
 enum ReportStatus {
@@ -32,6 +33,8 @@ model User {
   isPremium    Boolean  @default(false)
   isVerified   Boolean  @default(false)
   isBanned     Boolean  @default(false)
+  isHidden     Boolean  @default(false)
+  isDummy      Boolean  @default(false)
   isAdmin      Boolean  @default(false)
   lastOnline   DateTime @default(now())
   locationLat  Float?
@@ -224,4 +227,9 @@ model HiddenPair {
   user2 User @relation("HiddenUser2", fields: [user2Id], references: [id])
 
   @@unique([user1Id, user2Id])
+}
+
+model AppSetting {
+  key   String @id
+  value String
 }

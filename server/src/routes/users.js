@@ -160,6 +160,10 @@ router.get('/feed', authenticate, async (req, res) => {
 
     const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds])];
 
+    // Check if dummy users should be shown
+    const showDummySetting = await prisma.appSetting.findUnique({ where: { key: 'showDummyUsers' } });
+    const hideDummies = showDummySetting?.value !== 'true';
+
     // Get already-liked user IDs (for hasLiked flag)
     const likes = await prisma.like.findMany({
       where: { likerId: req.userId },
@@ -175,6 +179,8 @@ router.get('/feed', authenticate, async (req, res) => {
         id: { notIn: excludeIds },
         role: targetRole,
         isBanned: false,
+        isHidden: false,
+        ...(hideDummies && { isDummy: false }),
         profile: { isNot: null },
         ...(onlineOnly === 'true' && {
           lastOnline: { gte: new Date(Date.now() - 5 * 60 * 1000) },
