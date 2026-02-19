@@ -116,8 +116,8 @@ router.post('/:conversationId', authenticate, requirePremium, async (req, res) =
   }
 });
 
-// Start conversation with a matched user
-router.post('/start/:userId', authenticate, requirePremium, async (req, res) => {
+// Start conversation with a matched user or move interest
+router.post('/start/:userId', authenticate, async (req, res) => {
   try {
     const otherUserId = req.params.userId;
 
@@ -128,7 +128,19 @@ router.post('/start/:userId', authenticate, requirePremium, async (req, res) => 
     });
 
     if (!match) {
-      return res.status(400).json({ error: 'You must match with a user before messaging' });
+      // Check for MoveInterest: one user is stepper who created move, other is baddie who expressed interest
+      const moveInterest = await prisma.moveInterest.findFirst({
+        where: {
+          OR: [
+            { baddieId: otherUserId, move: { stepperId: req.userId } },
+            { baddieId: req.userId, move: { stepperId: otherUserId } },
+          ],
+        },
+      });
+
+      if (!moveInterest) {
+        return res.status(400).json({ error: 'You must match with a user or have a move interest before messaging' });
+      }
     }
 
     // Check if conversation already exists

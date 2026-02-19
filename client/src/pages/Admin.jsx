@@ -4,8 +4,9 @@ import AppLayout from '../components/layout/AppLayout';
 import Dashboard from '../components/admin/Dashboard';
 import ReportsList from '../components/admin/ReportsList';
 import UserManagement from '../components/admin/UserManagement';
+import VibeQuestions from '../components/admin/VibeQuestions';
 import { useAuth } from '../context/AuthContext';
-import { BarChart3, AlertTriangle, Users } from 'lucide-react';
+import { BarChart3, AlertTriangle, Users, Sparkles } from 'lucide-react';
 
 export default function Admin() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ export default function Admin() {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'reports', label: 'Reports', icon: AlertTriangle },
     { id: 'users', label: 'Users', icon: Users },
+    { id: 'vibe', label: 'Vibe', icon: Sparkles },
   ];
 
   return (
@@ -41,6 +43,7 @@ export default function Admin() {
       {tab === 'dashboard' && <Dashboard />}
       {tab === 'reports' && <ReportsList />}
       {tab === 'users' && <UserManagement />}
+      {tab === 'vibe' && <VibeQuestions />}
     </AppLayout>
   );
 }

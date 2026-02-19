@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Square, ArrowLeft } from 'lucide-react';
+import { Send, Mic, Square, ArrowLeft, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
@@ -9,15 +9,19 @@ import api from '../../services/api';
 import { isOnline } from '../../utils/formatters';
 
 export default function ChatView({ conversationId, otherUser }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const socket = useSocket();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [recording, setRecording] = useState(false);
   const [typing, setTyping] = useState(false);
+  const [socketError, setSocketError] = useState('');
+  const [upgrading, setUpgrading] = useState(false);
   const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+
+  const needsPremium = user?.role === 'STEPPER' && !user?.isPremium;
 
   useEffect(() => {
     api.get(`/messages/${conversationId}`).then(({ data }) => setMessages(data));
@@ -45,10 +49,15 @@ export default function ChatView({ conversationId, otherUser }) {
       setMessages((prev) => prev.map((m) => (m.senderId === user.id ? { ...m, readAt: new Date() } : m)));
     };
 
+    const handleError = (data) => {
+      if (data?.error) setSocketError(data.error);
+    };
+
     socket.on('new-message', handleNewMessage);
     socket.on('user-typing', handleTyping);
     socket.on('user-stop-typing', handleStopTyping);
     socket.on('messages-read', handleRead);
+    socket.on('error', handleError);
 
     return () => {
       socket.emit('leave-conversation', conversationId);
@@ -56,6 +65,7 @@ export default function ChatView({ conversationId, otherUser }) {
       socket.off('user-typing', handleTyping);
       socket.off('user-stop-typing', handleStopTyping);
       socket.off('messages-read', handleRead);
+      socket.off('error', handleError);
     };
   }, [socket, conversationId]);
 
@@ -68,6 +78,19 @@ export default function ChatView({ conversationId, otherUser }) {
     socket.emit('send-message', { conversationId, content: input.trim() });
     setInput('');
     socket.emit('stop-typing', { conversationId });
+  };
+
+  const handleUpgrade = async () => {
+    setUpgrading(true);
+    try {
+      await api.post('/payments/free-upgrade');
+      await refreshUser();
+      setSocketError('');
+    } catch (err) {
+      console.error('Upgrade error:', err);
+    } finally {
+      setUpgrading(false);
+    }
   };
 
   const handleKeyDown = (e) => {
@@ -154,26 +177,43 @@ export default function ChatView({ conversationId, otherUser }) {
 
       {/* Input */}
       <div className="p-3 border-t border-dark-50">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={recording ? stopRecording : startRecording}
-            className={`p-2.5 rounded-xl transition-colors ${
-              recording ? 'bg-red-500 text-white animate-pulse' : 'bg-dark-50 text-gray-400 hover:text-white'
-            }`}
-          >
-            {recording ? <Square size={18} /> : <Mic size={18} />}
-          </button>
-          <input
-            value={input}
-            onChange={handleInput}
-            onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            className="flex-1 input-field py-2.5"
-          />
-          <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 bg-gold rounded-xl text-dark disabled:opacity-30">
-            <Send size={18} />
-          </button>
-        </div>
+        {needsPremium ? (
+          <div className="text-center py-2 space-y-2">
+            <p className="text-sm text-gray-400">Steppers need Premium to send messages</p>
+            <button
+              onClick={handleUpgrade}
+              disabled={upgrading}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gold text-dark rounded-xl font-semibold text-sm hover:bg-gold/90 disabled:opacity-50"
+            >
+              <Crown size={16} />
+              {upgrading ? 'Upgrading...' : 'Upgrade to Premium'}
+            </button>
+          </div>
+        ) : (
+          <>
+            {socketError && <p className="text-xs text-red-400 mb-2 text-center">{socketError}</p>}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={recording ? stopRecording : startRecording}
+                className={`p-2.5 rounded-xl transition-colors ${
+                  recording ? 'bg-red-500 text-white animate-pulse' : 'bg-dark-50 text-gray-400 hover:text-white'
+                }`}
+              >
+                {recording ? <Square size={18} /> : <Mic size={18} />}
+              </button>
+              <input
+                value={input}
+                onChange={handleInput}
+                onKeyDown={handleKeyDown}
+                placeholder="Type a message..."
+                className="flex-1 input-field py-2.5"
+              />
+              <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 bg-gold rounded-xl text-dark disabled:opacity-30">
+                <Send size={18} />
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

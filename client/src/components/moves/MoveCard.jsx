@@ -1,4 +1,4 @@
-import { MapPin, Calendar, Users, BadgeCheck } from 'lucide-react';
+import { MapPin, Calendar, Users, BadgeCheck, Check } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import { formatDate } from '../../utils/formatters';
@@ -38,9 +38,15 @@ export default function MoveCard({ move, onInterest, userRole }) {
       </div>
 
       {userRole === 'BADDIE' && (
-        <Button variant="gold" className="w-full" onClick={() => onInterest(move.id)}>
-          I&apos;m Interested
-        </Button>
+        move.hasInterest ? (
+          <Button variant="outline" className="w-full opacity-70 cursor-default" disabled>
+            <Check size={16} className="inline mr-2 text-green-400" /> Interested
+          </Button>
+        ) : (
+          <Button variant="gold" className="w-full" onClick={() => onInterest(move.id)}>
+            I&apos;m Interested
+          </Button>
+        )
       )}
     </div>
   );

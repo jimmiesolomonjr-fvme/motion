@@ -135,4 +135,71 @@ router.put('/users/:userId/verify', authenticate, requireAdmin, async (req, res)
   }
 });
 
+// ===== Vibe Questions CRUD =====
+
+// List all vibe questions
+router.get('/vibe-questions', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const questions = await prisma.vibeQuestion.findMany({
+      include: { _count: { select: { answers: true } } },
+      orderBy: [{ category: 'asc' }, { createdAt: 'desc' }],
+    });
+    res.json(questions.map((q) => ({
+      id: q.id,
+      questionText: q.questionText,
+      category: q.category,
+      isActive: q.isActive,
+      answerCount: q._count.answers,
+      createdAt: q.createdAt,
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Create vibe question
+router.post('/vibe-questions', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { questionText, category } = req.body;
+    if (!questionText || !category) {
+      return res.status(400).json({ error: 'questionText and category are required' });
+    }
+    const question = await prisma.vibeQuestion.create({
+      data: { questionText, category },
+    });
+    res.status(201).json(question);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update vibe question
+router.put('/vibe-questions/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { questionText, category, isActive } = req.body;
+    const data = {};
+    if (questionText !== undefined) data.questionText = questionText;
+    if (category !== undefined) data.category = category;
+    if (isActive !== undefined) data.isActive = isActive;
+
+    const question = await prisma.vibeQuestion.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json(question);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete vibe question
+router.delete('/vibe-questions/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await prisma.vibeQuestion.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Input, { Textarea } from '../ui/Input';
+import LocationAutocomplete from '../ui/LocationAutocomplete';
 import Button from '../ui/Button';
 import api from '../../services/api';
 
@@ -31,7 +32,7 @@ export default function CreateMove({ onCreated, onClose }) {
       <Input label="Title" name="title" value={form.title} onChange={handleChange} placeholder='e.g. "Dinner at Nobu Saturday"' required />
       <Textarea label="Description" name="description" value={form.description} onChange={handleChange} placeholder="Set the vibe — what's the plan?" required />
       <Input label="Date & Time" name="date" type="datetime-local" value={form.date} onChange={handleChange} required />
-      <Input label="Location" name="location" value={form.location} onChange={handleChange} placeholder="e.g. Nobu Atlanta" required />
+      <LocationAutocomplete label="Location" name="location" value={form.location} onChange={handleChange} placeholder="e.g. Nobu Atlanta" required />
       <Input label="Max Interest" name="maxInterest" type="number" min="1" max="50" value={form.maxInterest} onChange={handleChange} />
 
       {error && <p className="text-red-400 text-sm">{error}</p>}

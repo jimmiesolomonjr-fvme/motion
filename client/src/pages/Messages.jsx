@@ -3,24 +3,33 @@ import AppLayout from '../components/layout/AppLayout';
 import ConversationList from '../components/messaging/ConversationList';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/ui/Avatar';
 import { Link } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 
 export default function Messages() {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [moveInterests, setMoveInterests] = useState([]);
   const [loading, setLoading] = useState(true);
   const socket = useSocket();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [convRes, matchRes] = await Promise.all([
+        const promises = [
           api.get('/messages/conversations'),
           api.get('/likes/matches'),
-        ]);
-        setConversations(convRes.data);
-        setMatches(matchRes.data);
+        ];
+        if (user?.role === 'STEPPER') {
+          promises.push(api.get('/moves/interests'));
+        }
+        const results = await Promise.all(promises);
+        setConversations(results[0].data);
+        setMatches(results[1].data);
+        if (results[2]) setMoveInterests(results[2].data);
       } catch (err) {
         console.error('Messages error:', err);
       } finally {
@@ -82,6 +91,31 @@ export default function Messages() {
                   <div className="absolute inset-0 rounded-full border-2 border-gold" />
                 </div>
                 <span className="text-xs text-gray-300 max-w-[64px] truncate">{match.user.profile?.displayName}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Move Interests (Steppers only) */}
+      {moveInterests.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-1.5">
+            <Sparkles size={14} className="text-gold" /> Interested in Your Moves
+          </h2>
+          <div className="space-y-2">
+            {moveInterests.map((interest) => (
+              <button
+                key={interest.id}
+                onClick={() => startConversation(interest.baddie.id)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-dark-50 hover:bg-dark-100 transition-colors text-left"
+              >
+                <Avatar src={interest.baddie.profile?.photos} size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">{interest.baddie.profile?.displayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{interest.moveTitle}</p>
+                </div>
+                <span className="text-xs text-gold">Chat</span>
               </button>
             ))}
           </div>

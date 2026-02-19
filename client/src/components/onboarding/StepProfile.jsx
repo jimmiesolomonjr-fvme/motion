@@ -1,4 +1,5 @@
 import Input, { Textarea } from '../ui/Input';
+import LocationAutocomplete from '../ui/LocationAutocomplete';
 
 export default function StepProfile({ profile, setProfile, onNext, onBack }) {
   const handleChange = (e) => {
@@ -34,7 +35,7 @@ export default function StepProfile({ profile, setProfile, onNext, onBack }) {
           placeholder="Must be 18+"
         />
 
-        <Input
+        <LocationAutocomplete
           label="City"
           name="city"
           value={profile.city}

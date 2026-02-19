@@ -52,8 +52,13 @@ router.get('/', authenticate, async (req, res) => {
       orderBy: { date: 'asc' },
     });
 
-    // If user is a Stepper, show their own moves with interest details
-    // If Baddie, show all active moves
+    // Check which moves the current user has expressed interest in
+    const userInterests = await prisma.moveInterest.findMany({
+      where: { baddieId: req.userId },
+      select: { moveId: true },
+    });
+    const interestedMoveIds = new Set(userInterests.map((i) => i.moveId));
+
     const result = moves.map((m) => ({
       id: m.id,
       title: m.title,
@@ -63,6 +68,7 @@ router.get('/', authenticate, async (req, res) => {
       maxInterest: m.maxInterest,
       interestCount: m._count.interests,
       createdAt: m.createdAt,
+      hasInterest: interestedMoveIds.has(m.id),
       stepper: {
         id: m.stepper.id,
         isVerified: m.stepper.isVerified,
@@ -97,6 +103,40 @@ router.get('/mine', authenticate, async (req, res) => {
 
     res.json(moves);
   } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get all interests across stepper's moves (for messages page)
+router.get('/interests', authenticate, async (req, res) => {
+  try {
+    if (req.userRole !== 'STEPPER') {
+      return res.status(403).json({ error: 'Only Steppers have move interests' });
+    }
+
+    const interests = await prisma.moveInterest.findMany({
+      where: { move: { stepperId: req.userId } },
+      include: {
+        baddie: { include: { profile: true } },
+        move: { select: { id: true, title: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(interests.map((i) => ({
+      id: i.id,
+      moveId: i.move.id,
+      moveTitle: i.move.title,
+      message: i.message,
+      createdAt: i.createdAt,
+      baddie: {
+        id: i.baddie.id,
+        lastOnline: i.baddie.lastOnline,
+        profile: i.baddie.profile,
+      },
+    })));
+  } catch (error) {
+    console.error('Get move interests error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

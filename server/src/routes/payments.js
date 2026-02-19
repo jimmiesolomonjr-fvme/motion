@@ -70,6 +70,20 @@ router.get('/status', authenticate, async (req, res) => {
   }
 });
 
+// Temporary free upgrade (for testing)
+router.post('/free-upgrade', authenticate, async (req, res) => {
+  try {
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { isPremium: true },
+    });
+    res.json({ success: true, isPremium: true });
+  } catch (error) {
+    console.error('Free upgrade error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Stripe webhook
 router.post('/webhook', async (req, res) => {
   let event;

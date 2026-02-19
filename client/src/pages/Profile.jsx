@@ -5,9 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Button from '../components/ui/Button';
 import Input, { Textarea } from '../components/ui/Input';
+import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 
@@ -25,6 +26,7 @@ export default function Profile() {
   const [reportModal, setReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -88,6 +90,16 @@ export default function Profile() {
     }
   };
 
+  const handlePhotoDelete = async (index) => {
+    try {
+      const { data } = await api.delete(`/users/photos/${index}`);
+      setProfile({ ...profile, photos: data.photos });
+      setSelectedPhotoIndex(0);
+    } catch (err) {
+      console.error('Delete photo error:', err);
+    }
+  };
+
   const handlePhotoUpload = async (e) => {
     const files = e.target.files;
     if (!files.length) return;
@@ -122,11 +134,20 @@ export default function Profile() {
       {/* Photo Gallery */}
       <div className="relative rounded-2xl overflow-hidden mb-4">
         {photos.length > 0 ? (
-          <img src={photos[0]} alt="" className="w-full aspect-[3/4] object-cover" />
+          <img src={photos[selectedPhotoIndex] || photos[0]} alt="" className="w-full aspect-[3/4] object-cover" />
         ) : (
           <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
             <span className="text-6xl">👤</span>
           </div>
+        )}
+
+        {isOwnProfile && photos.length > 0 && (
+          <button
+            onClick={() => handlePhotoDelete(selectedPhotoIndex)}
+            className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-red-500/80 rounded-full flex items-center justify-center transition-colors"
+          >
+            <X className="text-white" size={16} />
+          </button>
         )}
 
         {isOwnProfile && (
@@ -141,7 +162,15 @@ export default function Profile() {
       {photos.length > 1 && (
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {photos.map((p, i) => (
-            <img key={i} src={p} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+            <img
+              key={i}
+              src={p}
+              alt=""
+              onClick={() => setSelectedPhotoIndex(i)}
+              className={`w-16 h-16 rounded-lg object-cover flex-shrink-0 cursor-pointer transition-opacity ${
+                i === selectedPhotoIndex ? 'ring-2 ring-gold' : 'opacity-60 hover:opacity-100'
+              }`}
+            />
           ))}
         </div>
       )}
@@ -152,7 +181,7 @@ export default function Profile() {
           <div className="space-y-3">
             <Input label="Display Name" value={editForm.displayName} onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })} />
             <Textarea label="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
-            <Input label="City" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+            <LocationAutocomplete label="City" name="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
             <Input label="Looking For" value={editForm.lookingFor} onChange={(e) => setEditForm({ ...editForm, lookingFor: e.target.value })} />
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setEditing(false)}>Cancel</Button>

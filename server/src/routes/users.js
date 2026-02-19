@@ -152,14 +152,7 @@ router.get('/feed', authenticate, async (req, res) => {
     });
     const blockedIds = blocks.map((b) => (b.blockerId === req.userId ? b.blockedId : b.blockerId));
 
-    // Get already-liked user IDs
-    const likes = await prisma.like.findMany({
-      where: { likerId: req.userId },
-      select: { likedId: true },
-    });
-    const likedIds = likes.map((l) => l.likedId);
-
-    const excludeIds = [...new Set([req.userId, ...blockedIds, ...likedIds])];
+    const excludeIds = [...new Set([req.userId, ...blockedIds])];
 
     // Show opposite role in feed
     const targetRole = currentUser.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
