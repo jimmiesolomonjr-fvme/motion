@@ -9,7 +9,7 @@ const CATEGORIES = ['Lifestyle', 'Values', 'Social', 'Romance', 'Fun'];
 export default function VibeQuestions() {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newQ, setNewQ] = useState({ questionText: '', category: CATEGORIES[0] });
+  const [newQ, setNewQ] = useState({ questionText: '', category: CATEGORIES[0], resp1: '', resp2: '' });
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
 
@@ -29,8 +29,13 @@ export default function VibeQuestions() {
   const handleCreate = async () => {
     if (!newQ.questionText.trim()) return;
     try {
-      await api.post('/admin/vibe-questions', newQ);
-      setNewQ({ questionText: '', category: CATEGORIES[0] });
+      const payload = {
+        questionText: newQ.questionText,
+        category: newQ.category,
+        responseOptions: [newQ.resp1 || 'Yes', newQ.resp2 || 'No'],
+      };
+      await api.post('/admin/vibe-questions', payload);
+      setNewQ({ questionText: '', category: CATEGORIES[0], resp1: '', resp2: '' });
       fetchQuestions();
     } catch (err) {
       console.error('Create error:', err);
@@ -58,12 +63,21 @@ export default function VibeQuestions() {
 
   const startEdit = (q) => {
     setEditingId(q.id);
-    setEditForm({ questionText: q.questionText, category: q.category });
+    setEditForm({
+      questionText: q.questionText,
+      category: q.category,
+      resp1: q.responseOptions?.[0] || 'Yes',
+      resp2: q.responseOptions?.[1] || 'No',
+    });
   };
 
   const handleSaveEdit = async () => {
     try {
-      await api.put(`/admin/vibe-questions/${editingId}`, editForm);
+      await api.put(`/admin/vibe-questions/${editingId}`, {
+        questionText: editForm.questionText,
+        category: editForm.category,
+        responseOptions: [editForm.resp1 || 'Yes', editForm.resp2 || 'No'],
+      });
       setEditingId(null);
       fetchQuestions();
     } catch (err) {
@@ -107,6 +121,21 @@ export default function VibeQuestions() {
             <Plus size={16} className="inline mr-1" /> Add
           </Button>
         </div>
+        <div className="flex gap-2">
+          <input
+            placeholder="Yes"
+            value={newQ.resp1}
+            onChange={(e) => setNewQ({ ...newQ, resp1: e.target.value })}
+            className="input-field flex-1 text-sm"
+          />
+          <input
+            placeholder="No"
+            value={newQ.resp2}
+            onChange={(e) => setNewQ({ ...newQ, resp2: e.target.value })}
+            className="input-field flex-1 text-sm"
+          />
+        </div>
+        <p className="text-xs text-gray-500">Custom response labels (leave blank for Yes / No)</p>
       </div>
 
       {/* Questions grouped by category */}
@@ -132,6 +161,20 @@ export default function VibeQuestions() {
                         {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                       </select>
                       <div className="flex gap-2">
+                        <input
+                          placeholder="Yes"
+                          value={editForm.resp1}
+                          onChange={(e) => setEditForm({ ...editForm, resp1: e.target.value })}
+                          className="input-field flex-1 text-sm"
+                        />
+                        <input
+                          placeholder="No"
+                          value={editForm.resp2}
+                          onChange={(e) => setEditForm({ ...editForm, resp2: e.target.value })}
+                          className="input-field flex-1 text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2">
                         <button onClick={handleSaveEdit} className="text-green-400 hover:text-green-300"><Check size={16} /></button>
                         <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-white"><X size={16} /></button>
                       </div>
@@ -140,7 +183,10 @@ export default function VibeQuestions() {
                     <>
                       <div className="flex-1 min-w-0">
                         <p className={`text-sm ${q.isActive ? 'text-white' : 'text-gray-500 line-through'}`}>{q.questionText}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{q.answerCount} answers</p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {q.answerCount} answers
+                          {q.responseOptions && ` · ${q.responseOptions[0]} / ${q.responseOptions[1]}`}
+                        </p>
                       </div>
                       <button onClick={() => handleToggle(q)} className="text-gray-400 hover:text-white" title={q.isActive ? 'Deactivate' : 'Activate'}>
                         {q.isActive ? <ToggleRight size={20} className="text-green-400" /> : <ToggleLeft size={20} />}

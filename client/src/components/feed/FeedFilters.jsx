@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { SlidersHorizontal, X } from 'lucide-react';
-import LocationAutocomplete from '../ui/LocationAutocomplete';
 
-export default function FeedFilters({ sort, setSort, onlineOnly, setOnlineOnly, ageRange, setAgeRange, city, setCity }) {
+export default function FeedFilters({ sort, setSort, onlineOnly, setOnlineOnly, ageRange, maxDistance, onApply }) {
   const [showFilters, setShowFilters] = useState(false);
+  const [pendingAge, setPendingAge] = useState(ageRange);
+  const [pendingDistance, setPendingDistance] = useState(maxDistance);
 
   const sortOptions = [
     { value: 'newest', label: 'Newest' },
@@ -11,11 +12,18 @@ export default function FeedFilters({ sort, setSort, onlineOnly, setOnlineOnly, 
     { value: 'vibe', label: 'Best Vibe' },
   ];
 
-  const hasActiveFilters = ageRange[0] !== 18 || ageRange[1] !== 99 || city !== '';
+  const hasActiveFilters = ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100;
+  const hasPendingChanges =
+    pendingAge[0] !== ageRange[0] || pendingAge[1] !== ageRange[1] || pendingDistance !== maxDistance;
 
-  const clearFilters = () => {
-    setAgeRange([18, 99]);
-    setCity('');
+  const handleApply = () => {
+    onApply({ ageRange: pendingAge, maxDistance: pendingDistance });
+  };
+
+  const handleClear = () => {
+    setPendingAge([18, 99]);
+    setPendingDistance(100);
+    onApply({ ageRange: [18, 99], maxDistance: 100 });
   };
 
   return (
@@ -57,49 +65,89 @@ export default function FeedFilters({ sort, setSort, onlineOnly, setOnlineOnly, 
       </div>
 
       {showFilters && (
-        <div className="mt-3 p-4 bg-dark-50 rounded-xl space-y-4">
+        <div className="mt-3 p-4 bg-dark-50 rounded-xl space-y-5">
           {/* Age Range */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Age Range</label>
-            <div className="flex items-center gap-2">
+            <label className="block text-sm font-medium text-gray-300 mb-3">
+              Age: {pendingAge[0]} – {pendingAge[1]}
+            </label>
+            <div className="relative h-6">
               <input
-                type="number"
-                min="18"
-                max="99"
-                value={ageRange[0]}
-                onChange={(e) => setAgeRange([parseInt(e.target.value) || 18, ageRange[1]])}
-                className="input-field w-20 text-center"
+                type="range"
+                min={18}
+                max={99}
+                value={pendingAge[0]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (val <= pendingAge[1]) setPendingAge([val, pendingAge[1]]);
+                }}
+                className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none
+                           [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none
+                           [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full
+                           [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:z-10"
               />
-              <span className="text-gray-500 text-sm">to</span>
               <input
-                type="number"
-                min="18"
-                max="99"
-                value={ageRange[1]}
-                onChange={(e) => setAgeRange([ageRange[0], parseInt(e.target.value) || 99])}
-                className="input-field w-20 text-center"
+                type="range"
+                min={18}
+                max={99}
+                value={pendingAge[1]}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (val >= pendingAge[0]) setPendingAge([pendingAge[0], val]);
+                }}
+                className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none
+                           [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none
+                           [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full
+                           [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:relative [&::-webkit-slider-thumb]:z-10"
+              />
+              {/* Track background */}
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 bg-dark-100 rounded-full" />
+              <div
+                className="absolute top-1/2 -translate-y-1/2 h-1 bg-gold/50 rounded-full"
+                style={{
+                  left: `${((pendingAge[0] - 18) / 81) * 100}%`,
+                  right: `${100 - ((pendingAge[1] - 18) / 81) * 100}%`,
+                }}
               />
             </div>
           </div>
 
-          {/* City */}
-          <LocationAutocomplete
-            label="City"
-            name="city"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder="Filter by city..."
-          />
+          {/* Distance */}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-3">
+              Distance: {pendingDistance >= 100 ? 'No limit' : `${pendingDistance} mi`}
+            </label>
+            <input
+              type="range"
+              min={10}
+              max={100}
+              step={10}
+              value={pendingDistance}
+              onChange={(e) => setPendingDistance(parseInt(e.target.value))}
+              className="w-full appearance-none h-1 bg-dark-100 rounded-full
+                         [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5
+                         [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold [&::-webkit-slider-thumb]:cursor-pointer"
+            />
+          </div>
 
-          {/* Clear Filters */}
-          {hasActiveFilters && (
+          {/* Apply / Clear */}
+          <div className="flex items-center gap-3">
             <button
-              onClick={clearFilters}
-              className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 transition-colors"
+              onClick={handleApply}
+              disabled={!hasPendingChanges}
+              className="btn-gold px-6 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <X size={14} /> Clear Filters
+              Apply Filters
             </button>
-          )}
+            {hasActiveFilters && (
+              <button
+                onClick={handleClear}
+                className="flex items-center gap-1.5 text-sm text-red-400 hover:text-red-300 transition-colors"
+              >
+                <X size={14} /> Clear
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

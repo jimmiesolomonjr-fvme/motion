@@ -155,11 +155,12 @@ model Block {
 }
 
 model VibeQuestion {
-  id           String   @id @default(uuid())
-  questionText String
-  category     String
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id              String   @id @default(uuid())
+  questionText    String
+  category        String
+  isActive        Boolean  @default(true)
+  responseOptions Json?    @default("[\"Yes\", \"No\"]")
+  createdAt       DateTime @default(now())
 
   answers VibeAnswer[]
 }

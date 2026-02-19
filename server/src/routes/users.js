@@ -141,7 +141,7 @@ router.put('/location', authenticate, async (req, res) => {
 // Browse feed
 router.get('/feed', authenticate, async (req, res) => {
   try {
-    const { sort = 'newest', maxDistance, onlineOnly, minAge, maxAge, city } = req.query;
+    const { sort = 'newest', maxDistance, onlineOnly, minAge, maxAge } = req.query;
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { id: true, role: true, locationLat: true, locationLng: true },
@@ -175,6 +175,11 @@ router.get('/feed', authenticate, async (req, res) => {
     // Show opposite role in feed
     const targetRole = currentUser.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
 
+    // Build profile filter imperatively to avoid malformed spread
+    const profileWhere = { isNot: null };
+    if (minAge) profileWhere.age = { gte: parseInt(minAge) };
+    if (maxAge) profileWhere.age = { ...profileWhere.age, lte: parseInt(maxAge) };
+
     const users = await prisma.user.findMany({
       where: {
         id: { notIn: excludeIds },
@@ -182,11 +187,7 @@ router.get('/feed', authenticate, async (req, res) => {
         isBanned: false,
         isHidden: false,
         ...(hideDummies && { isDummy: false }),
-        profile: {
-          isNot: null,
-          ...(minAge || maxAge ? { age: { ...(minAge && { gte: parseInt(minAge) }), ...(maxAge && { lte: parseInt(maxAge) }) } } : {}),
-          ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}),
-        },
+        profile: profileWhere,
         ...(onlineOnly === 'true' && {
           lastOnline: { gte: new Date(Date.now() - 5 * 60 * 1000) },
         }),

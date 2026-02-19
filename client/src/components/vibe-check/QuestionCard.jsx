@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { ThumbsUp, ThumbsDown } from 'lucide-react';
 
 export default function QuestionCard({ question, onAnswer }) {
+  const labels = question.responseOptions || ['Yes', 'No'];
+
   return (
     <motion.div
       initial={{ scale: 0.95, opacity: 0 }}
@@ -17,22 +18,20 @@ export default function QuestionCard({ question, onAnswer }) {
         {question.questionText}
       </h3>
 
-      <div className="flex justify-center gap-6">
-        <button
-          onClick={() => onAnswer(question.id, false)}
-          className="w-16 h-16 rounded-full bg-red-500/10 border-2 border-red-500/30
-                     flex items-center justify-center hover:bg-red-500/20 hover:border-red-500
-                     transition-all active:scale-90"
-        >
-          <ThumbsDown className="text-red-400" size={24} />
-        </button>
+      <div className="flex justify-center gap-4">
         <button
           onClick={() => onAnswer(question.id, true)}
-          className="w-16 h-16 rounded-full bg-green-500/10 border-2 border-green-500/30
-                     flex items-center justify-center hover:bg-green-500/20 hover:border-green-500
-                     transition-all active:scale-90"
+          className="px-8 py-3 rounded-xl bg-gold text-dark font-bold text-base
+                     transition-transform active:scale-95"
         >
-          <ThumbsUp className="text-green-400" size={24} />
+          {labels[0]}
+        </button>
+        <button
+          onClick={() => onAnswer(question.id, false)}
+          className="px-8 py-3 rounded-xl bg-dark-100 border border-gray-600 text-gray-300 font-bold text-base
+                     transition-transform active:scale-95"
+        >
+          {labels[1]}
         </button>
       </div>
     </motion.div>

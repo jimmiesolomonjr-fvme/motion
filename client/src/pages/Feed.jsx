@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import FeedGrid from '../components/feed/FeedGrid';
 import FeedFilters from '../components/feed/FeedFilters';
@@ -12,22 +12,11 @@ export default function Feed() {
   const [sort, setSort] = useState('newest');
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [ageRange, setAgeRange] = useState([18, 99]);
-  const [city, setCity] = useState('');
-  const [debouncedCity, setDebouncedCity] = useState('');
+  const [maxDistance, setMaxDistance] = useState(100);
   const [loading, setLoading] = useState(true);
   const [matchModal, setMatchModal] = useState(null);
-  const cityTimerRef = useRef(null);
 
   useGeolocation();
-
-  // Debounce city input
-  useEffect(() => {
-    clearTimeout(cityTimerRef.current);
-    cityTimerRef.current = setTimeout(() => {
-      setDebouncedCity(city);
-    }, 500);
-    return () => clearTimeout(cityTimerRef.current);
-  }, [city]);
 
   const fetchFeed = async () => {
     setLoading(true);
@@ -35,7 +24,7 @@ export default function Feed() {
       const params = { sort, onlineOnly: onlineOnly.toString() };
       if (ageRange[0] !== 18) params.minAge = ageRange[0];
       if (ageRange[1] !== 99) params.maxAge = ageRange[1];
-      if (debouncedCity) params.city = debouncedCity;
+      if (maxDistance < 100) params.maxDistance = maxDistance;
 
       const { data } = await api.get('/users/feed', { params });
       setUsers(data);
@@ -46,7 +35,12 @@ export default function Feed() {
     }
   };
 
-  useEffect(() => { fetchFeed(); }, [sort, onlineOnly, ageRange[0], ageRange[1], debouncedCity]);
+  useEffect(() => { fetchFeed(); }, [sort, onlineOnly, ageRange[0], ageRange[1], maxDistance]);
+
+  const handleApplyFilters = ({ ageRange: newAge, maxDistance: newDist }) => {
+    setAgeRange(newAge);
+    setMaxDistance(newDist);
+  };
 
   const handleLike = async (userId) => {
     try {
@@ -67,8 +61,8 @@ export default function Feed() {
       <FeedFilters
         sort={sort} setSort={setSort}
         onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
-        ageRange={ageRange} setAgeRange={setAgeRange}
-        city={city} setCity={setCity}
+        ageRange={ageRange} maxDistance={maxDistance}
+        onApply={handleApplyFilters}
       />
 
       {loading ? (

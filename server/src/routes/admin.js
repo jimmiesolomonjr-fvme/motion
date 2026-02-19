@@ -150,6 +150,7 @@ router.get('/vibe-questions', authenticate, requireAdmin, async (req, res) => {
       questionText: q.questionText,
       category: q.category,
       isActive: q.isActive,
+      responseOptions: q.responseOptions,
       answerCount: q._count.answers,
       createdAt: q.createdAt,
     })));
@@ -161,13 +162,13 @@ router.get('/vibe-questions', authenticate, requireAdmin, async (req, res) => {
 // Create vibe question
 router.post('/vibe-questions', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { questionText, category } = req.body;
+    const { questionText, category, responseOptions } = req.body;
     if (!questionText || !category) {
       return res.status(400).json({ error: 'questionText and category are required' });
     }
-    const question = await prisma.vibeQuestion.create({
-      data: { questionText, category },
-    });
+    const data = { questionText, category };
+    if (responseOptions) data.responseOptions = responseOptions;
+    const question = await prisma.vibeQuestion.create({ data });
     res.status(201).json(question);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -177,11 +178,12 @@ router.post('/vibe-questions', authenticate, requireAdmin, async (req, res) => {
 // Update vibe question
 router.put('/vibe-questions/:id', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { questionText, category, isActive } = req.body;
+    const { questionText, category, isActive, responseOptions } = req.body;
     const data = {};
     if (questionText !== undefined) data.questionText = questionText;
     if (category !== undefined) data.category = category;
     if (isActive !== undefined) data.isActive = isActive;
+    if (responseOptions !== undefined) data.responseOptions = responseOptions;
 
     const question = await prisma.vibeQuestion.update({
       where: { id: req.params.id },
