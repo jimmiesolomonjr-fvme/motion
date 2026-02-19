@@ -171,7 +171,7 @@ export default function ChatView({ conversationId, otherUser }) {
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] max-w-lg mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-dark-50">
+      <div className="flex items-center gap-3 p-4 border-b border-dark-50" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
         <Link to="/messages" className="text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </Link>

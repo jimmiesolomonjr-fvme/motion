@@ -6,7 +6,7 @@ export default function Header() {
   const { user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-40 glass border-b border-dark-50">
+    <header className="sticky top-0 z-40 glass border-b border-dark-50" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-lg mx-auto px-4 h-14 flex items-center justify-between">
         <Link to="/feed" className="text-xl font-extrabold text-gradient-gold tracking-tight">
           Motion
