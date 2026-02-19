@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import FeedGrid from '../components/feed/FeedGrid';
 import FeedFilters from '../components/feed/FeedFilters';
@@ -11,17 +11,33 @@ export default function Feed() {
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState('newest');
   const [onlineOnly, setOnlineOnly] = useState(false);
+  const [ageRange, setAgeRange] = useState([18, 99]);
+  const [city, setCity] = useState('');
+  const [debouncedCity, setDebouncedCity] = useState('');
   const [loading, setLoading] = useState(true);
   const [matchModal, setMatchModal] = useState(null);
+  const cityTimerRef = useRef(null);
 
   useGeolocation();
+
+  // Debounce city input
+  useEffect(() => {
+    clearTimeout(cityTimerRef.current);
+    cityTimerRef.current = setTimeout(() => {
+      setDebouncedCity(city);
+    }, 500);
+    return () => clearTimeout(cityTimerRef.current);
+  }, [city]);
 
   const fetchFeed = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/users/feed', {
-        params: { sort, onlineOnly: onlineOnly.toString() },
-      });
+      const params = { sort, onlineOnly: onlineOnly.toString() };
+      if (ageRange[0] !== 18) params.minAge = ageRange[0];
+      if (ageRange[1] !== 99) params.maxAge = ageRange[1];
+      if (debouncedCity) params.city = debouncedCity;
+
+      const { data } = await api.get('/users/feed', { params });
       setUsers(data);
     } catch (err) {
       console.error('Feed error:', err);
@@ -30,7 +46,7 @@ export default function Feed() {
     }
   };
 
-  useEffect(() => { fetchFeed(); }, [sort, onlineOnly]);
+  useEffect(() => { fetchFeed(); }, [sort, onlineOnly, ageRange[0], ageRange[1], debouncedCity]);
 
   const handleLike = async (userId) => {
     try {
@@ -48,7 +64,12 @@ export default function Feed() {
 
   return (
     <AppLayout>
-      <FeedFilters sort={sort} setSort={setSort} onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly} />
+      <FeedFilters
+        sort={sort} setSort={setSort}
+        onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
+        ageRange={ageRange} setAgeRange={setAgeRange}
+        city={city} setCity={setCity}
+      />
 
       {loading ? (
         <div className="flex justify-center py-16">

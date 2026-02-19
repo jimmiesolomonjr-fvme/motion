@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 import { authenticate } from '../middleware/auth.js';
 import { upload, toDataUrl } from '../middleware/upload.js';
 import { getDistanceMiles } from '../utils/distance.js';
@@ -140,7 +141,7 @@ router.put('/location', authenticate, async (req, res) => {
 // Browse feed
 router.get('/feed', authenticate, async (req, res) => {
   try {
-    const { sort = 'newest', maxDistance, onlineOnly } = req.query;
+    const { sort = 'newest', maxDistance, onlineOnly, minAge, maxAge, city } = req.query;
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { id: true, role: true, locationLat: true, locationLng: true },
@@ -181,7 +182,11 @@ router.get('/feed', authenticate, async (req, res) => {
         isBanned: false,
         isHidden: false,
         ...(hideDummies && { isDummy: false }),
-        profile: { isNot: null },
+        profile: {
+          isNot: null,
+          ...(minAge || maxAge ? { age: { ...(minAge && { gte: parseInt(minAge) }), ...(maxAge && { lte: parseInt(maxAge) }) } } : {}),
+          ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}),
+        },
         ...(onlineOnly === 'true' && {
           lastOnline: { gte: new Date(Date.now() - 5 * 60 * 1000) },
         }),
@@ -245,6 +250,81 @@ router.get('/feed', authenticate, async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error('Feed error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get notification preferences
+router.get('/notifications', authenticate, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { notificationsEnabled: true },
+    });
+    res.json({ notificationsEnabled: user?.notificationsEnabled ?? true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update notification preferences
+router.put('/notifications', authenticate, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { notificationsEnabled: !!enabled },
+    });
+    res.json({ notificationsEnabled: !!enabled });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete account
+router.delete('/account', authenticate, async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password) return res.status(400).json({ error: 'Password required' });
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const valid = await bcrypt.compare(password, user.passwordHash);
+    if (!valid) return res.status(401).json({ error: 'Incorrect password' });
+
+    const userId = req.userId;
+
+    await prisma.$transaction(async (tx) => {
+      // Delete messages sent by user
+      await tx.message.deleteMany({ where: { senderId: userId } });
+      // Delete conversations (remaining messages cascade)
+      await tx.conversation.deleteMany({ where: { OR: [{ user1Id: userId }, { user2Id: userId }] } });
+      // Delete likes
+      await tx.like.deleteMany({ where: { OR: [{ likerId: userId }, { likedId: userId }] } });
+      // Delete matches
+      await tx.match.deleteMany({ where: { OR: [{ user1Id: userId }, { user2Id: userId }] } });
+      // Delete blocks
+      await tx.block.deleteMany({ where: { OR: [{ blockerId: userId }, { blockedId: userId }] } });
+      // Delete reports
+      await tx.report.deleteMany({ where: { OR: [{ reporterId: userId }, { reportedId: userId }] } });
+      // Delete move interests for user's moves, then user's moves
+      const userMoves = await tx.move.findMany({ where: { stepperId: userId }, select: { id: true } });
+      if (userMoves.length) {
+        await tx.moveInterest.deleteMany({ where: { moveId: { in: userMoves.map((m) => m.id) } } });
+      }
+      await tx.move.deleteMany({ where: { stepperId: userId } });
+      // Delete move interests where user is the baddie
+      await tx.moveInterest.deleteMany({ where: { baddieId: userId } });
+      // Delete hidden pairs
+      await tx.hiddenPair.deleteMany({ where: { OR: [{ user1Id: userId }, { user2Id: userId }] } });
+      // Delete user (Profile, VibeAnswer, Subscription cascade automatically)
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete account error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

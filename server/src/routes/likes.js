@@ -134,4 +134,51 @@ router.get('/matches', authenticate, async (req, res) => {
   }
 });
 
+// Unmatch a user
+router.delete('/unmatch/:userId', authenticate, async (req, res) => {
+  try {
+    const otherUserId = req.params.userId;
+    const [u1, u2] = [req.userId, otherUserId].sort();
+
+    const match = await prisma.match.findUnique({
+      where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
+    });
+
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Delete match
+      await tx.match.delete({ where: { id: match.id } });
+      // Delete likes in both directions
+      await tx.like.deleteMany({
+        where: {
+          OR: [
+            { likerId: req.userId, likedId: otherUserId },
+            { likerId: otherUserId, likedId: req.userId },
+          ],
+        },
+      });
+      // Find and delete conversation between the two users (messages cascade)
+      const conv = await tx.conversation.findFirst({
+        where: {
+          OR: [
+            { user1Id: req.userId, user2Id: otherUserId },
+            { user1Id: otherUserId, user2Id: req.userId },
+          ],
+        },
+      });
+      if (conv) {
+        await tx.conversation.delete({ where: { id: conv.id } });
+      }
+    });
+
+    res.json({ unmatched: true });
+  } catch (error) {
+    console.error('Unmatch error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

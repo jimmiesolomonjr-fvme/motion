@@ -78,12 +78,18 @@ export function setupSocketHandlers(io) {
         // Send to conversation room
         io.to(`conv:${conversationId}`).emit('new-message', message);
 
-        // Also notify the other user if not in the conversation room
+        // Also notify the other user if not in the conversation room (respect notification prefs)
         const otherUserId = conversation.user1Id === socket.userId ? conversation.user2Id : conversation.user1Id;
-        io.to(otherUserId).emit('message-notification', {
-          conversationId,
-          message,
+        const recipient = await prisma.user.findUnique({
+          where: { id: otherUserId },
+          select: { notificationsEnabled: true },
         });
+        if (recipient?.notificationsEnabled !== false) {
+          io.to(otherUserId).emit('message-notification', {
+            conversationId,
+            message,
+          });
+        }
       } catch (error) {
         console.error('Socket send-message error:', error);
         socket.emit('error', { message: 'Failed to send message' });

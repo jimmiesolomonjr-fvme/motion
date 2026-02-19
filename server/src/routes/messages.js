@@ -256,4 +256,24 @@ router.post('/:conversationId/image', authenticate, requirePremium, upload.singl
   }
 });
 
+// Delete a conversation
+router.delete('/conversations/:conversationId', authenticate, async (req, res) => {
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: req.params.conversationId },
+    });
+
+    if (!conversation || (conversation.user1Id !== req.userId && conversation.user2Id !== req.userId)) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    await prisma.conversation.delete({ where: { id: conversation.id } });
+
+    res.json({ deleted: true });
+  } catch (error) {
+    console.error('Delete conversation error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

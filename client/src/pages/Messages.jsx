@@ -51,6 +51,15 @@ export default function Messages() {
     return () => socket.off('message-notification', handleNotification);
   }, [socket]);
 
+  const handleDeleteConversation = async (convId) => {
+    try {
+      await api.delete(`/messages/conversations/${convId}`);
+      setConversations((prev) => prev.filter((c) => c.id !== convId));
+    } catch (err) {
+      console.error('Delete conversation error:', err);
+    }
+  };
+
   const startConversation = async (userId) => {
     try {
       const { data } = await api.post(`/messages/start/${userId}`);
@@ -125,7 +134,7 @@ export default function Messages() {
         </div>
       )}
 
-      <ConversationList conversations={conversations} />
+      <ConversationList conversations={conversations} onDelete={handleDeleteConversation} />
     </AppLayout>
   );
 }

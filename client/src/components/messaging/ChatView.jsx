@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
+import Modal from '../ui/Modal';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -11,6 +12,7 @@ import { isOnline } from '../../utils/formatters';
 export default function ChatView({ conversationId, otherUser }) {
   const { user, refreshUser } = useAuth();
   const socket = useSocket();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [recording, setRecording] = useState(false);
@@ -18,6 +20,11 @@ export default function ChatView({ conversationId, otherUser }) {
   const [socketError, setSocketError] = useState('');
   const [upgrading, setUpgrading] = useState(false);
   const [freeMessaging, setFreeMessaging] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isMatched, setIsMatched] = useState(false);
+  const [showUnmatchModal, setShowUnmatchModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const menuRef = useRef(null);
   const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -29,7 +36,22 @@ export default function ChatView({ conversationId, otherUser }) {
     api.get('/payments/status').then(({ data }) => {
       if (data.freeMessaging !== undefined) setFreeMessaging(data.freeMessaging);
     }).catch(() => {});
-  }, [conversationId]);
+    // Check if matched with other user
+    if (otherUser?.id) {
+      api.get('/likes/matches').then(({ data }) => {
+        setIsMatched(data.some((m) => m.user.id === otherUser.id));
+      }).catch(() => {});
+    }
+  }, [conversationId, otherUser?.id]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -168,6 +190,24 @@ export default function ChatView({ conversationId, otherUser }) {
     e.target.value = '';
   };
 
+  const handleUnmatch = async () => {
+    try {
+      await api.delete(`/likes/unmatch/${otherUser.id}`);
+      navigate('/messages');
+    } catch (err) {
+      console.error('Unmatch error:', err);
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    try {
+      await api.delete(`/messages/conversations/${conversationId}`);
+      navigate('/messages');
+    } catch (err) {
+      console.error('Delete conversation error:', err);
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] max-w-lg mx-auto">
       {/* Header */}
@@ -176,12 +216,36 @@ export default function ChatView({ conversationId, otherUser }) {
           <ArrowLeft size={20} />
         </Link>
         <Avatar src={otherUser?.profile?.photos} name={otherUser?.profile?.displayName} size="sm" online={isOnline(otherUser?.lastOnline)} />
-        <div>
+        <div className="flex-1">
           <h3 className="font-semibold text-white text-sm">{otherUser?.profile?.displayName}</h3>
           {typing ? (
             <p className="text-xs text-gold">typing...</p>
           ) : (
             <p className="text-xs text-gray-500">{isOnline(otherUser?.lastOnline) ? 'Online' : 'Offline'}</p>
+          )}
+        </div>
+        {/* Three-dot menu */}
+        <div className="relative" ref={menuRef}>
+          <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 text-gray-400 hover:text-white transition-colors">
+            <MoreVertical size={20} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 bg-dark-100 border border-dark-50 rounded-xl overflow-hidden shadow-xl z-50">
+              {isMatched && (
+                <button
+                  onClick={() => { setMenuOpen(false); setShowUnmatchModal(true); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
+                >
+                  <UserX size={16} /> Unmatch
+                </button>
+              )}
+              <button
+                onClick={() => { setMenuOpen(false); setShowDeleteModal(true); }}
+                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
+              >
+                <Trash2 size={16} /> Delete Conversation
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -238,6 +302,36 @@ export default function ChatView({ conversationId, otherUser }) {
           </>
         )}
       </div>
+
+      {/* Unmatch Modal */}
+      <Modal isOpen={showUnmatchModal} onClose={() => setShowUnmatchModal(false)} title="Unmatch">
+        <p className="text-sm text-gray-400 mb-4">
+          This will remove your match with <span className="text-white font-medium">{otherUser?.profile?.displayName}</span> and delete your conversation. This cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowUnmatchModal(false)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleUnmatch} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
+            Unmatch
+          </button>
+        </div>
+      </Modal>
+
+      {/* Delete Conversation Modal */}
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Conversation">
+        <p className="text-sm text-gray-400 mb-4">
+          Delete this conversation and all messages? This cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleDeleteConversation} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
+            Delete
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

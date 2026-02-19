@@ -142,9 +142,37 @@ router.get('/me', authenticate, async (req, res) => {
       isAdmin: user.isAdmin,
       hasProfile: !!user.profile,
       profile: user.profile,
+      notificationsEnabled: user.notificationsEnabled,
     });
   } catch (error) {
     console.error('Me error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Change password
+router.put('/change-password', authenticate, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!validatePassword(newPassword)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({ where: { id: req.userId }, data: { passwordHash } });
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
