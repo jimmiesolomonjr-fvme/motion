@@ -14,6 +14,7 @@ import moveRoutes from './src/routes/moves.js';
 import paymentRoutes from './src/routes/payments.js';
 import reportRoutes from './src/routes/reports.js';
 import adminRoutes from './src/routes/admin.js';
+import notificationRoutes from './src/routes/notifications.js';
 import { setupSocketHandlers } from './src/sockets/chat.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -46,6 +47,7 @@ app.use('/api/moves', moveRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

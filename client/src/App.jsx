@@ -14,6 +14,7 @@ import Moves from './pages/Moves';
 import Premium from './pages/Premium';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
+import Notifications from './pages/Notifications';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -65,6 +66,7 @@ function AppRoutes() {
       <Route path="/moves" element={<ProtectedRoute><Moves /></ProtectedRoute>} />
       <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
 
       {/* Fallback */}

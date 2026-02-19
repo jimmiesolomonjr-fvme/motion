@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 
@@ -30,6 +30,11 @@ export default function Profile() {
   const [liked, setLiked] = useState(false);
   const [freeMessaging, setFreeMessaging] = useState(true);
 
+  // Prompt editing state
+  const [availablePrompts, setAvailablePrompts] = useState([]);
+  const [editPrompts, setEditPrompts] = useState([]);
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
+
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
@@ -38,6 +43,7 @@ export default function Profile() {
         const { data } = await api.get(endpoint);
         setProfile(data);
         setEditForm({ displayName: data.displayName, bio: data.bio || '', city: data.city, lookingFor: data.lookingFor || '' });
+        setEditPrompts((data.profilePrompts || []).map((p) => ({ prompt: p.prompt, answer: p.answer })));
 
         if (!isOwnProfile) {
           const [scoreRes, likeRes, payRes] = await Promise.all([
@@ -48,6 +54,9 @@ export default function Profile() {
           setVibeScore(scoreRes.data.score);
           setLiked(likeRes.data.hasLiked);
           if (payRes.data.freeMessaging !== undefined) setFreeMessaging(payRes.data.freeMessaging);
+
+          // Track profile view (fire and forget)
+          api.post(`/users/profile/${userId}/view`).catch(() => {});
         }
       } catch {
         navigate('/feed');
@@ -58,10 +67,24 @@ export default function Profile() {
     fetchProfile();
   }, [userId]);
 
+  // Fetch available prompts when entering edit mode
+  useEffect(() => {
+    if (editing && availablePrompts.length === 0) {
+      api.get('/users/prompts').then(({ data }) => {
+        setAvailablePrompts(data.prompts);
+      }).catch(() => {});
+    }
+  }, [editing]);
+
   const handleSave = async () => {
     try {
       await api.post('/users/profile', { ...editForm, age: profile.age });
-      setProfile({ ...profile, ...editForm });
+
+      // Save prompts
+      const validPrompts = editPrompts.filter((p) => p.prompt && p.answer?.trim());
+      await api.put('/users/prompts', { prompts: validPrompts });
+
+      setProfile({ ...profile, ...editForm, profilePrompts: validPrompts });
       setEditing(false);
       refreshUser();
     } catch (err) {
@@ -124,6 +147,20 @@ export default function Profile() {
     }
   };
 
+  const addPromptSlot = () => {
+    if (editPrompts.length < 2) {
+      setEditPrompts([...editPrompts, { prompt: '', answer: '' }]);
+    }
+  };
+
+  const removePromptSlot = (index) => {
+    setEditPrompts(editPrompts.filter((_, i) => i !== index));
+  };
+
+  const updatePromptSlot = (index, field, value) => {
+    setEditPrompts(editPrompts.map((p, i) => i === index ? { ...p, [field]: value } : p));
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -137,6 +174,8 @@ export default function Profile() {
   if (!profile) return null;
 
   const photos = profile.photos || [];
+  const prompts = profile.profilePrompts || [];
+  const showNudge = isOwnProfile && !editing && !nudgeDismissed && (photos.length < 2 || prompts.length === 0);
 
   return (
     <AppLayout>
@@ -192,6 +231,53 @@ export default function Profile() {
             <Textarea label="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
             <LocationAutocomplete label="City" name="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
             <Input label="Looking For" value={editForm.lookingFor} onChange={(e) => setEditForm({ ...editForm, lookingFor: e.target.value })} />
+
+            {/* Profile Prompts Edit */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Profile Prompts (max 2)</label>
+              <div className="space-y-3">
+                {editPrompts.map((ep, i) => (
+                  <div key={i} className="bg-dark-100 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <select
+                        value={ep.prompt}
+                        onChange={(e) => updatePromptSlot(i, 'prompt', e.target.value)}
+                        className="flex-1 bg-dark-50 text-white text-sm rounded-lg px-3 py-2 border border-dark-50 focus:border-gold/50 outline-none appearance-none"
+                      >
+                        <option value="">Select a prompt...</option>
+                        {availablePrompts.map((p) => (
+                          <option key={p} value={p} disabled={editPrompts.some((ep2, j) => j !== i && ep2.prompt === p)}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={() => removePromptSlot(i)} className="ml-2 text-gray-500 hover:text-red-400">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    {ep.prompt && (
+                      <input
+                        type="text"
+                        value={ep.answer}
+                        onChange={(e) => updatePromptSlot(i, 'answer', e.target.value)}
+                        placeholder="Your answer..."
+                        className="w-full bg-dark-50 text-white text-sm rounded-lg px-3 py-2 border border-dark-50 focus:border-gold/50 outline-none"
+                        maxLength={150}
+                      />
+                    )}
+                  </div>
+                ))}
+                {editPrompts.length < 2 && (
+                  <button
+                    onClick={addPromptSlot}
+                    className="w-full py-2 border border-dashed border-dark-50 rounded-xl text-sm text-gray-500 hover:text-gold hover:border-gold/30 flex items-center justify-center gap-1 transition-colors"
+                  >
+                    <Plus size={14} /> Add Prompt
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={() => setEditing(false)}>Cancel</Button>
               <Button variant="gold" className="flex-1" onClick={handleSave}>Save</Button>
@@ -222,6 +308,41 @@ export default function Profile() {
               <div>
                 <h3 className="text-sm font-semibold text-gray-400 mb-1">Looking for</h3>
                 <p className="text-white">{profile.lookingFor}</p>
+              </div>
+            )}
+
+            {/* Profile Prompts Display */}
+            {prompts.length > 0 && (
+              <div className="space-y-3">
+                {prompts.map((p, i) => (
+                  <div key={i} className="border-l-2 border-purple-accent/50 bg-purple-accent/5 rounded-r-xl p-3">
+                    <p className="text-xs text-gray-500 italic mb-1">{p.prompt}</p>
+                    <p className="text-white font-medium text-sm">{p.answer}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Completion Nudge */}
+            {showNudge && (
+              <div className="bg-gold/10 border border-gold/20 rounded-xl p-4 relative">
+                <button
+                  onClick={() => { setNudgeDismissed(true); sessionStorage.setItem('profileNudgeDismissed', 'true'); }}
+                  className="absolute top-2 right-2 text-gray-500 hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+                <h3 className="text-sm font-bold text-gold mb-2">Complete Your Profile</h3>
+                <ul className="text-xs text-gray-400 space-y-1">
+                  {photos.length < 2 && <li>Add at least 2 photos to stand out</li>}
+                  {prompts.length === 0 && <li>Answer profile prompts to show your personality</li>}
+                </ul>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="mt-3 text-xs text-gold font-semibold hover:underline"
+                >
+                  Edit Profile
+                </button>
               </div>
             )}
 

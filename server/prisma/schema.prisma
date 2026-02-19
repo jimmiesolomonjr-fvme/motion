@@ -61,6 +61,10 @@ model User {
   moveInterests MoveInterest[]
   hiddenFrom    HiddenPair[] @relation("HiddenUser1")
   hiddenTo      HiddenPair[] @relation("HiddenUser2")
+  profileViews     ProfileView[] @relation("Viewer")
+  profileViewedBy  ProfileView[] @relation("Viewed")
+  notifications    Notification[]
+  profilePrompts   ProfilePrompt[]
 }
 
 model Profile {
@@ -234,4 +238,41 @@ model HiddenPair {
 model AppSetting {
   key   String @id
   value String
+}
+
+model ProfileView {
+  id        String   @id @default(uuid())
+  viewerId  String
+  viewedId  String
+  createdAt DateTime @default(now())
+
+  viewer User @relation("Viewer", fields: [viewerId], references: [id], onDelete: Cascade)
+  viewed User @relation("Viewed", fields: [viewedId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ProfilePrompt {
+  id        String   @id @default(uuid())
+  userId    String
+  prompt    String
+  answer    String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, prompt])
 }

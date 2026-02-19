@@ -1,17 +1,18 @@
 import { NavLink } from 'react-router-dom';
-import { Users, MessageCircle, Sparkles, Flame, User } from 'lucide-react';
+import { Users, MessageCircle, Sparkles, Flame, User, Bell } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/SocketContext';
 
 export default function BottomNav() {
   const { user } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount, notifCount } = useNotifications();
 
   const navItems = [
     { to: '/feed', icon: Users, label: 'Feed' },
     { to: '/moves', icon: Flame, label: 'Moves' },
     { to: '/vibe', icon: Sparkles, label: 'Vibe' },
     { to: '/messages', icon: MessageCircle, label: 'Chat', badge: unreadCount },
+    { to: '/notifications', icon: Bell, label: 'Alerts', badge: notifCount },
     { to: '/profile', icon: User, label: 'Profile' },
   ];
 
@@ -23,7 +24,7 @@ export default function BottomNav() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+              `flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-colors ${
                 isActive ? 'text-gold' : 'text-gray-500 hover:text-gray-300'
               }`
             }

@@ -5,10 +5,10 @@ import BottomNav from './BottomNav';
 import { useNotifications } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Heart, X, Sparkles } from 'lucide-react';
+import { Heart, X, Sparkles, Eye } from 'lucide-react';
 
 export default function AppLayout({ children }) {
-  const { matchAlert, clearMatchAlert } = useNotifications();
+  const { toasts, dismissToast } = useNotifications();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [vibeBanner, setVibeBanner] = useState(false);
@@ -29,6 +29,23 @@ export default function AppLayout({ children }) {
     setVibeBanner(false);
     setVibeDismissed(true);
     sessionStorage.setItem('vibeBannerDismissed', 'true');
+  };
+
+  const getToastIcon = (type) => {
+    switch (type) {
+      case 'match': return <Heart className="text-gold" size={20} fill="currentColor" />;
+      case 'profile_view': return <Eye className="text-purple-glow" size={20} />;
+      default: return <Sparkles className="text-gold" size={20} />;
+    }
+  };
+
+  const handleToastClick = (toast) => {
+    dismissToast(toast.id);
+    if (toast.type === 'profile_view' && toast.data?.viewerId) {
+      navigate(`/profile/${toast.data.viewerId}`);
+    } else if (toast.type === 'match') {
+      navigate('/messages');
+    }
   };
 
   return (
@@ -64,25 +81,30 @@ export default function AppLayout({ children }) {
       </main>
       <BottomNav />
 
-      {/* Match notification toast */}
-      {matchAlert && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full px-4">
-          <div className="bg-dark-100 border border-gold/30 rounded-2xl p-4 shadow-xl flex items-center gap-3">
+      {/* Stacked notification toasts */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full px-4 flex flex-col gap-2">
+        {toasts.map((toast, i) => (
+          <div
+            key={toast.id}
+            className="bg-dark-100 border border-gold/30 rounded-2xl p-4 shadow-xl flex items-center gap-3 cursor-pointer animate-fade-in"
+            onClick={() => handleToastClick(toast)}
+          >
             <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center flex-shrink-0">
-              <Heart className="text-gold" size={20} fill="currentColor" />
+              {getToastIcon(toast.type)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-white">It's a Match!</p>
-              <p className="text-xs text-gray-400 truncate">
-                You and {matchAlert.user?.displayName} liked each other
-              </p>
+              <p className="text-sm font-bold text-white">{toast.title}</p>
+              <p className="text-xs text-gray-400 truncate">{toast.body}</p>
             </div>
-            <button onClick={clearMatchAlert} className="text-gray-500 hover:text-white">
+            <button
+              onClick={(e) => { e.stopPropagation(); dismissToast(toast.id); }}
+              className="text-gray-500 hover:text-white flex-shrink-0"
+            >
               <X size={16} />
             </button>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }

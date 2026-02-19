@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { Crown, Sparkles } from 'lucide-react';
-import datingCover from '../assets/datingcover.jpg';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -38,13 +37,8 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center px-6">
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${datingCover})` }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-dark" />
-      <div className="relative w-full max-w-sm">
+    <div className="min-h-screen bg-dark flex items-center justify-center px-6">
+      <div className="w-full max-w-sm">
         <h1 className="text-3xl font-extrabold text-gradient-gold text-center mb-2">Join Motion</h1>
         <p className="text-gray-500 text-center mb-8">Create your account and start moving</p>
 

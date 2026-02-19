@@ -9,6 +9,16 @@ import { validateAge } from '../utils/validators.js';
 const router = Router();
 const prisma = new PrismaClient();
 
+const PROFILE_PROMPTS = [
+  'My idea of motion is…',
+  'A Stepper should always…',
+  'I feel spoiled when…',
+  "I'm outside at…",
+  'My favorite flex is…',
+  'Green flag I love…',
+  "I'm attracted to…",
+];
+
 // Create/update profile (onboarding)
 router.post('/profile', authenticate, async (req, res) => {
   try {
@@ -91,12 +101,12 @@ router.get('/profile', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      include: { profile: true },
+      include: { profile: true, profilePrompts: { orderBy: { position: 'asc' } } },
     });
     if (!user?.profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
-    res.json({ ...user.profile, role: user.role, isPremium: user.isPremium, isVerified: user.isVerified });
+    res.json({ ...user.profile, role: user.role, isPremium: user.isPremium, isVerified: user.isVerified, profilePrompts: user.profilePrompts });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -107,7 +117,7 @@ router.get('/profile/:userId', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.params.userId },
-      include: { profile: true },
+      include: { profile: true, profilePrompts: { orderBy: { position: 'asc' } } },
     });
     if (!user?.profile) {
       return res.status(404).json({ error: 'Profile not found' });
@@ -118,6 +128,7 @@ router.get('/profile/:userId', authenticate, async (req, res) => {
       isPremium: user.isPremium,
       isVerified: user.isVerified,
       lastOnline: user.lastOnline,
+      profilePrompts: user.profilePrompts,
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -175,10 +186,14 @@ router.get('/feed', authenticate, async (req, res) => {
     // Show opposite role in feed
     const targetRole = currentUser.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
 
-    // Build profile filter imperatively to avoid malformed spread
-    const profileWhere = { isNot: null };
-    if (minAge) profileWhere.age = { gte: parseInt(minAge) };
-    if (maxAge) profileWhere.age = { ...profileWhere.age, lte: parseInt(maxAge) };
+    // Build profile filter — use `is: { age }` when filtering, `isNot: null` otherwise
+    const ageFilter = {};
+    if (minAge) ageFilter.gte = parseInt(minAge);
+    if (maxAge) ageFilter.lte = parseInt(maxAge);
+
+    const profileWhere = Object.keys(ageFilter).length > 0
+      ? { is: { age: ageFilter } }
+      : { isNot: null };
 
     const users = await prisma.user.findMany({
       where: {
@@ -251,6 +266,110 @@ router.get('/feed', authenticate, async (req, res) => {
     res.json(results);
   } catch (error) {
     console.error('Feed error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get available profile prompts
+router.get('/prompts', authenticate, (req, res) => {
+  res.json({ prompts: PROFILE_PROMPTS });
+});
+
+// Get user's answered prompts
+router.get('/prompts/mine', authenticate, async (req, res) => {
+  try {
+    const prompts = await prisma.profilePrompt.findMany({
+      where: { userId: req.userId },
+      orderBy: { position: 'asc' },
+    });
+    res.json(prompts);
+  } catch (error) {
+    console.error('Get prompts error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Save profile prompts (max 2)
+router.put('/prompts', authenticate, async (req, res) => {
+  try {
+    const { prompts } = req.body;
+    if (!Array.isArray(prompts) || prompts.length > 2) {
+      return res.status(400).json({ error: 'Max 2 prompts allowed' });
+    }
+
+    // Validate prompt text is from allowed list
+    for (const p of prompts) {
+      if (!PROFILE_PROMPTS.includes(p.prompt) || !p.answer?.trim()) {
+        return res.status(400).json({ error: 'Invalid prompt or empty answer' });
+      }
+    }
+
+    // Delete old and create new in transaction
+    await prisma.$transaction(async (tx) => {
+      await tx.profilePrompt.deleteMany({ where: { userId: req.userId } });
+      for (let i = 0; i < prompts.length; i++) {
+        await tx.profilePrompt.create({
+          data: {
+            userId: req.userId,
+            prompt: prompts[i].prompt,
+            answer: prompts[i].answer.trim(),
+            position: i,
+          },
+        });
+      }
+    });
+
+    const saved = await prisma.profilePrompt.findMany({
+      where: { userId: req.userId },
+      orderBy: { position: 'asc' },
+    });
+    res.json(saved);
+  } catch (error) {
+    console.error('Save prompts error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Track profile view
+router.post('/profile/:userId/view', authenticate, async (req, res) => {
+  try {
+    const viewedId = req.params.userId;
+    // Skip own profile
+    if (viewedId === req.userId) return res.json({ success: true });
+
+    // Throttle: 1 view per viewer per viewed per 24h
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existing = await prisma.profileView.findFirst({
+      where: { viewerId: req.userId, viewedId, createdAt: { gte: since } },
+    });
+    if (existing) return res.json({ success: true, throttled: true });
+
+    await prisma.profileView.create({
+      data: { viewerId: req.userId, viewedId },
+    });
+
+    // Get viewer name for notification
+    const viewer = await prisma.profile.findUnique({ where: { userId: req.userId } });
+    const viewerName = viewer?.displayName || 'Someone';
+
+    // Create notification
+    const notification = await prisma.notification.create({
+      data: {
+        userId: viewedId,
+        type: 'profile_view',
+        title: 'New Profile View',
+        body: `${viewerName} viewed your profile`,
+        data: { viewerId: req.userId, viewerName },
+      },
+    });
+
+    // Emit socket event
+    const { io } = await import('../../server.js');
+    io.to(viewedId).emit('notification', notification);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Profile view error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

@@ -1,18 +1,25 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Crown, Sparkles, Flame, Mic, Heart } from 'lucide-react';
+import datingCover from '../assets/datingcover.jpg';
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-dark">
       {/* Hero */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center overflow-hidden">
-        {/* Background glow */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-purple-accent/20 rounded-full blur-[128px]" />
-        <div className="absolute bottom-1/4 left-1/3 w-64 h-64 bg-gold/10 rounded-full blur-[100px]" />
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${datingCover})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-dark" />
 
         <div className="relative z-10 max-w-lg">
           <h1 className="text-5xl sm:text-6xl font-extrabold mb-4 tracking-tight">
-            <span className="text-gradient-gold">Motion</span>
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: 'linear-gradient(135deg, #B8960F 0%, #D4AF37 50%, #8B7209 100%)' }}
+            >Motion</span>
           </h1>
           <p className="text-xl text-gray-300 mb-2 font-medium">Move Different.</p>
           <p className="text-gray-500 mb-10 max-w-sm mx-auto leading-relaxed">
