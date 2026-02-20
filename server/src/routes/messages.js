@@ -258,6 +258,14 @@ router.post('/:conversationId/image', authenticate, requirePremium, upload.singl
 
 // Get icebreaker prompts for a conversation with a user
 router.get('/icebreakers/:userId', authenticate, async (req, res) => {
+  const fallbacks = [
+    "What's your idea of a perfect date?",
+    "What are you doing this weekend?",
+    "If you could travel anywhere tomorrow, where would you go?",
+    "What's something that always makes you smile?",
+    "What's the best thing you've eaten lately?",
+  ];
+
   try {
     const otherUserId = req.params.userId;
     const otherUser = await prisma.user.findUnique({
@@ -266,50 +274,41 @@ router.get('/icebreakers/:userId', authenticate, async (req, res) => {
     });
 
     if (!otherUser?.profile) {
-      return res.json({ icebreakers: [{ text: "What's your idea of motion?" }, { text: 'What are you doing this weekend?' }] });
+      return res.json({ icebreakers: fallbacks.slice(0, 3).map((t) => ({ text: t })) });
     }
 
     const icebreakers = [];
+    const name = otherUser.profile.displayName;
 
-    // From their profile prompts
+    // From their profile prompts — turn into a real question
     if (otherUser.profilePrompts?.length > 0) {
-      const prompt = otherUser.profilePrompts[0];
-      icebreakers.push({ text: `Ask about: "${prompt.answer}"` });
+      const p = otherUser.profilePrompts[0];
+      icebreakers.push({ text: `I saw your answer about "${p.prompt.replace(/…$/, '')}" — I'd love to hear more!` });
     }
 
-    // From shared vibe answers
-    const myAnswers = await prisma.vibeAnswer.findMany({ where: { userId: req.userId } });
-    const theirAnswers = await prisma.vibeAnswer.findMany({ where: { userId: otherUserId } });
-    const myMap = new Map(myAnswers.map((a) => [a.questionId, a.answer]));
-    let sharedCount = 0;
-    for (const a of theirAnswers) {
-      if (myMap.has(a.questionId) && myMap.get(a.questionId) === a.answer) sharedCount++;
-    }
-    if (sharedCount > 0) {
-      icebreakers.push({ text: `You both vibed on ${sharedCount} question${sharedCount > 1 ? 's' : ''} — talk about it!` });
+    // From their bio — reference it naturally
+    if (otherUser.profile.bio && otherUser.profile.bio.length > 10) {
+      icebreakers.push({ text: `Your bio caught my eye — what's the story behind it?` });
     }
 
-    // From lookingFor
+    // From lookingFor — frame as a real message
     if (otherUser.profile.lookingFor) {
-      icebreakers.push({ text: `They're looking for "${otherUser.profile.lookingFor}" — what about you?` });
+      icebreakers.push({ text: `What does "${otherUser.profile.lookingFor}" look like to you?` });
     }
 
-    // Generic fallbacks to ensure at least 2
-    const fallbacks = [
-      { text: "What's your idea of motion?" },
-      { text: 'What are you doing this weekend?' },
-      { text: "What's the best date you've ever been on?" },
-    ];
+    // Fill remaining with generic sendable messages
     let i = 0;
-    while (icebreakers.length < 2 && i < fallbacks.length) {
-      icebreakers.push(fallbacks[i]);
+    while (icebreakers.length < 3 && i < fallbacks.length) {
+      if (!icebreakers.some((ib) => ib.text === fallbacks[i])) {
+        icebreakers.push({ text: fallbacks[i] });
+      }
       i++;
     }
 
     res.json({ icebreakers: icebreakers.slice(0, 3) });
   } catch (error) {
     console.error('Icebreakers error:', error);
-    res.json({ icebreakers: [{ text: "What's your idea of motion?" }, { text: 'What are you doing this weekend?' }] });
+    res.json({ icebreakers: fallbacks.slice(0, 3).map((t) => ({ text: t })) });
   }
 });
 

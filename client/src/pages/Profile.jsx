@@ -33,6 +33,7 @@ export default function Profile() {
   // Prompt editing state
   const [availablePrompts, setAvailablePrompts] = useState([]);
   const [editPrompts, setEditPrompts] = useState([]);
+  const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -174,6 +175,7 @@ export default function Profile() {
 
   const photos = profile.photos || [];
   const prompts = profile.profilePrompts || [];
+  const showNudge = isOwnProfile && !editing && !nudgeDismissed && (photos.length < 2 || prompts.length === 0);
 
   const getLastOnlineLabel = () => {
     if (isOwnProfile || !profile.lastOnline) return null;
@@ -191,55 +193,76 @@ export default function Profile() {
   return (
     <AppLayout>
       {/* Photo Gallery */}
-      <div className="relative rounded-2xl overflow-hidden mb-4">
-        {photos.length > 0 ? (
-          <img src={photos[selectedPhotoIndex] || photos[0]} alt="" className="w-full aspect-[3/4] object-cover" />
-        ) : (
-          <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
-            <span className="text-6xl">👤</span>
+      {editing ? (
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Photos ({photos.length}/6)</label>
+          <div className="grid grid-cols-3 gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
+                {photos[i] ? (
+                  <>
+                    <img src={photos[i]} alt="" className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => handlePhotoDelete(i)}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
+                    >
+                      <X className="text-white" size={12} />
+                    </button>
+                  </>
+                ) : (
+                  <label className="w-full h-full bg-dark-100 border-2 border-dashed border-dark-50 hover:border-gold/40 flex flex-col items-center justify-center cursor-pointer transition-colors">
+                    <Plus className="text-gray-500" size={24} />
+                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  </label>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-
-        {lastOnlineLabel && (
-          <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
-            lastOnlineLabel === 'Online now' ? 'bg-green-500/90 text-white' : 'bg-black/70 text-gray-200'
-          }`}>
-            {lastOnlineLabel}
-          </div>
-        )}
-
-        {isOwnProfile && photos.length > 0 && (
-          <button
-            onClick={() => handlePhotoDelete(selectedPhotoIndex)}
-            className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-red-500/80 rounded-full flex items-center justify-center transition-colors"
-          >
-            <X className="text-white" size={16} />
-          </button>
-        )}
-
-        {isOwnProfile && (
-          <label className="absolute bottom-3 right-3 w-10 h-10 bg-gold rounded-full flex items-center justify-center cursor-pointer">
-            <Camera className="text-dark" size={18} />
-            <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
-          </label>
-        )}
-      </div>
-
-      {/* Photo thumbnails */}
-      {photos.length > 1 && (
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-          {photos.map((p, i) => (
-            <img
-              key={i}
-              src={p}
-              alt=""
-              onClick={() => setSelectedPhotoIndex(i)}
-              className={`w-16 h-16 rounded-lg object-cover flex-shrink-0 cursor-pointer transition-opacity ${
-                i === selectedPhotoIndex ? 'ring-2 ring-gold' : 'opacity-60 hover:opacity-100'
-              }`}
-            />
-          ))}
         </div>
+      ) : (
+        <>
+          <div className="relative rounded-2xl overflow-hidden mb-4">
+            {photos.length > 0 ? (
+              <img src={photos[selectedPhotoIndex] || photos[0]} alt="" className="w-full aspect-[3/4] object-cover" />
+            ) : (
+              <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
+                <span className="text-6xl">👤</span>
+              </div>
+            )}
+
+            {lastOnlineLabel && (
+              <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                lastOnlineLabel === 'Online now' ? 'bg-green-500/90 text-white' : 'bg-black/70 text-gray-200'
+              }`}>
+                {lastOnlineLabel}
+              </div>
+            )}
+
+            {isOwnProfile && (
+              <label className="absolute bottom-3 right-3 w-10 h-10 bg-gold rounded-full flex items-center justify-center cursor-pointer">
+                <Camera className="text-dark" size={18} />
+                <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+              </label>
+            )}
+          </div>
+
+          {/* Photo thumbnails */}
+          {photos.length > 1 && (
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+              {photos.map((p, i) => (
+                <img
+                  key={i}
+                  src={p}
+                  alt=""
+                  onClick={() => setSelectedPhotoIndex(i)}
+                  className={`w-16 h-16 rounded-lg object-cover flex-shrink-0 cursor-pointer transition-opacity ${
+                    i === selectedPhotoIndex ? 'ring-2 ring-gold' : 'opacity-60 hover:opacity-100'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Profile Info */}
@@ -339,6 +362,29 @@ export default function Profile() {
                     <p className="text-white font-medium text-sm">{p.answer}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Completion Nudge */}
+            {showNudge && (
+              <div className="bg-gold/10 border border-gold/20 rounded-xl p-4 relative">
+                <button
+                  onClick={() => { setNudgeDismissed(true); sessionStorage.setItem('profileNudgeDismissed', 'true'); }}
+                  className="absolute top-2 right-2 text-gray-500 hover:text-white"
+                >
+                  <X size={14} />
+                </button>
+                <h3 className="text-sm font-bold text-gold mb-2">Complete Your Profile</h3>
+                <ul className="text-xs text-gray-400 space-y-1">
+                  {photos.length < 2 && <li>Add at least 2 photos to stand out</li>}
+                  {prompts.length === 0 && <li>Answer profile prompts to show your personality</li>}
+                </ul>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="mt-3 text-xs text-gold font-semibold hover:underline"
+                >
+                  Edit Profile
+                </button>
               </div>
             )}
 
