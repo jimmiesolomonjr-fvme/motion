@@ -11,6 +11,7 @@ import VibeScore from '../components/vibe-check/VibeScore';
 import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2, Check } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
+import { detectFace } from '../utils/faceDetection';
 import CreateStory from '../components/stories/CreateStory';
 
 export default function Profile() {
@@ -36,6 +37,7 @@ export default function Profile() {
   const [editPrompts, setEditPrompts] = useState([]);
   const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
   const [showCreateStory, setShowCreateStory] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const [openDropdown, setOpenDropdown] = useState(null); // index of open prompt dropdown
   const dropdownRefs = useRef([]);
 
@@ -151,6 +153,18 @@ export default function Profile() {
   const handlePhotoUpload = async (e) => {
     const files = e.target.files;
     if (!files.length) return;
+    setPhotoError('');
+
+    // First photo must contain a face
+    if (photos.length === 0) {
+      const hasFace = await detectFace(files[0]);
+      if (!hasFace) {
+        setPhotoError('Your first photo must clearly show your face');
+        e.target.value = '';
+        return;
+      }
+    }
+
     const formData = new FormData();
     Array.from(files).forEach((f) => formData.append('photos', f));
     try {
@@ -260,6 +274,7 @@ export default function Profile() {
           {photos.length < 2 && (
             <p className="text-xs text-gold/70 mt-1.5">Add at least 2 photos to stand out</p>
           )}
+          {photoError && <p className="text-red-400 text-sm mt-2">{photoError}</p>}
         </div>
       ) : (
         <>
@@ -304,6 +319,7 @@ export default function Profile() {
               ))}
             </div>
           )}
+          {photoError && <p className="text-red-400 text-sm mb-4">{photoError}</p>}
         </>
       )}
 

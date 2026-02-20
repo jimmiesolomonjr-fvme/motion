@@ -158,6 +158,106 @@ router.post('/:storyId/like', authenticate, async (req, res) => {
   }
 });
 
+// Reply to a story
+router.post('/:storyId/reply', authenticate, async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (!content?.trim()) {
+      return res.status(400).json({ error: 'Reply content is required' });
+    }
+
+    const story = await prisma.story.findUnique({ where: { id: req.params.storyId } });
+    if (!story) return res.status(404).json({ error: 'Story not found' });
+    if (story.expiresAt < new Date()) return res.status(400).json({ error: 'Story has expired' });
+    if (story.userId === req.userId) return res.status(400).json({ error: 'Cannot reply to your own story' });
+
+    // Check blocks
+    const block = await prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: req.userId, blockedId: story.userId },
+          { blockerId: story.userId, blockedId: req.userId },
+        ],
+      },
+    });
+    if (block) return res.status(403).json({ error: 'Cannot reply to this story' });
+
+    // Premium check for Steppers + mute check
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      include: { profile: { select: { displayName: true } } },
+    });
+
+    if (currentUser.isMuted) {
+      return res.status(403).json({ error: 'You are muted and cannot reply to stories' });
+    }
+    if (currentUser.role === 'STEPPER' && !currentUser.isPremium) {
+      const freeMessagingSetting = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } });
+      if (freeMessagingSetting?.value !== 'true') {
+        return res.status(403).json({ error: 'Premium required to reply to stories' });
+      }
+    }
+
+    // Find or create conversation
+    const existing = await prisma.conversation.findFirst({
+      where: {
+        OR: [
+          { user1Id: req.userId, user2Id: story.userId },
+          { user1Id: story.userId, user2Id: req.userId },
+        ],
+      },
+    });
+
+    const conversation = existing || await prisma.conversation.create({
+      data: { user1Id: req.userId, user2Id: story.userId },
+    });
+
+    // Create message
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        senderId: req.userId,
+        content: `Replied to your story: ${content.trim()}`,
+        contentType: 'TEXT',
+      },
+      include: {
+        sender: { include: { profile: { select: { displayName: true, photos: true } } } },
+      },
+    });
+
+    // Update conversation lastMessageAt
+    await prisma.conversation.update({
+      where: { id: conversation.id },
+      data: { lastMessageAt: new Date() },
+    });
+
+    // Emit socket events
+    try {
+      const { io } = await import('../../server.js');
+      io.to(`conv:${conversation.id}`).emit('new-message', message);
+      io.to(story.userId).emit('message-notification', { conversationId: conversation.id, message });
+    } catch {
+      // Socket notification is best-effort
+    }
+
+    // Create notification
+    await prisma.notification.create({
+      data: {
+        userId: story.userId,
+        type: 'story_reply',
+        title: 'Replied to your story',
+        body: `${currentUser?.profile?.displayName || 'Someone'} replied to your story`,
+        data: { storyId: story.id, replierId: req.userId, conversationId: conversation.id },
+      },
+    });
+
+    res.status(201).json({ conversationId: conversation.id, message });
+  } catch (error) {
+    console.error('Reply to story error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete own story
 router.delete('/:storyId', authenticate, async (req, res) => {
   try {

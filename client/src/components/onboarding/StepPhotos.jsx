@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, X, Image } from 'lucide-react';
 import api from '../../services/api';
+import { detectFace } from '../../utils/faceDetection';
 
 export default function StepPhotos({ onComplete }) {
   const [photos, setPhotos] = useState([]);
@@ -12,6 +13,16 @@ export default function StepPhotos({ onComplete }) {
     if (photos.length + files.length > 6) {
       setError('Maximum 6 photos allowed');
       return;
+    }
+
+    // First photo must contain a face
+    if (photos.length === 0 && files.length > 0) {
+      const hasFace = await detectFace(files[0]);
+      if (!hasFace) {
+        setError('Your first photo must clearly show your face');
+        e.target.value = '';
+        return;
+      }
     }
 
     setUploading(true);

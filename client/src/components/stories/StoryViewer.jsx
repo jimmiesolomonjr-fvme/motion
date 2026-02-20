@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Eye, Heart } from 'lucide-react';
+import { X, Eye, Heart, Send } from 'lucide-react';
 import api from '../../services/api';
 
 export default function StoryViewer({ storyGroups, startIndex, currentUserId, onClose }) {
@@ -12,6 +12,14 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
 
   const DURATION = 5000; // 5 seconds per story
   const [likedStories, setLikedStories] = useState({});
+
+  // Reply state
+  const [replyText, setReplyText] = useState('');
+  const [replySending, setReplySending] = useState(false);
+  const [replySuccess, setReplySuccess] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const pausedAtRef = useRef(0); // elapsed ms when paused
+  const replyAreaRef = useRef(null);
 
   const group = storyGroups[groupIdx];
   const story = group?.stories[storyIdx];
@@ -52,6 +60,45 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
     }
   }, [storyIdx, groupIdx, storyGroups]);
 
+  // Pause / resume helpers
+  const pauseTimer = useCallback(() => {
+    const elapsed = Date.now() - startTimeRef.current;
+    pausedAtRef.current = elapsed;
+    clearTimeout(timerRef.current);
+    cancelAnimationFrame(animRef.current);
+    setIsPaused(true);
+  }, []);
+
+  const resumeTimer = useCallback(() => {
+    const remaining = DURATION - pausedAtRef.current;
+    if (remaining <= 0) {
+      advance();
+      return;
+    }
+    startTimeRef.current = Date.now() - pausedAtRef.current;
+    setIsPaused(false);
+
+    const animate = () => {
+      const elapsed = Date.now() - startTimeRef.current;
+      const pct = Math.min(elapsed / DURATION, 1);
+      setProgress(pct);
+      if (pct < 1) {
+        animRef.current = requestAnimationFrame(animate);
+      }
+    };
+    animRef.current = requestAnimationFrame(animate);
+    timerRef.current = setTimeout(advance, remaining);
+  }, [advance]);
+
+  // Reset reply state on story change
+  useEffect(() => {
+    setReplyText('');
+    setReplySuccess(false);
+    setReplySending(false);
+    setIsPaused(false);
+    pausedAtRef.current = 0;
+  }, [groupIdx, storyIdx]);
+
   // Auto-advance timer with progress animation
   useEffect(() => {
     if (!story) return;
@@ -76,9 +123,31 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
     };
   }, [groupIdx, storyIdx, story, advance, markViewed]);
 
+  const handleReply = async () => {
+    if (!replyText.trim() || replySending || !story) return;
+    setReplySending(true);
+    try {
+      await api.post(`/stories/${story.id}/reply`, { content: replyText.trim() });
+      setReplyText('');
+      setReplySuccess(true);
+      setTimeout(() => {
+        setReplySuccess(false);
+        resumeTimer();
+      }, 1500);
+    } catch (err) {
+      console.error('Story reply error:', err);
+      resumeTimer();
+    } finally {
+      setReplySending(false);
+    }
+  };
+
   if (!group || !story) return null;
 
   const handleTap = (e) => {
+    // Don't navigate if tapping in the reply area
+    if (replyAreaRef.current?.contains(e.target)) return;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     if (x < rect.width / 3) {
@@ -126,31 +195,57 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
         {/* Story image */}
         <img src={story.photo} alt="" className="w-full h-full object-cover" />
 
-        {/* Like button (others' stories only) */}
-        {!isOwn && (
-          <button
-            onClick={handleLike}
-            className="absolute bottom-6 right-4 z-10 flex flex-col items-center gap-1"
-          >
-            <Heart
-              size={28}
-              className={hasLiked ? 'text-red-500' : 'text-white/80'}
-              fill={hasLiked ? 'currentColor' : 'none'}
-            />
-            {(story.likeCount > 0 || hasLiked) && (
-              <span className="text-white/70 text-xs">
-                {(story.likeCount || 0) + (hasLiked && !story.hasLiked ? 1 : 0)}
-              </span>
-            )}
-          </button>
-        )}
+        {/* Bottom area */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-16 pb-6 px-4">
+          {/* Caption */}
+          {story.caption && (
+            <p className="text-white text-sm mb-3">{story.caption}</p>
+          )}
 
-        {/* Caption */}
-        {story.caption && (
-          <div className="absolute bottom-0 left-0 right-0 p-6 pr-16 bg-gradient-to-t from-black/80 to-transparent">
-            <p className="text-white text-sm">{story.caption}</p>
-          </div>
-        )}
+          {/* Reply input + action button (others' stories only) */}
+          {!isOwn && (
+            <div ref={replyAreaRef} onClick={(e) => e.stopPropagation()}>
+              {replySuccess ? (
+                <p className="text-center text-green-400 text-sm font-medium py-2">Reply sent!</p>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onFocus={pauseTimer}
+                    onBlur={() => {
+                      if (!replyText.trim() && !replySending) resumeTimer();
+                    }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleReply(); }}
+                    placeholder="Reply to story..."
+                    className="flex-1 bg-white/15 backdrop-blur-sm text-white text-sm rounded-full px-4 py-2.5 placeholder-white/50 border border-white/20 outline-none focus:border-white/40"
+                  />
+                  {replyText.trim() ? (
+                    <button
+                      onClick={handleReply}
+                      disabled={replySending}
+                      className="w-10 h-10 flex items-center justify-center rounded-full bg-gold text-dark shrink-0 disabled:opacity-50"
+                    >
+                      <Send size={18} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleLike}
+                      className="w-10 h-10 flex items-center justify-center shrink-0"
+                    >
+                      <Heart
+                        size={24}
+                        className={hasLiked ? 'text-red-500' : 'text-white/80'}
+                        fill={hasLiked ? 'currentColor' : 'none'}
+                      />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
