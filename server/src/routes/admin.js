@@ -307,6 +307,78 @@ router.put('/settings/:key', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+// ===== Broadcast messaging =====
+
+router.post('/broadcast', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { content, targetRole } = req.body;
+    if (!content?.trim()) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+    if (targetRole && !['STEPPER', 'BADDIE'].includes(targetRole)) {
+      return res.status(400).json({ error: 'Invalid targetRole' });
+    }
+
+    const adminUser = await prisma.user.findUnique({ where: { id: req.userId } });
+
+    const userWhere = { isBanned: false, isAdmin: false };
+    if (targetRole) userWhere.role = targetRole;
+    const users = await prisma.user.findMany({
+      where: userWhere,
+      select: { id: true },
+    });
+
+    // Process in batches of 50
+    const BATCH_SIZE = 50;
+    let sent = 0;
+    for (let i = 0; i < users.length; i += BATCH_SIZE) {
+      const batch = users.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (targetUser) => {
+        // Find or create conversation with admin
+        const existing = await prisma.conversation.findFirst({
+          where: {
+            OR: [
+              { user1Id: adminUser.id, user2Id: targetUser.id },
+              { user1Id: targetUser.id, user2Id: adminUser.id },
+            ],
+          },
+        });
+
+        const conversation = existing || await prisma.conversation.create({
+          data: { user1Id: adminUser.id, user2Id: targetUser.id },
+        });
+
+        await prisma.message.create({
+          data: {
+            conversationId: conversation.id,
+            senderId: adminUser.id,
+            content: content.trim(),
+            contentType: 'TEXT',
+          },
+        });
+
+        await prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { lastMessageAt: new Date() },
+        });
+
+        // Emit socket notification (best-effort)
+        try {
+          const { io } = await import('../../server.js');
+          io.to(targetUser.id).emit('message-notification', { conversationId: conversation.id });
+        } catch {}
+
+        sent++;
+      }));
+    }
+
+    res.json({ sent });
+  } catch (error) {
+    console.error('Broadcast error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===== Shadow-hide user from all =====
 
 // Toggle isHidden for a user
