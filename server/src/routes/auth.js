@@ -46,6 +46,9 @@ router.post('/register', async (req, res) => {
 
     const tokens = generateTokens(user.id, user.role);
     res.status(201).json({ user: { id: user.id, email: user.email, role: user.role }, ...tokens });
+
+    // Fire-and-forget: send welcome message from admin
+    sendWelcomeMessage(user.id, user.role).catch(() => {});
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -179,6 +182,38 @@ router.put('/change-password', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+async function sendWelcomeMessage(userId, role) {
+  const admin = await prisma.user.findUnique({ where: { email: 'admin@motion.app' } });
+  if (!admin) return;
+
+  // Ensure a consistent participant order for the unique constraint
+  const [user1Id, user2Id] = [admin.id, userId].sort();
+
+  const conversation = await prisma.conversation.upsert({
+    where: { user1Id_user2Id: { user1Id, user2Id } },
+    create: { user1Id, user2Id },
+    update: {},
+  });
+
+  const content = role === 'STEPPER'
+    ? `Welcome to Motion, King! 👑\n\nYou're officially a Stepper. Here's how to get started:\n\n• Browse Baddies in the Feed and send a Like\n• Post a Move to invite Baddies to link up\n• Complete your profile to stand out\n\nLet's get it! 🚀`
+    : `Welcome to Motion, Queen! ✨\n\nYou're officially a Baddie. Here's how to get started:\n\n• Browse the Feed and Like a Stepper you're feeling\n• Check out Moves to see what Steppers are planning\n• Complete your profile so they notice you\n\nTime to shine! 💅`;
+
+  await prisma.message.create({
+    data: {
+      conversationId: conversation.id,
+      senderId: admin.id,
+      content,
+      contentType: 'TEXT',
+    },
+  });
+
+  await prisma.conversation.update({
+    where: { id: conversation.id },
+    data: { lastMessageAt: new Date() },
+  });
+}
 
 async function generateCompletionNotifications(userId) {
   const user = await prisma.user.findUnique({

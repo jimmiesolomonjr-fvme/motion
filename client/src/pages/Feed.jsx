@@ -6,6 +6,7 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
 import Modal from '../components/ui/Modal';
 import { Heart } from 'lucide-react';
+import StoryBar from '../components/stories/StoryBar';
 
 export default function Feed() {
   const [users, setUsers] = useState([]);
@@ -67,6 +68,7 @@ export default function Feed() {
 
   return (
     <AppLayout>
+      <StoryBar />
       <FeedFilters
         sort={sort} setSort={setSort}
         onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}

@@ -4,6 +4,8 @@ import Button from '../ui/Button';
 import { formatDate } from '../../utils/formatters';
 
 export default function MoveCard({ move, onInterest, userRole }) {
+  const baddies = move.interestedBaddies || [];
+
   return (
     <div className="card-elevated">
       <div className="flex items-start gap-3 mb-4">
@@ -36,6 +38,25 @@ export default function MoveCard({ move, onInterest, userRole }) {
           {move.interestCount}/{move.maxInterest} interested
         </span>
       </div>
+
+      {/* Stacked baddie avatars */}
+      {baddies.length > 0 && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex -space-x-2">
+            {baddies.map((b) => (
+              <img
+                key={b.id}
+                src={b.photo}
+                alt={b.displayName}
+                className="w-7 h-7 rounded-full object-cover border-2 border-dark ring-0"
+              />
+            ))}
+          </div>
+          <span className="text-xs text-gray-400">
+            {move.interestCount} interested
+          </span>
+        </div>
+      )}
 
       {userRole === 'BADDIE' && (
         move.hasInterest ? (

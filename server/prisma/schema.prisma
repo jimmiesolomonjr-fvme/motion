@@ -65,6 +65,8 @@ model User {
   profileViewedBy  ProfileView[] @relation("Viewed")
   notifications    Notification[]
   profilePrompts   ProfilePrompt[]
+  stories          Story[]
+  storyViews       StoryView[] @relation("storyViews")
 }
 
 model Profile {
@@ -275,4 +277,28 @@ model ProfilePrompt {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, prompt])
+}
+
+model Story {
+  id        String    @id @default(uuid())
+  userId    String
+  photo     String
+  caption   String?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  views StoryView[]
+}
+
+model StoryView {
+  id        String   @id @default(uuid())
+  storyId   String
+  viewerId  String
+  createdAt DateTime @default(now())
+
+  story  Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User  @relation("storyViews", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  @@unique([storyId, viewerId])
 }

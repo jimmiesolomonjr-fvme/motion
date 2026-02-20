@@ -11,6 +11,7 @@ import VibeScore from '../components/vibe-check/VibeScore';
 import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2 } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
+import CreateStory from '../components/stories/CreateStory';
 
 export default function Profile() {
   const { userId } = useParams();
@@ -34,6 +35,7 @@ export default function Profile() {
   const [availablePrompts, setAvailablePrompts] = useState([]);
   const [editPrompts, setEditPrompts] = useState([]);
   const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
+  const [showCreateStory, setShowCreateStory] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -192,11 +194,34 @@ export default function Profile() {
 
   return (
     <AppLayout>
+      {/* Completion Nudge - top of page */}
+      {showNudge && (
+        <div className="bg-gold/10 border border-gold/20 rounded-xl p-4 relative mb-4">
+          <button
+            onClick={() => { setNudgeDismissed(true); sessionStorage.setItem('profileNudgeDismissed', 'true'); }}
+            className="absolute top-2 right-2 text-gray-500 hover:text-white"
+          >
+            <X size={14} />
+          </button>
+          <h3 className="text-sm font-bold text-gold mb-2">Complete Your Profile</h3>
+          <ul className="text-xs text-gray-400 space-y-1">
+            {photos.length < 2 && <li>Add at least 2 photos to stand out</li>}
+            {prompts.length === 0 && <li>Answer profile prompts to show your personality</li>}
+          </ul>
+          <button
+            onClick={() => setEditing(true)}
+            className="mt-3 text-xs text-gold font-semibold hover:underline"
+          >
+            Edit Profile
+          </button>
+        </div>
+      )}
+
       {/* Photo Gallery */}
       {editing ? (
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-300 mb-2">Photos ({photos.length}/6)</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid grid-cols-3 gap-2${photos.length < 2 ? ' ring-2 ring-gold/50 rounded-xl p-1' : ''}`}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
                 {photos[i] ? (
@@ -218,6 +243,9 @@ export default function Profile() {
               </div>
             ))}
           </div>
+          {photos.length < 2 && (
+            <p className="text-xs text-gold/70 mt-1.5">Add at least 2 photos to stand out</p>
+          )}
         </div>
       ) : (
         <>
@@ -275,8 +303,11 @@ export default function Profile() {
             <Input label="Looking For" value={editForm.lookingFor} onChange={(e) => setEditForm({ ...editForm, lookingFor: e.target.value })} />
 
             {/* Profile Prompts Edit */}
-            <div>
+            <div className={editPrompts.length === 0 ? 'ring-2 ring-gold/50 rounded-xl p-1' : ''}>
               <label className="block text-sm font-medium text-gray-300 mb-2">Profile Prompts (max 2)</label>
+              {editPrompts.length === 0 && (
+                <p className="text-xs text-gold/70 mb-2">Add prompts to show your personality</p>
+              )}
               <div className="space-y-3">
                 {editPrompts.map((ep, i) => (
                   <div key={i} className="bg-dark-100 rounded-xl p-3 space-y-2">
@@ -365,34 +396,16 @@ export default function Profile() {
               </div>
             )}
 
-            {/* Completion Nudge */}
-            {showNudge && (
-              <div className="bg-gold/10 border border-gold/20 rounded-xl p-4 relative">
-                <button
-                  onClick={() => { setNudgeDismissed(true); sessionStorage.setItem('profileNudgeDismissed', 'true'); }}
-                  className="absolute top-2 right-2 text-gray-500 hover:text-white"
-                >
-                  <X size={14} />
-                </button>
-                <h3 className="text-sm font-bold text-gold mb-2">Complete Your Profile</h3>
-                <ul className="text-xs text-gray-400 space-y-1">
-                  {photos.length < 2 && <li>Add at least 2 photos to stand out</li>}
-                  {prompts.length === 0 && <li>Answer profile prompts to show your personality</li>}
-                </ul>
-                <button
-                  onClick={() => setEditing(true)}
-                  className="mt-3 text-xs text-gold font-semibold hover:underline"
-                >
-                  Edit Profile
-                </button>
-              </div>
-            )}
-
             {/* Actions */}
             {isOwnProfile ? (
-              <Button variant="outline" className="w-full" onClick={() => setEditing(true)}>
-                <Edit3 size={16} className="inline mr-2" /> Edit Profile
-              </Button>
+              <div className="space-y-2">
+                <Button variant="outline" className="w-full" onClick={() => setEditing(true)}>
+                  <Edit3 size={16} className="inline mr-2" /> Edit Profile
+                </Button>
+                <Button variant="ghost" className="w-full text-gold" onClick={() => setShowCreateStory(true)}>
+                  <Camera size={16} className="inline mr-2" /> Add to Story
+                </Button>
+              </div>
             ) : (
               <div className="space-y-2">
                 {liked ? (
@@ -453,6 +466,13 @@ export default function Profile() {
           </Button>
         </div>
       </Modal>
+
+      {isOwnProfile && (
+        <CreateStory
+          isOpen={showCreateStory}
+          onClose={() => setShowCreateStory(false)}
+        />
+      )}
     </AppLayout>
   );
 }

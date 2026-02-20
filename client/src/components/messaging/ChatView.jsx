@@ -224,15 +224,17 @@ export default function ChatView({ conversationId, otherUser }) {
         <Link to="/messages" className="text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </Link>
-        <Avatar src={otherUser?.profile?.photos} name={otherUser?.profile?.displayName} size="sm" online={isOnline(otherUser?.lastOnline)} />
-        <div className="flex-1">
-          <h3 className="font-semibold text-white text-sm">{otherUser?.profile?.displayName}</h3>
+        <Link to={`/profile/${otherUser?.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+          <Avatar src={otherUser?.profile?.photos} name={otherUser?.profile?.displayName} size="sm" online={isOnline(otherUser?.lastOnline)} />
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-white text-sm">{otherUser?.profile?.displayName}</h3>
           {typing ? (
             <p className="text-xs text-gold">typing...</p>
           ) : (
             <p className="text-xs text-gray-500">{isOnline(otherUser?.lastOnline) ? 'Online' : 'Offline'}</p>
           )}
-        </div>
+          </div>
+        </Link>
         {/* Three-dot menu */}
         <div className="relative" ref={menuRef}>
           <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 text-gray-400 hover:text-white transition-colors">

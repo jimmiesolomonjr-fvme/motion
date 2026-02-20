@@ -58,6 +58,11 @@ router.get('/', authenticate, async (req, res) => {
       include: {
         stepper: { include: { profile: true } },
         _count: { select: { interests: true } },
+        interests: {
+          take: 3,
+          include: { baddie: { include: { profile: { select: { photos: true, displayName: true } } } } },
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { date: 'asc' },
     });
@@ -79,6 +84,11 @@ router.get('/', authenticate, async (req, res) => {
       interestCount: m._count.interests,
       createdAt: m.createdAt,
       hasInterest: interestedMoveIds.has(m.id),
+      interestedBaddies: m.interests.map((i) => ({
+        id: i.baddie.id,
+        displayName: i.baddie.profile?.displayName,
+        photo: Array.isArray(i.baddie.profile?.photos) ? i.baddie.profile.photos[0] : null,
+      })),
       stepper: {
         id: m.stepper.id,
         isVerified: m.stepper.isVerified,

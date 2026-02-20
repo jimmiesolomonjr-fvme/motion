@@ -1,15 +1,22 @@
+import { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import { timeAgo } from '../../utils/formatters';
 
 export default function MoveInterestList({ interests, onStartConversation }) {
+  const [expanded, setExpanded] = useState(false);
+
   if (interests.length === 0) {
     return <p className="text-gray-500 text-sm text-center py-4">No interest yet</p>;
   }
 
+  const visible = expanded ? interests : interests.slice(0, 3);
+  const hiddenCount = interests.length - 3;
+
   return (
     <div className="space-y-3">
-      {interests.map((interest) => (
+      {visible.map((interest) => (
         <div key={interest.id} className="flex items-center gap-3 p-3 bg-dark-100 rounded-xl">
           <Avatar src={interest.baddie.profile?.photos} name={interest.baddie.profile?.displayName} size="sm" />
           <div className="flex-1 min-w-0">
@@ -22,6 +29,18 @@ export default function MoveInterestList({ interests, onStartConversation }) {
           </Button>
         </div>
       ))}
+      {hiddenCount > 0 && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center justify-center gap-1 py-2 text-sm text-gold hover:text-gold/80 transition-colors"
+        >
+          {expanded ? (
+            <><ChevronUp size={16} /> Show less</>
+          ) : (
+            <><ChevronDown size={16} /> Show {hiddenCount} more interested</>
+          )}
+        </button>
+      )}
     </div>
   );
 }
