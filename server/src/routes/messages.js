@@ -128,10 +128,14 @@ router.post('/start/:userId', authenticate, async (req, res) => {
     });
 
     if (!match) {
+      // Check if freeMessaging is enabled
+      const freeMessagingSetting = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } });
+      const freeMessaging = freeMessagingSetting?.value === 'true';
+
       // Allow Baddies to message Steppers directly (no match required)
       const currentUserData = await prisma.user.findUnique({
         where: { id: req.userId },
-        select: { role: true },
+        select: { role: true, isPremium: true },
       });
       const otherUserData = await prisma.user.findUnique({
         where: { id: otherUserId },
@@ -139,8 +143,9 @@ router.post('/start/:userId', authenticate, async (req, res) => {
       });
 
       const baddieToStepper = currentUserData?.role === 'BADDIE' && otherUserData?.role === 'STEPPER';
+      const canFreeMessage = freeMessaging || currentUserData?.isPremium;
 
-      if (!baddieToStepper) {
+      if (!baddieToStepper && !canFreeMessage) {
         // Check for MoveInterest as fallback
         const moveInterest = await prisma.moveInterest.findFirst({
           where: {
