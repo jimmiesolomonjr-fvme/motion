@@ -19,6 +19,23 @@ const PROFILE_PROMPTS = [
   "I'm attracted to…",
 ];
 
+// Get referral info
+router.get('/referral', authenticate, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { referralCode: true },
+    });
+    const referralCount = await prisma.user.count({
+      where: { referredBy: user.referralCode },
+    });
+    res.json({ referralCode: user.referralCode, referralCount });
+  } catch (error) {
+    console.error('Referral info error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Create/update profile (onboarding)
 router.post('/profile', authenticate, async (req, res) => {
   try {
@@ -118,7 +135,10 @@ router.get('/profile', authenticate, async (req, res) => {
     if (!user?.profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
-    res.json({ ...user.profile, role: user.role, isPremium: user.isPremium, isVerified: user.isVerified, profilePrompts: user.profilePrompts });
+    const referralCount = user.referralCode
+      ? await prisma.user.count({ where: { referredBy: user.referralCode } })
+      : 0;
+    res.json({ ...user.profile, role: user.role, isPremium: user.isPremium, isVerified: user.isVerified, profilePrompts: user.profilePrompts, isPlug: referralCount > 0 });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -134,6 +154,9 @@ router.get('/profile/:userId', authenticate, async (req, res) => {
     if (!user?.profile) {
       return res.status(404).json({ error: 'Profile not found' });
     }
+    const referralCount = user.referralCode
+      ? await prisma.user.count({ where: { referredBy: user.referralCode } })
+      : 0;
     res.json({
       ...user.profile,
       role: user.role,
@@ -141,6 +164,7 @@ router.get('/profile/:userId', authenticate, async (req, res) => {
       isVerified: user.isVerified,
       lastOnline: user.lastOnline,
       profilePrompts: user.profilePrompts,
+      isPlug: referralCount > 0,
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -224,6 +248,13 @@ router.get('/feed', authenticate, async (req, res) => {
       take: 50,
     });
 
+    // Batch referral counts for isPlug
+    const referralCodes = users.map((u) => u.referralCode).filter(Boolean);
+    const referralCounts = referralCodes.length > 0
+      ? await prisma.user.groupBy({ by: ['referredBy'], where: { referredBy: { in: referralCodes } }, _count: true })
+      : [];
+    const referralCountMap = new Map(referralCounts.map((r) => [r.referredBy, r._count]));
+
     // Calculate distances and vibe scores
     let results = await Promise.all(
       users.map(async (user) => {
@@ -258,6 +289,7 @@ router.get('/feed', authenticate, async (req, res) => {
           distance,
           vibeScore,
           hasLiked: likedIds.has(user.id),
+          isPlug: user.referralCode ? (referralCountMap.get(user.referralCode) || 0) > 0 : false,
         };
       })
     );

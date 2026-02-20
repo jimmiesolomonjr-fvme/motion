@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, MapPin, BadgeCheck, Sparkles } from 'lucide-react';
+import { Heart, MapPin, BadgeCheck, Sparkles, Zap } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
 
 export default function ProfileCard({ user, onLike, onUnlike }) {
@@ -40,6 +40,7 @@ export default function ProfileCard({ user, onLike, onUnlike }) {
                 {user.profile?.displayName}, {user.profile?.age}
               </h3>
               {user.isVerified && <BadgeCheck size={14} className="text-blue-400 flex-shrink-0" />}
+              {user.isPlug && <Zap size={14} className="text-amber-400 flex-shrink-0" />}
             </div>
             <div className="flex items-center gap-1 text-gray-300 text-xs">
               <MapPin size={10} />

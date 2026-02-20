@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
@@ -7,8 +7,9 @@ import { Crown, Sparkles } from 'lucide-react';
 
 export default function Register() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { register } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', role: '' });
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', role: '', referralCode: searchParams.get('ref') || '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -27,7 +28,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await register(form.email, form.password, form.role);
+      await register(form.email, form.password, form.role, form.referralCode.trim() || undefined);
       navigate('/onboarding');
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');
@@ -72,6 +73,14 @@ export default function Register() {
               </button>
             </div>
           </div>
+
+          <Input
+            label="Invite Code (optional)"
+            name="referralCode"
+            value={form.referralCode}
+            onChange={handleChange}
+            placeholder="MOTION-XXXXXX"
+          />
 
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 

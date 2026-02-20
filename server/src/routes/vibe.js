@@ -16,7 +16,9 @@ router.get('/questions', authenticate, async (req, res) => {
     });
 
     if (answeredToday >= 10) {
-      return res.json({ questions: [], remaining: 0, message: 'Daily limit reached. Come back tomorrow!' });
+      const resetsAt = new Date(todayStart);
+      resetsAt.setDate(resetsAt.getDate() + 1);
+      return res.json({ questions: [], remaining: 0, resetsAt: resetsAt.toISOString() });
     }
 
     const answeredIds = (

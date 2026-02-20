@@ -5,11 +5,41 @@ import QuestionCard from '../components/vibe-check/QuestionCard';
 import api from '../services/api';
 import { Sparkles } from 'lucide-react';
 
+function useCountdown(resetsAt) {
+  const [timeLeft, setTimeLeft] = useState('');
+
+  useEffect(() => {
+    if (!resetsAt) return;
+    const target = new Date(resetsAt).getTime();
+
+    const tick = () => {
+      const diff = target - Date.now();
+      if (diff <= 0) {
+        setTimeLeft('');
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [resetsAt]);
+
+  return timeLeft;
+}
+
 export default function VibeCheck() {
   const [questions, setQuestions] = useState([]);
   const [remaining, setRemaining] = useState(0);
+  const [resetsAt, setResetsAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [answered, setAnswered] = useState(0);
+
+  const countdown = useCountdown(resetsAt);
 
   useEffect(() => {
     fetchQuestions();
@@ -21,6 +51,7 @@ export default function VibeCheck() {
       const { data } = await api.get('/vibe/questions');
       setQuestions(data.questions);
       setRemaining(data.remaining);
+      if (data.resetsAt) setResetsAt(data.resetsAt);
     } catch (err) {
       console.error('Vibe error:', err);
     } finally {
@@ -86,7 +117,9 @@ export default function VibeCheck() {
           </h3>
           <p className="text-gray-400 text-sm">
             {remaining === 0
-              ? 'Come back tomorrow for more Vibe Check questions'
+              ? countdown
+                ? `New questions in ${countdown}`
+                : 'Come back tomorrow for more Vibe Check questions'
               : 'New questions are added regularly'}
           </p>
         </div>

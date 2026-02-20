@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2, Check } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2, Check, Zap } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
@@ -429,6 +429,11 @@ export default function Profile() {
                   <span className={profile.role === 'STEPPER' ? 'badge-stepper' : 'badge-baddie'}>
                     {profile.role === 'STEPPER' ? <><Crown size={10} className="inline mr-1" />Stepper</> : <><Sparkles size={10} className="inline mr-1" />Baddie</>}
                   </span>
+                  {profile.isPlug && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold">
+                      <Zap size={10} /> The Plug
+                    </span>
+                  )}
                   <span className="flex items-center gap-1 text-sm text-gray-400">
                     <MapPin size={14} /> {profile.city}
                   </span>

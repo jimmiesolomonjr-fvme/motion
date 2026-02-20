@@ -38,6 +38,8 @@ model User {
   isDummy      Boolean  @default(false)
   isAdmin      Boolean  @default(false)
   notificationsEnabled Boolean @default(true)
+  referralCode String?  @unique
+  referredBy   String?
   lastOnline   DateTime @default(now())
   locationLat  Float?
   locationLng  Float?

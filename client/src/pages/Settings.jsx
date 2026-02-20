@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2 } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
@@ -24,6 +24,12 @@ export default function Settings() {
   // Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
+  // Referral state
+  const [showReferral, setShowReferral] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralCount, setReferralCount] = useState(0);
+  const [copied, setCopied] = useState(false);
+
   // Delete account state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
@@ -33,6 +39,10 @@ export default function Settings() {
   useEffect(() => {
     api.get('/reports/blocked').then(({ data }) => setBlocked(data)).catch(() => {});
     api.get('/users/notifications').then(({ data }) => setNotificationsEnabled(data.notificationsEnabled)).catch(() => {});
+    api.get('/users/referral').then(({ data }) => {
+      setReferralCode(data.referralCode || '');
+      setReferralCount(data.referralCount || 0);
+    }).catch(() => {});
   }, []);
 
   const handleLogout = () => {
@@ -100,6 +110,26 @@ export default function Settings() {
     }
   };
 
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/register?ref=${referralCode}`;
+    const shareData = { title: 'Join Motion', text: `Join me on Motion! Use my invite code: ${referralCode}`, url: shareUrl };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch { /* ignore */ }
+    }
+  };
+
   const menuItems = [
     { icon: Crown, label: 'Premium', to: '/premium', color: 'text-gold' },
     ...(user?.isAdmin ? [{ icon: Shield, label: 'Admin Dashboard', to: '/admin', color: 'text-red-400' }] : []),
@@ -125,6 +155,41 @@ export default function Settings() {
           </Link>
         ))}
       </div>
+
+      {/* Share Motion */}
+      {referralCode && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowReferral(!showReferral)}
+            className="flex items-center justify-between w-full p-4 rounded-xl hover:bg-dark-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Share2 className="text-gold" size={20} />
+              <span className="text-white font-medium">Share Motion</span>
+            </div>
+            <ChevronDown className={`text-gray-600 transition-transform ${showReferral ? 'rotate-180' : ''}`} size={18} />
+          </button>
+          {showReferral && (
+            <div className="px-4 pb-4 space-y-3">
+              <div className="bg-dark-50 rounded-xl p-4 text-center">
+                <p className="text-xs text-gray-400 mb-1">Your Invite Code</p>
+                <p className="text-xl font-bold text-gold tracking-wider">{referralCode}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {referralCount > 0
+                    ? `${referralCount} ${referralCount === 1 ? 'person' : 'people'} joined with your code`
+                    : 'No one has used your code yet'}
+                </p>
+              </div>
+              <button
+                onClick={handleShare}
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-gold text-dark rounded-xl font-semibold text-sm hover:bg-gold/90 transition-colors"
+              >
+                {copied ? <><Check size={16} /> Copied!</> : <><Share2 size={16} /> Share Invite Link</>}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Change Password */}
       <div className="mb-6">

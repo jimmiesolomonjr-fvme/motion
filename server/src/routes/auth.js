@@ -19,10 +19,17 @@ function generateTokens(userId, role) {
   return { accessToken, refreshToken };
 }
 
+function generateReferralCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = 'MOTION-';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
 // Register
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role, referralCode } = req.body;
 
     if (!validateEmail(email)) {
       return res.status(400).json({ error: 'Invalid email' });
@@ -39,9 +46,24 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ error: 'Email already registered' });
     }
 
+    // Validate referral code if provided
+    let referredBy = null;
+    if (referralCode) {
+      const referrer = await prisma.user.findUnique({ where: { referralCode } });
+      if (referrer) referredBy = referralCode;
+    }
+
+    // Generate unique referral code for new user
+    let newReferralCode;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const candidate = generateReferralCode();
+      const exists = await prisma.user.findUnique({ where: { referralCode: candidate } });
+      if (!exists) { newReferralCode = candidate; break; }
+    }
+
     const passwordHash = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
-      data: { email, passwordHash, role },
+      data: { email, passwordHash, role, referralCode: newReferralCode, referredBy },
     });
 
     const tokens = generateTokens(user.id, user.role);
@@ -149,6 +171,7 @@ router.get('/me', authenticate, async (req, res) => {
       hasProfile: !!user.profile && user.profile?.photos?.length > 0,
       profile: user.profile,
       notificationsEnabled: user.notificationsEnabled,
+      referralCode: user.referralCode,
     });
   } catch (error) {
     console.error('Me error:', error);
@@ -196,9 +219,12 @@ async function sendWelcomeMessage(userId, role) {
     update: {},
   });
 
-  const content = role === 'STEPPER'
-    ? `Welcome to Motion, King! 👑\n\nYou're officially a Stepper. Here's how to get started:\n\n• Browse Baddies in the Feed and send a Like\n• Post a Move to invite Baddies to link up\n• Complete your profile to stand out\n\nLet's get it! 🚀`
-    : `Welcome to Motion, Queen! ✨\n\nYou're officially a Baddie. Here's how to get started:\n\n• Browse the Feed and Like a Stepper you're feeling\n• Check out Moves to see what Steppers are planning\n• Complete your profile so they notice you\n\nTime to shine! 💅`;
+  const defaultStepper = `Welcome to Motion, King! 👑\n\nYou're officially a Stepper. Here's how to get started:\n\n• Browse Baddies in the Feed and send a Like\n• Post a Move to invite Baddies to link up\n• Complete your profile to stand out\n\nLet's get it! 🚀`;
+  const defaultBaddie = `Welcome to Motion, Queen! ✨\n\nYou're officially a Baddie. Here's how to get started:\n\n• Browse the Feed and Like a Stepper you're feeling\n• Check out Moves to see what Steppers are planning\n• Complete your profile so they notice you\n\nTime to shine! 💅`;
+
+  const settingKey = role === 'STEPPER' ? 'welcomeMessageStepper' : 'welcomeMessageBaddie';
+  const setting = await prisma.appSetting.findUnique({ where: { key: settingKey } });
+  const content = setting?.value?.trim() || (role === 'STEPPER' ? defaultStepper : defaultBaddie);
 
   await prisma.message.create({
     data: {
