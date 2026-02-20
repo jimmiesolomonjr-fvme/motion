@@ -68,8 +68,21 @@ export default function ChatView({ conversationId, otherUser }) {
 
     const handleNewMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
-      if (msg.senderId !== user.id) {
+      if (msg.senderId === user.id) {
+        pendingMessageRef.current = '';
+      } else {
         socket.emit('mark-read', { conversationId });
+      }
+    };
+
+    const handleSendError = (data) => {
+      if (data?.conversationId === conversationId || !data?.conversationId) {
+        setSocketError(data?.error || 'Failed to send message');
+        if (pendingMessageRef.current) {
+          setInput(pendingMessageRef.current);
+          pendingMessageRef.current = '';
+        }
+        setTimeout(() => setSocketError(''), 5000);
       }
     };
 
@@ -92,6 +105,7 @@ export default function ChatView({ conversationId, otherUser }) {
     socket.on('user-stop-typing', handleStopTyping);
     socket.on('messages-read', handleRead);
     socket.on('error', handleError);
+    socket.on('send-message-error', handleSendError);
 
     return () => {
       socket.emit('leave-conversation', conversationId);
@@ -100,6 +114,7 @@ export default function ChatView({ conversationId, otherUser }) {
       socket.off('user-stop-typing', handleStopTyping);
       socket.off('messages-read', handleRead);
       socket.off('error', handleError);
+      socket.off('send-message-error', handleSendError);
     };
   }, [socket, conversationId]);
 
@@ -107,8 +122,17 @@ export default function ChatView({ conversationId, otherUser }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const pendingMessageRef = useRef('');
+
   const sendMessage = () => {
     if (!input.trim() || !socket) return;
+
+    if (!socket.connected) {
+      setSocketError('Connection lost, reconnecting...');
+      return;
+    }
+
+    pendingMessageRef.current = input.trim();
     socket.emit('send-message', { conversationId, content: input.trim() });
     setInput('');
     setIcebreakers([]);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Eye } from 'lucide-react';
+import { X, Eye, Heart } from 'lucide-react';
 import api from '../../services/api';
 
 export default function StoryViewer({ storyGroups, startIndex, currentUserId, onClose }) {
@@ -11,14 +11,25 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
   const startTimeRef = useRef(null);
 
   const DURATION = 5000; // 5 seconds per story
+  const [likedStories, setLikedStories] = useState({});
 
   const group = storyGroups[groupIdx];
   const story = group?.stories[storyIdx];
   const isOwn = group?.userId === currentUserId;
+  const hasLiked = story?.hasLiked || likedStories[story?.id];
 
   const markViewed = useCallback((storyId) => {
     api.post(`/stories/${storyId}/view`).catch(() => {});
   }, []);
+
+  const handleLike = (e) => {
+    e.stopPropagation();
+    if (hasLiked || !story) return;
+    setLikedStories((prev) => ({ ...prev, [story.id]: true }));
+    api.post(`/stories/${story.id}/like`).catch(() => {
+      setLikedStories((prev) => ({ ...prev, [story.id]: false }));
+    });
+  };
 
   const advance = useCallback(() => {
     if (storyIdx < group.stories.length - 1) {
@@ -115,9 +126,28 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
         {/* Story image */}
         <img src={story.photo} alt="" className="w-full h-full object-cover" />
 
+        {/* Like button (others' stories only) */}
+        {!isOwn && (
+          <button
+            onClick={handleLike}
+            className="absolute bottom-6 right-4 z-10 flex flex-col items-center gap-1"
+          >
+            <Heart
+              size={28}
+              className={hasLiked ? 'text-red-500' : 'text-white/80'}
+              fill={hasLiked ? 'currentColor' : 'none'}
+            />
+            {(story.likeCount > 0 || hasLiked) && (
+              <span className="text-white/70 text-xs">
+                {(story.likeCount || 0) + (hasLiked && !story.hasLiked ? 1 : 0)}
+              </span>
+            )}
+          </button>
+        )}
+
         {/* Caption */}
         {story.caption && (
-          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/80 to-transparent">
+          <div className="absolute bottom-0 left-0 right-0 p-6 pr-16 bg-gradient-to-t from-black/80 to-transparent">
             <p className="text-white text-sm">{story.caption}</p>
           </div>
         )}

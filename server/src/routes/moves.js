@@ -199,6 +199,26 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
   }
 });
 
+// Delete a move interest (Stepper only - for their own moves)
+router.delete('/interests/:interestId', authenticate, async (req, res) => {
+  try {
+    const interest = await prisma.moveInterest.findUnique({
+      where: { id: req.params.interestId },
+      include: { move: { select: { stepperId: true } } },
+    });
+
+    if (!interest || interest.move.stepperId !== req.userId) {
+      return res.status(404).json({ error: 'Interest not found' });
+    }
+
+    await prisma.moveInterest.delete({ where: { id: req.params.interestId } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete interest error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete a Move (Stepper only)
 router.delete('/:moveId', authenticate, async (req, res) => {
   try {

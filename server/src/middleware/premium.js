@@ -6,11 +6,15 @@ export async function requirePremium(req, res, next) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { isPremium: true, role: true },
+      select: { isPremium: true, role: true, isMuted: true },
     });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.isMuted) {
+      return res.status(403).json({ error: 'Your messaging privileges have been suspended' });
     }
 
     // Baddies message freely

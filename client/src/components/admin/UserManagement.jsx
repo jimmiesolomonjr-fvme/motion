@@ -3,7 +3,7 @@ import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import api from '../../services/api';
-import { BadgeCheck, Ban, EyeOff } from 'lucide-react';
+import { BadgeCheck, Ban, EyeOff, MessageSquareOff } from 'lucide-react';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -34,6 +34,11 @@ export default function UserManagement() {
     fetchUsers();
   };
 
+  const toggleMute = async (userId, currentMuted) => {
+    await api.put(`/admin/users/${userId}/mute`, { muted: !currentMuted });
+    fetchUsers();
+  };
+
   return (
     <div>
       <Input
@@ -53,6 +58,7 @@ export default function UserManagement() {
                 <span className={u.role === 'STEPPER' ? 'badge-stepper' : 'badge-baddie'}>{u.role}</span>
                 {u.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
                 {u.isBanned && <span className="text-xs text-red-400 font-bold">BANNED</span>}
+                {u.isMuted && <span className="text-xs text-yellow-400 font-bold">MUTED</span>}
                 {u.isHidden && <span className="text-xs text-orange-400 font-bold">HIDDEN</span>}
               </div>
               <p className="text-xs text-gray-500">{u.email}</p>
@@ -64,6 +70,13 @@ export default function UserManagement() {
                 title={u.isVerified ? 'Remove verification' : 'Verify user'}
               >
                 <BadgeCheck size={16} />
+              </button>
+              <button
+                onClick={() => toggleMute(u.id, u.isMuted)}
+                className={`p-1.5 rounded-lg transition-colors ${u.isMuted ? 'bg-yellow-500/20 text-yellow-400' : 'bg-dark-50 text-gray-500'}`}
+                title={u.isMuted ? 'Unmute user' : 'Mute user'}
+              >
+                <MessageSquareOff size={16} />
               </button>
               <button
                 onClick={() => toggleHide(u.id, u.isHidden)}

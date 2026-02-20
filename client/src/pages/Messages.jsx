@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import AppLayout from '../components/layout/AppLayout';
 import ConversationList from '../components/messaging/ConversationList';
 import api from '../services/api';
@@ -6,7 +7,70 @@ import { useSocket, useNotifications } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/ui/Avatar';
 import { Link } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Trash2 } from 'lucide-react';
+
+function SwipeableInterest({ interest, onStartConversation, onDismiss }) {
+  const x = useMotionValue(0);
+  const deleteOpacity = useTransform(x, [-100, -60], [1, 0]);
+  const [swiped, setSwiped] = useState(false);
+
+  const handleDragEnd = (_, info) => {
+    if (info.offset.x < -60) {
+      animate(x, -80);
+      setSwiped(true);
+    } else {
+      animate(x, 0);
+      setSwiped(false);
+    }
+  };
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    onDismiss(interest.id);
+  };
+
+  const handleTap = () => {
+    if (swiped) {
+      animate(x, 0);
+      setSwiped(false);
+    }
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-xl">
+      <motion.div
+        style={{ opacity: deleteOpacity }}
+        className="absolute right-0 top-0 bottom-0 flex items-center justify-center w-20 bg-red-500 rounded-r-xl"
+      >
+        <button onClick={handleDelete} className="p-2 text-white">
+          <Trash2 size={20} />
+        </button>
+      </motion.div>
+
+      <motion.div
+        style={{ x }}
+        drag="x"
+        dragConstraints={{ left: -80, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={handleDragEnd}
+        onTap={handleTap}
+        className="relative bg-dark z-10"
+      >
+        <button
+          onClick={() => { if (!swiped) onStartConversation(interest.baddie.id); }}
+          className="w-full flex items-center gap-3 p-3 rounded-xl bg-dark-50 hover:bg-dark-100 transition-colors text-left"
+        >
+          <Avatar src={interest.baddie.profile?.photos} size="sm" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{interest.baddie.profile?.displayName}</p>
+            <p className="text-xs text-gray-500 truncate">{interest.moveTitle}</p>
+          </div>
+          <span className="text-xs text-gold">Chat</span>
+        </button>
+      </motion.div>
+    </div>
+  );
+}
 
 export default function Messages() {
   const { user } = useAuth();
@@ -69,6 +133,15 @@ export default function Messages() {
     }
   };
 
+  const dismissInterest = async (interestId) => {
+    try {
+      await api.delete(`/moves/interests/${interestId}`);
+      setMoveInterests((prev) => prev.filter((i) => i.id !== interestId));
+    } catch (err) {
+      console.error('Dismiss interest error:', err);
+    }
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -117,18 +190,12 @@ export default function Messages() {
           </h2>
           <div className="space-y-2">
             {moveInterests.map((interest) => (
-              <button
+              <SwipeableInterest
                 key={interest.id}
-                onClick={() => startConversation(interest.baddie.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl bg-dark-50 hover:bg-dark-100 transition-colors text-left"
-              >
-                <Avatar src={interest.baddie.profile?.photos} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{interest.baddie.profile?.displayName}</p>
-                  <p className="text-xs text-gray-500 truncate">{interest.moveTitle}</p>
-                </div>
-                <span className="text-xs text-gold">Chat</span>
-              </button>
+                interest={interest}
+                onStartConversation={startConversation}
+                onDismiss={dismissInterest}
+              />
             ))}
           </div>
         </div>

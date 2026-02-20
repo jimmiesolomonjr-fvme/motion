@@ -95,6 +95,7 @@ router.get('/users', authenticate, requireAdmin, async (req, res) => {
         role: u.role,
         isPremium: u.isPremium,
         isBanned: u.isBanned,
+        isMuted: u.isMuted,
         isHidden: u.isHidden,
         isVerified: u.isVerified,
         createdAt: u.createdAt,
@@ -131,6 +132,20 @@ router.put('/users/:userId/verify', authenticate, requireAdmin, async (req, res)
       data: { isVerified: !!verified },
     });
     res.json({ id: user.id, isVerified: user.isVerified });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Mute/unmute user
+router.put('/users/:userId/mute', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { muted } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.params.userId },
+      data: { isMuted: !!muted },
+    });
+    res.json({ id: user.id, isMuted: user.isMuted });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

@@ -39,8 +39,20 @@ export default function MoveCard({ move, onInterest, userRole }) {
         </span>
       </div>
 
-      {/* Stacked baddie avatars */}
-      {baddies.length > 0 && (
+      {/* Interested baddies */}
+      {baddies.length === 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <img
+            src={baddies[0].photo}
+            alt={baddies[0].displayName}
+            className="w-7 h-7 rounded-full object-cover border-2 border-dark"
+          />
+          <span className="text-xs text-gray-300">
+            <span className="text-white font-medium">{baddies[0].displayName}</span> is interested
+          </span>
+        </div>
+      )}
+      {baddies.length >= 2 && (
         <div className="flex items-center gap-2 mb-4">
           <div className="flex -space-x-2">
             {baddies.map((b) => (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2 } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2, Check } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 import CreateStory from '../components/stories/CreateStory';
@@ -36,6 +36,8 @@ export default function Profile() {
   const [editPrompts, setEditPrompts] = useState([]);
   const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
   const [showCreateStory, setShowCreateStory] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState(null); // index of open prompt dropdown
+  const dropdownRefs = useRef([]);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -68,6 +70,18 @@ export default function Profile() {
     };
     fetchProfile();
   }, [userId]);
+
+  // Close prompt dropdown on outside click
+  useEffect(() => {
+    if (openDropdown === null) return;
+    const handleClick = (e) => {
+      if (dropdownRefs.current[openDropdown] && !dropdownRefs.current[openDropdown].contains(e.target)) {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [openDropdown]);
 
   // Fetch available prompts when entering edit mode
   useEffect(() => {
@@ -312,18 +326,49 @@ export default function Profile() {
                 {editPrompts.map((ep, i) => (
                   <div key={i} className="bg-dark-100 rounded-xl p-3 space-y-2">
                     <div className="flex items-center justify-between">
-                      <select
-                        value={ep.prompt}
-                        onChange={(e) => updatePromptSlot(i, 'prompt', e.target.value)}
-                        className="flex-1 bg-dark-50 text-white text-sm rounded-lg px-3 py-2 border border-dark-50 focus:border-gold/50 outline-none appearance-none"
-                      >
-                        <option value="">Select a prompt...</option>
-                        {availablePrompts.map((p) => (
-                          <option key={p} value={p} disabled={editPrompts.some((ep2, j) => j !== i && ep2.prompt === p)}>
-                            {p}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="flex-1 relative" ref={(el) => (dropdownRefs.current[i] = el)}>
+                        <button
+                          type="button"
+                          onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
+                          className="w-full bg-dark-50 text-sm rounded-lg px-3 py-2 border border-dark-50 hover:border-gold/30 outline-none flex items-center justify-between transition-colors"
+                        >
+                          <span className={ep.prompt ? 'text-white' : 'text-gray-500'}>
+                            {ep.prompt || 'Select a prompt...'}
+                          </span>
+                          <ChevronDown size={14} className={`text-gray-500 transition-transform ${openDropdown === i ? 'rotate-180' : ''}`} />
+                        </button>
+                        {openDropdown === i && (
+                          <div className="absolute left-0 right-0 top-full mt-1 bg-dark-100 border border-dark-50 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
+                            {availablePrompts.map((p) => {
+                              const isUsed = editPrompts.some((ep2, j) => j !== i && ep2.prompt === p);
+                              const isSelected = ep.prompt === p;
+                              return (
+                                <button
+                                  key={p}
+                                  type="button"
+                                  disabled={isUsed}
+                                  onClick={() => {
+                                    if (!isUsed) {
+                                      updatePromptSlot(i, 'prompt', p);
+                                      setOpenDropdown(null);
+                                    }
+                                  }}
+                                  className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between ${
+                                    isUsed
+                                      ? 'opacity-40 cursor-not-allowed text-gray-500'
+                                      : isSelected
+                                        ? 'text-gold bg-dark-50'
+                                        : 'text-gray-300 hover:text-white hover:bg-dark-50 cursor-pointer'
+                                  }`}
+                                >
+                                  <span>{p}</span>
+                                  {isSelected && <Check size={14} className="text-gold" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                       <button onClick={() => removePromptSlot(i)} className="ml-2 text-gray-500 hover:text-red-400">
                         <Trash2 size={16} />
                       </button>

@@ -51,16 +51,23 @@ export function setupSocketHandlers(io) {
         if (!conversation) return;
         if (conversation.user1Id !== socket.userId && conversation.user2Id !== socket.userId) return;
 
+        // Muted check
+        const senderUser = await prisma.user.findUnique({
+          where: { id: socket.userId },
+          select: { isPremium: true, isMuted: true },
+        });
+
+        if (senderUser?.isMuted) {
+          socket.emit('send-message-error', { conversationId, error: 'Your messaging privileges have been suspended' });
+          return;
+        }
+
         // Premium check for Steppers (unless free messaging is on)
         if (socket.userRole === 'STEPPER') {
           const freeMessaging = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } }).catch(() => null);
           if (freeMessaging?.value !== 'true') {
-            const user = await prisma.user.findUnique({
-              where: { id: socket.userId },
-              select: { isPremium: true },
-            });
-            if (!user?.isPremium) {
-              socket.emit('error', { message: 'Premium subscription required' });
+            if (!senderUser?.isPremium) {
+              socket.emit('send-message-error', { conversationId, error: 'Premium subscription required' });
               return;
             }
           }
@@ -92,7 +99,7 @@ export function setupSocketHandlers(io) {
         }
       } catch (error) {
         console.error('Socket send-message error:', error);
-        socket.emit('error', { message: 'Failed to send message' });
+        socket.emit('send-message-error', { conversationId: data?.conversationId, error: 'Failed to send message' });
       }
     });
 
