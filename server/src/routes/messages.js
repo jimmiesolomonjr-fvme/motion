@@ -256,6 +256,63 @@ router.post('/:conversationId/image', authenticate, requirePremium, upload.singl
   }
 });
 
+// Get icebreaker prompts for a conversation with a user
+router.get('/icebreakers/:userId', authenticate, async (req, res) => {
+  try {
+    const otherUserId = req.params.userId;
+    const otherUser = await prisma.user.findUnique({
+      where: { id: otherUserId },
+      include: { profile: true, profilePrompts: { orderBy: { position: 'asc' } } },
+    });
+
+    if (!otherUser?.profile) {
+      return res.json({ icebreakers: [{ text: "What's your idea of motion?" }, { text: 'What are you doing this weekend?' }] });
+    }
+
+    const icebreakers = [];
+
+    // From their profile prompts
+    if (otherUser.profilePrompts?.length > 0) {
+      const prompt = otherUser.profilePrompts[0];
+      icebreakers.push({ text: `Ask about: "${prompt.answer}"` });
+    }
+
+    // From shared vibe answers
+    const myAnswers = await prisma.vibeAnswer.findMany({ where: { userId: req.userId } });
+    const theirAnswers = await prisma.vibeAnswer.findMany({ where: { userId: otherUserId } });
+    const myMap = new Map(myAnswers.map((a) => [a.questionId, a.answer]));
+    let sharedCount = 0;
+    for (const a of theirAnswers) {
+      if (myMap.has(a.questionId) && myMap.get(a.questionId) === a.answer) sharedCount++;
+    }
+    if (sharedCount > 0) {
+      icebreakers.push({ text: `You both vibed on ${sharedCount} question${sharedCount > 1 ? 's' : ''} — talk about it!` });
+    }
+
+    // From lookingFor
+    if (otherUser.profile.lookingFor) {
+      icebreakers.push({ text: `They're looking for "${otherUser.profile.lookingFor}" — what about you?` });
+    }
+
+    // Generic fallbacks to ensure at least 2
+    const fallbacks = [
+      { text: "What's your idea of motion?" },
+      { text: 'What are you doing this weekend?' },
+      { text: "What's the best date you've ever been on?" },
+    ];
+    let i = 0;
+    while (icebreakers.length < 2 && i < fallbacks.length) {
+      icebreakers.push(fallbacks[i]);
+      i++;
+    }
+
+    res.json({ icebreakers: icebreakers.slice(0, 3) });
+  } catch (error) {
+    console.error('Icebreakers error:', error);
+    res.json({ icebreakers: [{ text: "What's your idea of motion?" }, { text: 'What are you doing this weekend?' }] });
+  }
+});
+
 // Delete a conversation
 router.delete('/conversations/:conversationId', authenticate, async (req, res) => {
   try {

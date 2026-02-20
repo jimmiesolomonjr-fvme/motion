@@ -1,6 +1,6 @@
 import ProfileCard from './ProfileCard';
 
-export default function FeedGrid({ users, onLike }) {
+export default function FeedGrid({ users, onLike, onUnlike }) {
   if (users.length === 0) {
     return (
       <div className="text-center py-16">
@@ -13,7 +13,7 @@ export default function FeedGrid({ users, onLike }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       {users.map((user) => (
-        <ProfileCard key={user.id} user={user} onLike={onLike} />
+        <ProfileCard key={user.id} user={user} onLike={onLike} onUnlike={onUnlike} />
       ))}
     </div>
   );

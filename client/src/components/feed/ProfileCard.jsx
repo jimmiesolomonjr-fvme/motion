@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Heart, MapPin, BadgeCheck, Sparkles } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
 
-export default function ProfileCard({ user, onLike }) {
+export default function ProfileCard({ user, onLike, onUnlike }) {
   const photo = user.profile?.photos?.[0];
 
   return (
@@ -51,10 +51,13 @@ export default function ProfileCard({ user, onLike }) {
       </Link>
 
       {user.hasLiked ? (
-        <div className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-pink-400 opacity-70">
+        <button
+          onClick={() => onUnlike(user.id)}
+          className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-pink-400 hover:bg-pink-400/10 rounded-lg transition-colors"
+        >
           <Heart size={16} fill="currentColor" />
           Liked
-        </div>
+        </button>
       ) : (
         <button
           onClick={() => onLike(user.id)}

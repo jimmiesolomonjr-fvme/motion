@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2 } from 'lucide-react';
+import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
@@ -24,6 +24,7 @@ export default function ChatView({ conversationId, otherUser }) {
   const [isMatched, setIsMatched] = useState(false);
   const [showUnmatchModal, setShowUnmatchModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [icebreakers, setIcebreakers] = useState([]);
   const menuRef = useRef(null);
   const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -32,7 +33,14 @@ export default function ChatView({ conversationId, otherUser }) {
   const needsPremium = user?.role === 'STEPPER' && !user?.isPremium && !freeMessaging;
 
   useEffect(() => {
-    api.get(`/messages/${conversationId}`).then(({ data }) => setMessages(data));
+    api.get(`/messages/${conversationId}`).then(({ data }) => {
+      setMessages(data);
+      if (data.length === 0 && otherUser?.id) {
+        api.get(`/messages/icebreakers/${otherUser.id}`).then(({ data: ib }) => {
+          setIcebreakers(ib.icebreakers || []);
+        }).catch(() => {});
+      }
+    });
     api.get('/payments/status').then(({ data }) => {
       if (data.freeMessaging !== undefined) setFreeMessaging(data.freeMessaging);
     }).catch(() => {});
@@ -103,6 +111,7 @@ export default function ChatView({ conversationId, otherUser }) {
     if (!input.trim() || !socket) return;
     socket.emit('send-message', { conversationId, content: input.trim() });
     setInput('');
+    setIcebreakers([]);
     socket.emit('stop-typing', { conversationId });
   };
 
@@ -252,6 +261,23 @@ export default function ChatView({ conversationId, otherUser }) {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-1">
+        {messages.length === 0 && icebreakers.length > 0 && (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <Zap className="text-gold" size={24} />
+            <p className="text-sm text-gray-500">Break the ice</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {icebreakers.map((ib, i) => (
+                <button
+                  key={i}
+                  onClick={() => { setInput(ib.text); setIcebreakers([]); }}
+                  className="px-3 py-2 bg-dark-100 border border-gold/20 rounded-full text-sm text-gold hover:bg-gold/10 transition-colors max-w-[280px] truncate"
+                >
+                  {ib.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {messages.map((msg) => (
           <ChatBubble key={msg.id} message={msg} isOwn={msg.senderId === user.id} />
         ))}

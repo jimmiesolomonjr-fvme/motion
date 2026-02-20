@@ -89,10 +89,13 @@ router.post('/login', async (req, res) => {
         isPremium: user.isPremium,
         isVerified: user.isVerified,
         isAdmin: user.isAdmin,
-        hasProfile: !!user.profile,
+        hasProfile: !!user.profile && user.profile?.photos?.length > 0,
       },
       ...tokens,
     });
+
+    // Fire-and-forget: generate profile completion notifications
+    generateCompletionNotifications(user.id).catch(() => {});
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -140,7 +143,7 @@ router.get('/me', authenticate, async (req, res) => {
       isPremium: user.isPremium,
       isVerified: user.isVerified,
       isAdmin: user.isAdmin,
-      hasProfile: !!user.profile,
+      hasProfile: !!user.profile && user.profile?.photos?.length > 0,
       profile: user.profile,
       notificationsEnabled: user.notificationsEnabled,
     });
@@ -176,5 +179,51 @@ router.put('/change-password', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+async function generateCompletionNotifications(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: true, profilePrompts: true },
+  });
+  if (!user?.profile) return;
+
+  const items = [];
+  if ((user.profile.photos || []).length < 2) {
+    items.push({
+      action: 'add_photo',
+      title: 'Add a Second Photo',
+      body: 'Profiles with 2+ photos get more attention',
+    });
+  }
+  if (!user.profilePrompts || user.profilePrompts.length === 0) {
+    items.push({
+      action: 'add_prompts',
+      title: 'Answer Profile Prompts',
+      body: 'Show your personality — pick and answer prompts',
+    });
+  }
+
+  for (const item of items) {
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId,
+        type: 'profile_incomplete',
+        readAt: null,
+        data: { path: ['action'], equals: item.action },
+      },
+    });
+    if (!existing) {
+      await prisma.notification.create({
+        data: {
+          userId,
+          type: 'profile_incomplete',
+          title: item.title,
+          body: item.body,
+          data: { action: item.action },
+        },
+      });
+    }
+  }
+}
 
 export default router;

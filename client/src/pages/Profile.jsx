@@ -33,7 +33,6 @@ export default function Profile() {
   // Prompt editing state
   const [availablePrompts, setAvailablePrompts] = useState([]);
   const [editPrompts, setEditPrompts] = useState([]);
-  const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -175,7 +174,6 @@ export default function Profile() {
 
   const photos = profile.photos || [];
   const prompts = profile.profilePrompts || [];
-  const showNudge = isOwnProfile && !editing && !nudgeDismissed && (photos.length < 2 || prompts.length === 0);
 
   const getLastOnlineLabel = () => {
     if (isOwnProfile || !profile.lastOnline) return null;
@@ -341,29 +339,6 @@ export default function Profile() {
                     <p className="text-white font-medium text-sm">{p.answer}</p>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {/* Completion Nudge */}
-            {showNudge && (
-              <div className="bg-gold/10 border border-gold/20 rounded-xl p-4 relative">
-                <button
-                  onClick={() => { setNudgeDismissed(true); sessionStorage.setItem('profileNudgeDismissed', 'true'); }}
-                  className="absolute top-2 right-2 text-gray-500 hover:text-white"
-                >
-                  <X size={14} />
-                </button>
-                <h3 className="text-sm font-bold text-gold mb-2">Complete Your Profile</h3>
-                <ul className="text-xs text-gray-400 space-y-1">
-                  {photos.length < 2 && <li>Add at least 2 photos to stand out</li>}
-                  {prompts.length === 0 && <li>Answer profile prompts to show your personality</li>}
-                </ul>
-                <button
-                  onClick={() => setEditing(true)}
-                  className="mt-3 text-xs text-gold font-semibold hover:underline"
-                >
-                  Edit Profile
-                </button>
               </div>
             )}
 

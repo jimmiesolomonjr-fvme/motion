@@ -65,6 +65,18 @@ router.post('/photos', authenticate, upload.array('photos', 6), async (req, res)
       data: { photos: allPhotos },
     });
 
+    // Auto-dismiss "add photo" notification if now >= 2 photos
+    if (allPhotos.length >= 2) {
+      prisma.notification.deleteMany({
+        where: {
+          userId: req.userId,
+          type: 'profile_incomplete',
+          readAt: null,
+          data: { path: ['action'], equals: 'add_photo' },
+        },
+      }).catch(() => {});
+    }
+
     res.json(updated);
   } catch (error) {
     console.error('Photo upload error:', error);
@@ -323,6 +335,19 @@ router.put('/prompts', authenticate, async (req, res) => {
       where: { userId: req.userId },
       orderBy: { position: 'asc' },
     });
+
+    // Auto-dismiss "add prompts" notification if prompts saved
+    if (saved.length > 0) {
+      prisma.notification.deleteMany({
+        where: {
+          userId: req.userId,
+          type: 'profile_incomplete',
+          readAt: null,
+          data: { path: ['action'], equals: 'add_prompts' },
+        },
+      }).catch(() => {});
+    }
+
     res.json(saved);
   } catch (error) {
     console.error('Save prompts error:', error);

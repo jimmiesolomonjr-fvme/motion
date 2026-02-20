@@ -42,6 +42,15 @@ export default function Feed() {
     setMaxDistance(newDist);
   };
 
+  const handleUnlike = async (userId) => {
+    try {
+      await api.delete(`/likes/${userId}`);
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
+    } catch (err) {
+      console.error('Unlike error:', err);
+    }
+  };
+
   const handleLike = async (userId) => {
     try {
       const { data } = await api.post(`/likes/${userId}`);
@@ -70,7 +79,7 @@ export default function Feed() {
           <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <FeedGrid users={users} onLike={handleLike} />
+        <FeedGrid users={users} onLike={handleLike} onUnlike={handleUnlike} />
       )}
 
       {/* Match Modal */}

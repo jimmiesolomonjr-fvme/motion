@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useNotifications } from '../context/SocketContext';
 import api from '../services/api';
-import { Eye, Heart, Sparkles, CheckCheck } from 'lucide-react';
+import { Eye, Heart, Sparkles, CheckCheck, UserCircle } from 'lucide-react';
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
@@ -36,6 +36,8 @@ export default function Notifications() {
       navigate(`/profile/${notif.data.viewerId}`);
     } else if (notif.type === 'match') {
       navigate('/messages');
+    } else if (notif.type === 'profile_incomplete') {
+      navigate('/profile');
     }
   };
 
@@ -43,6 +45,7 @@ export default function Notifications() {
     switch (type) {
       case 'profile_view': return <Eye className="text-purple-glow" size={18} />;
       case 'match': return <Heart className="text-gold" size={18} fill="currentColor" />;
+      case 'profile_incomplete': return <UserCircle className="text-gold" size={18} />;
       default: return <Sparkles className="text-gold" size={18} />;
     }
   };
