@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { Crown, Sparkles } from 'lucide-react';
+import AuthLayout from '../components/layout/AuthLayout';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -38,8 +39,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex items-center justify-center px-6">
-      <div className="w-full max-w-sm">
+    <AuthLayout>
         <h1 className="text-3xl font-extrabold text-gradient-gold text-center mb-2">Join Motion</h1>
         <p className="text-gray-500 text-center mb-8">Create your account and start moving</p>
 
@@ -93,7 +93,6 @@ export default function Register() {
           Already have an account?{' '}
           <Link to="/login" className="text-gold hover:underline">Sign in</Link>
         </p>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

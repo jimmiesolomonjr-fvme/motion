@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import AuthLayout from '../components/layout/AuthLayout';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,8 +30,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-dark flex items-center justify-center px-6">
-      <div className="w-full max-w-sm">
+    <AuthLayout>
         <h1 className="text-3xl font-extrabold text-gradient-gold text-center mb-2">Welcome Back</h1>
         <p className="text-gray-500 text-center mb-8">Sign in to your Motion account</p>
 
@@ -49,7 +49,6 @@ export default function Login() {
           Don&apos;t have an account?{' '}
           <Link to="/register" className="text-gold hover:underline">Join Motion</Link>
         </p>
-      </div>
-    </div>
+    </AuthLayout>
   );
 }

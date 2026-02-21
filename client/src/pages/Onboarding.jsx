@@ -5,6 +5,7 @@ import StepRole from '../components/onboarding/StepRole';
 import StepProfile from '../components/onboarding/StepProfile';
 import StepPhotos from '../components/onboarding/StepPhotos';
 import api from '../services/api';
+import AuthLayout from '../components/layout/AuthLayout';
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -34,13 +35,13 @@ export default function Onboarding() {
   ];
 
   return (
-    <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-6 py-12">
+    <AuthLayout>
       {/* Progress */}
-      <div className="flex items-center gap-2 mb-8">
+      <div className="flex items-center justify-center gap-2 mb-8 pt-6">
         {steps.map((s, i) => (
           <div key={s.num} className="flex items-center gap-2">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-              step >= s.num ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-500'
+              step >= s.num ? 'bg-gold text-dark' : 'bg-dark-50/80 text-gray-500'
             }`}>
               {s.num}
             </div>
@@ -51,17 +52,15 @@ export default function Onboarding() {
         ))}
       </div>
 
-      <div className="w-full max-w-sm">
-        {step === 1 && (
-          <StepRole role={role} setRole={setRole} onNext={() => setStep(2)} />
-        )}
-        {step === 2 && (
-          <StepProfile profile={profile} setProfile={setProfile} onNext={handleProfileNext} onBack={() => setStep(1)} />
-        )}
-        {step === 3 && (
-          <StepPhotos onComplete={handleComplete} />
-        )}
-      </div>
-    </div>
+      {step === 1 && (
+        <StepRole role={role} setRole={setRole} onNext={() => setStep(2)} />
+      )}
+      {step === 2 && (
+        <StepProfile profile={profile} setProfile={setProfile} onNext={handleProfileNext} onBack={() => setStep(1)} />
+      )}
+      {step === 3 && (
+        <StepPhotos onComplete={handleComplete} />
+      )}
+    </AuthLayout>
   );
 }

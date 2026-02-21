@@ -1,17 +1,21 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, Crown, Sparkles, Flame, Mic, Heart } from 'lucide-react';
-import datingCover from '../assets/datingcover.jpg';
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-dark">
       {/* Hero */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center overflow-hidden">
-        {/* Background image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${datingCover})` }}
-        />
+        {/* Background video */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/bg-video.mp4" type="video/mp4" />
+        </video>
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-dark" />
 
         <div className="relative z-10 max-w-lg">
