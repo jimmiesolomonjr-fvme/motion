@@ -95,7 +95,7 @@ export default function VibeCheck() {
       <div className="w-full bg-dark-50 rounded-full h-1.5 mb-6">
         <div
           className="bg-gradient-purple h-1.5 rounded-full transition-all duration-500"
-          style={{ width: `${(answered / 10) * 100}%` }}
+          style={{ width: `${(answered / 25) * 100}%` }}
         />
       </div>
 
@@ -119,7 +119,7 @@ export default function VibeCheck() {
             {remaining === 0
               ? countdown
                 ? `New questions in ${countdown}`
-                : 'Come back tomorrow for more Vibe Check questions'
+                : 'Come back later for more Vibe Check questions'
               : 'New questions are added regularly'}
           </p>
         </div>

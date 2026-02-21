@@ -5,19 +5,17 @@ import { authenticate } from '../middleware/auth.js';
 const router = Router();
 const prisma = new PrismaClient();
 
-// Get unanswered questions (10 per day)
+// Get unanswered questions (25 per 12h window)
 router.get('/questions', authenticate, async (req, res) => {
   try {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const windowStart = new Date(Date.now() - 12 * 60 * 60 * 1000);
 
-    const answeredToday = await prisma.vibeAnswer.count({
-      where: { userId: req.userId, answeredAt: { gte: todayStart } },
+    const answeredInWindow = await prisma.vibeAnswer.count({
+      where: { userId: req.userId, answeredAt: { gte: windowStart } },
     });
 
-    if (answeredToday >= 10) {
-      const resetsAt = new Date(todayStart);
-      resetsAt.setDate(resetsAt.getDate() + 1);
+    if (answeredInWindow >= 25) {
+      const resetsAt = new Date(windowStart.getTime() + 12 * 60 * 60 * 1000);
       return res.json({ questions: [], remaining: 0, resetsAt: resetsAt.toISOString() });
     }
 
@@ -33,10 +31,10 @@ router.get('/questions', authenticate, async (req, res) => {
         isActive: true,
         ...(answeredIds.length > 0 && { id: { notIn: answeredIds } }),
       },
-      take: 10 - answeredToday,
+      take: 25 - answeredInWindow,
     });
 
-    res.json({ questions, remaining: 10 - answeredToday });
+    res.json({ questions, remaining: 25 - answeredInWindow });
   } catch (error) {
     console.error('Vibe questions error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -52,13 +50,12 @@ router.post('/answer', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Answer must be true or false' });
     }
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const answeredToday = await prisma.vibeAnswer.count({
-      where: { userId: req.userId, answeredAt: { gte: todayStart } },
+    const windowStart = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const answeredInWindow = await prisma.vibeAnswer.count({
+      where: { userId: req.userId, answeredAt: { gte: windowStart } },
     });
 
-    if (answeredToday >= 10) {
+    if (answeredInWindow >= 25) {
       return res.status(400).json({ error: 'Daily limit reached' });
     }
 

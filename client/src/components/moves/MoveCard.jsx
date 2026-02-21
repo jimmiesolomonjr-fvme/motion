@@ -76,7 +76,9 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
       <div className="flex flex-wrap gap-3 text-sm text-gray-400 mb-4">
         <span className="flex items-center gap-1">
           <Calendar size={14} className="text-gold" />
-          {formatDate(move.date)}
+          {move.isAnytime
+            ? `Anytime ${new Date(move.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+            : formatDate(move.date)}
         </span>
         <span className="flex items-center gap-1">
           <MapPin size={14} className="text-gold" />
@@ -97,7 +99,7 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
       {move.interestClosingSoon && move.status === 'OPEN' && (
         <div className="flex items-center gap-1.5 mb-3 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
           <Clock size={14} className="text-amber-400" />
-          <span className="text-xs text-amber-400 font-medium">Closing soon — less than 48h left</span>
+          <span className="text-xs text-amber-400 font-medium">Closing soon — less than 4h left</span>
         </div>
       )}
       {move.interestClosed && move.status === 'OPEN' && (

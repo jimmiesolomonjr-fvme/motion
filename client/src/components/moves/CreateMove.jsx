@@ -15,7 +15,7 @@ const CATEGORIES = [
 ];
 
 export default function CreateMove({ onCreated, onClose }) {
-  const [form, setForm] = useState({ title: '', description: '', date: '', location: '', maxInterest: 10, category: '' });
+  const [form, setForm] = useState({ title: '', description: '', date: '', location: '', maxInterest: 10, category: '', isAnytime: false });
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -46,9 +46,10 @@ export default function CreateMove({ onCreated, onClose }) {
       const formData = new FormData();
       formData.append('title', form.title);
       formData.append('description', form.description);
-      formData.append('date', new Date(form.date).toISOString());
+      formData.append('date', form.isAnytime ? form.date : new Date(form.date).toISOString());
       formData.append('location', form.location);
       formData.append('maxInterest', form.maxInterest);
+      if (form.isAnytime) formData.append('isAnytime', 'true');
       if (form.category) formData.append('category', form.category);
       if (photo) formData.append('photo', photo);
 
@@ -113,7 +114,39 @@ export default function CreateMove({ onCreated, onClose }) {
         </div>
       </div>
 
-      <Input label="Date & Time" name="date" type="datetime-local" value={form.date} onChange={handleChange} required />
+      {/* Anytime toggle */}
+      <div>
+        <label className="block text-sm font-medium text-gray-300 mb-1.5">Timing</label>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, isAnytime: false, date: '' })}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              !form.isAnytime ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400 hover:text-white'
+            }`}
+          >
+            Specific Time
+          </button>
+          <button
+            type="button"
+            onClick={() => setForm({ ...form, isAnytime: true, date: '' })}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              form.isAnytime ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400 hover:text-white'
+            }`}
+          >
+            Anytime
+          </button>
+        </div>
+      </div>
+
+      <Input
+        label={form.isAnytime ? 'Date' : 'Date & Time'}
+        name="date"
+        type={form.isAnytime ? 'date' : 'datetime-local'}
+        value={form.date}
+        onChange={handleChange}
+        required
+      />
       <LocationAutocomplete label="Location" name="location" value={form.location} onChange={handleChange} placeholder="e.g. Nobu Atlanta" required />
       <Input label="Max Interest" name="maxInterest" type="number" min="1" max="50" value={form.maxInterest} onChange={handleChange} />
 

@@ -41,6 +41,35 @@ export default function MoveFilters({ filters, onFilterChange }) {
 
   return (
     <div className="mb-4 space-y-2">
+      {/* Sort row */}
+      <div className="flex justify-end">
+        <div className="relative">
+          <button
+            onClick={() => setShowSort(!showSort)}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-dark-50 text-gray-400 hover:text-white transition-colors"
+          >
+            {currentSort.label}
+            <ChevronDown size={14} className={`transition-transform ${showSort ? 'rotate-180' : ''}`} />
+          </button>
+          {showSort && (
+            <div className="absolute right-0 top-full mt-1 bg-dark-100 border border-dark-50 rounded-xl shadow-xl z-50 min-w-[140px]">
+              {SORT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setSort(opt.value)}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                    filters.sort === opt.value ? 'text-gold bg-dark-50' : 'text-gray-300 hover:text-white hover:bg-dark-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Filter chips row */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {TIME_OPTIONS.map((opt) => (
           <button
@@ -71,33 +100,6 @@ export default function MoveFilters({ filters, onFilterChange }) {
             {opt.label}
           </button>
         ))}
-
-        <div className="w-px h-5 bg-dark-50 flex-shrink-0" />
-
-        <div className="relative flex-shrink-0">
-          <button
-            onClick={() => setShowSort(!showSort)}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap bg-dark-50 text-gray-400 hover:text-white transition-colors"
-          >
-            {currentSort.label}
-            <ChevronDown size={14} className={`transition-transform ${showSort ? 'rotate-180' : ''}`} />
-          </button>
-          {showSort && (
-            <div className="absolute right-0 top-full mt-1 bg-dark-100 border border-dark-50 rounded-xl shadow-xl z-50 min-w-[140px]">
-              {SORT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setSort(opt.value)}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors first:rounded-t-xl last:rounded-b-xl ${
-                    filters.sort === opt.value ? 'text-gold bg-dark-50' : 'text-gray-300 hover:text-white hover:bg-dark-50'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

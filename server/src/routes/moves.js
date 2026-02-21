@@ -33,7 +33,7 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
       return res.status(403).json({ error: 'Only Steppers can create Moves' });
     }
 
-    const { title, description, date, location, maxInterest = 10, category } = req.body;
+    const { title, description, date, location, maxInterest = 10, category, isAnytime } = req.body;
 
     if (!title || !description || !date || !location) {
       return res.status(400).json({ error: 'Title, description, date, and location are required' });
@@ -48,16 +48,23 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
       photo = req.file.buffer ? toDataUrl(req.file) : `/uploads/${req.file.filename}`;
     }
 
+    const anytime = isAnytime === 'true' || isAnytime === true;
+    let moveDate = new Date(date);
+    if (anytime) {
+      moveDate.setHours(23, 59, 0, 0);
+    }
+
     const move = await prisma.move.create({
       data: {
         stepperId: req.userId,
         title,
         description,
-        date: new Date(date),
+        date: moveDate,
         location,
         maxInterest: parseInt(maxInterest) || 10,
         category: category || null,
         photo,
+        isAnytime: anytime,
       },
       include: { stepper: { include: { profile: true } } },
     });
@@ -81,11 +88,18 @@ router.get('/', authenticate, async (req, res) => {
       select: { isAdmin: true },
     });
 
+    const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+
     const whereClause = {
       isActive: true,
       status: { in: ['OPEN', 'CONFIRMED'] },
       date: { gte: new Date() },
     };
+
+    // Baddies: hide moves within 2h (interest already closed)
+    if (req.userRole === 'BADDIE') {
+      whereClause.date = { gte: twoHoursFromNow };
+    }
 
     // Steppers only see their own moves (unless admin)
     if (req.userRole === 'STEPPER' && !currentUser?.isAdmin) {
@@ -148,13 +162,14 @@ router.get('/', authenticate, async (req, res) => {
         status: m.status,
         category: m.category,
         photo: m.photo,
+        isAnytime: m.isAnytime,
         selectedBaddieId: m.selectedBaddieId,
         interestCount: m._count.interests,
         createdAt: m.createdAt,
         hasInterest: interestedMoveIds.has(m.id),
         isSaved: savedMoveIds.has(m.id),
-        interestClosingSoon: hoursUntil <= 48 && hoursUntil > 24,
-        interestClosed: hoursUntil <= 24,
+        interestClosingSoon: hoursUntil <= 4 && hoursUntil > 2,
+        interestClosed: hoursUntil <= 2,
         interestedBaddies: m.interests.map((i) => ({
           id: i.baddie.id,
           displayName: i.baddie.profile?.displayName,
@@ -303,13 +318,14 @@ router.get('/saved', authenticate, async (req, res) => {
         status: m.status,
         category: m.category,
         photo: m.photo,
+        isAnytime: m.isAnytime,
         selectedBaddieId: m.selectedBaddieId,
         interestCount: m._count.interests,
         createdAt: m.createdAt,
         hasInterest: interestedMoveIds.has(m.id),
         isSaved: true,
-        interestClosingSoon: hoursUntil <= 48 && hoursUntil > 24,
-        interestClosed: hoursUntil <= 24,
+        interestClosingSoon: hoursUntil <= 4 && hoursUntil > 2,
+        interestClosed: hoursUntil <= 2,
         interestedBaddies: m.interests.map((i) => ({
           id: i.baddie.id,
           displayName: i.baddie.profile?.displayName,
@@ -326,6 +342,72 @@ router.get('/saved', authenticate, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Get saved moves error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get expired moves (Steppers only)
+router.get('/expired', authenticate, async (req, res) => {
+  try {
+    if (req.userRole !== 'STEPPER') {
+      return res.status(403).json({ error: 'Only Steppers can view expired Moves' });
+    }
+
+    await autoCompletePastMoves();
+
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+
+    const moves = await prisma.move.findMany({
+      where: {
+        stepperId: req.userId,
+        status: { in: ['CANCELLED', 'COMPLETED'] },
+        date: { gte: ninetyDaysAgo },
+      },
+      include: {
+        _count: { select: { interests: true } },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    const result = moves.map((m) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      date: m.date,
+      location: m.location,
+      category: m.category,
+      photo: m.photo,
+      isAnytime: m.isAnytime,
+      maxInterest: m.maxInterest,
+      status: m.status,
+      interestCount: m._count.interests,
+      createdAt: m.createdAt,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Get expired moves error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Clear all expired moves (Steppers only)
+router.delete('/expired/clear', authenticate, async (req, res) => {
+  try {
+    if (req.userRole !== 'STEPPER') {
+      return res.status(403).json({ error: 'Only Steppers can clear expired Moves' });
+    }
+
+    await prisma.move.deleteMany({
+      where: {
+        stepperId: req.userId,
+        status: { in: ['CANCELLED', 'COMPLETED'] },
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Clear expired moves error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -380,10 +462,10 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'This Move is no longer accepting interest' });
     }
 
-    // 24-hour window check
+    // 2-hour window check
     const hoursUntilMove = (new Date(move.date).getTime() - Date.now()) / (1000 * 60 * 60);
-    if (hoursUntilMove <= 24) {
-      return res.status(400).json({ error: 'Interest window has closed (less than 24 hours before the Move)' });
+    if (hoursUntilMove <= 2) {
+      return res.status(400).json({ error: 'Interest window has closed (less than 2 hours before the Move)' });
     }
 
     if (move._count.interests >= move.maxInterest) {
@@ -433,6 +515,52 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
       return res.status(409).json({ error: 'Already expressed interest' });
     }
     console.error('Move interest error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Repost a Move (Stepper only - creates a new move from an expired one)
+router.post('/:moveId/repost', authenticate, async (req, res) => {
+  try {
+    const original = await prisma.move.findUnique({
+      where: { id: req.params.moveId },
+    });
+
+    if (!original || original.stepperId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const { date, isAnytime } = req.body;
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required for repost' });
+    }
+
+    const anytime = isAnytime === 'true' || isAnytime === true;
+    let moveDate = new Date(date);
+    if (anytime) {
+      moveDate.setHours(23, 59, 0, 0);
+    }
+
+    const newMove = await prisma.move.create({
+      data: {
+        stepperId: req.userId,
+        title: original.title,
+        description: original.description,
+        date: moveDate,
+        location: original.location,
+        category: original.category,
+        photo: original.photo,
+        maxInterest: original.maxInterest,
+        isAnytime: anytime,
+        status: 'OPEN',
+        isActive: true,
+      },
+      include: { stepper: { include: { profile: true } } },
+    });
+
+    res.status(201).json(newMove);
+  } catch (error) {
+    console.error('Repost move error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

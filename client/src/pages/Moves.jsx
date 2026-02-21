@@ -10,7 +10,8 @@ import Button from '../components/ui/Button';
 import { Textarea } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Flame, Trash2, Bookmark } from 'lucide-react';
+import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users } from 'lucide-react';
+import Input from '../components/ui/Input';
 import { formatDate } from '../utils/formatters';
 
 function getTimeFilterDates(time) {
@@ -44,6 +45,7 @@ export default function Moves() {
   const [moves, setMoves] = useState([]);
   const [myMoves, setMyMoves] = useState([]);
   const [savedMoves, setSavedMoves] = useState([]);
+  const [expiredMoves, setExpiredMoves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [interestModal, setInterestModal] = useState(null);
@@ -51,6 +53,10 @@ export default function Moves() {
   const [counterProposal, setCounterProposal] = useState('');
   const [deleteModal, setDeleteModal] = useState(null);
   const [selectModal, setSelectModal] = useState(null); // { moveId, baddieId, baddieName }
+  const [repostModal, setRepostModal] = useState(null); // expired move object
+  const [repostDate, setRepostDate] = useState('');
+  const [repostAnytime, setRepostAnytime] = useState(false);
+  const [clearModal, setClearModal] = useState(false);
   const [tab, setTab] = useState(user?.role === 'STEPPER' ? 'mine' : 'browse');
   const [filters, setFilters] = useState({ time: null, category: null, sort: 'soonest' });
 
@@ -59,6 +65,9 @@ export default function Moves() {
   useEffect(() => {
     if (tab === 'browse' || (tab === 'saved' && user?.role === 'BADDIE')) {
       fetchBrowseData();
+    }
+    if (tab === 'expired' && user?.role === 'STEPPER') {
+      fetchExpired();
     }
   }, [filters, tab]);
 
@@ -69,6 +78,8 @@ export default function Moves() {
       if (user?.role === 'STEPPER') {
         const { data: mine } = await api.get('/moves/mine');
         setMyMoves(mine);
+        const { data: expired } = await api.get('/moves/expired');
+        setExpiredMoves(expired);
       }
       if (user?.role === 'BADDIE') {
         const { data: saved } = await api.get('/moves/saved');
@@ -174,6 +185,41 @@ export default function Moves() {
     }
   };
 
+  const fetchExpired = async () => {
+    try {
+      const { data } = await api.get('/moves/expired');
+      setExpiredMoves(data);
+    } catch (err) {
+      console.error('Expired error:', err);
+    }
+  };
+
+  const handleRepost = async () => {
+    if (!repostModal || !repostDate) return;
+    try {
+      await api.post(`/moves/${repostModal.id}/repost`, {
+        date: repostAnytime ? repostDate : new Date(repostDate).toISOString(),
+        isAnytime: repostAnytime,
+      });
+      setRepostModal(null);
+      setRepostDate('');
+      setRepostAnytime(false);
+      fetchMoves();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to repost');
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await api.delete('/moves/expired/clear');
+      setClearModal(false);
+      setExpiredMoves([]);
+    } catch (err) {
+      console.error('Clear expired error:', err);
+    }
+  };
+
   const handleMoveUpdate = (updatedMove) => {
     setMyMoves((prev) => prev.map((m) => m.id === updatedMove.id ? { ...m, ...updatedMove } : m));
   };
@@ -220,6 +266,12 @@ export default function Moves() {
               className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
             >
               All Moves
+            </button>
+            <button
+              onClick={() => setTab('expired')}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'expired' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              Expired
             </button>
           </>
         ) : (
@@ -302,6 +354,68 @@ export default function Moves() {
             ))
           )}
         </div>
+      ) : tab === 'expired' && isStepper ? (
+        <div className="space-y-4">
+          {expiredMoves.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setClearModal(true)}
+                className="text-sm text-red-400 hover:text-red-300 transition-colors"
+              >
+                Clear All Expired
+              </button>
+            </div>
+          )}
+          {expiredMoves.length === 0 ? (
+            <div className="text-center py-12">
+              <RotateCcw className="text-gray-600 mx-auto mb-3" size={40} />
+              <p className="text-gray-400 mb-2">No expired Moves</p>
+              <p className="text-gray-500 text-sm">Cancelled and completed Moves will appear here</p>
+            </div>
+          ) : (
+            expiredMoves.map((move) => (
+              <div key={move.id} className="card-elevated">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-white">{move.title}</h3>
+                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                      move.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+                    }`}>
+                      {move.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setRepostModal(move); setRepostDate(''); setRepostAnytime(move.isAnytime || false); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/10 text-gold text-sm font-medium rounded-full hover:bg-gold/20 transition-colors"
+                  >
+                    <RotateCcw size={14} /> Repost
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-3 text-sm text-gray-400">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={14} className="text-gold" />
+                    {move.isAnytime
+                      ? `Anytime ${new Date(move.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                      : formatDate(move.date)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin size={14} className="text-gold" />
+                    {move.location}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Users size={14} className="text-gold" />
+                    {move.interestCount} interested
+                  </span>
+                  {move.category && (
+                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                      {move.category.charAt(0) + move.category.slice(1).toLowerCase()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       ) : tab === 'saved' && isBaddie ? (
         <div className="space-y-4">
           {savedMoves.length === 0 ? (
@@ -373,6 +487,64 @@ export default function Moves() {
             <Button variant="outline" className="flex-1" onClick={() => setSelectModal(null)}>Cancel</Button>
             <Button variant="gold" className="flex-1" onClick={confirmSelect}>Confirm Selection</Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Repost Move Modal */}
+      <Modal isOpen={!!repostModal} onClose={() => { setRepostModal(null); setRepostDate(''); setRepostAnytime(false); }} title="Repost Move">
+        <div className="space-y-4">
+          <p className="text-gray-400 text-sm">
+            Repost <span className="text-white font-semibold">&ldquo;{repostModal?.title}&rdquo;</span> with a new date.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Timing</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setRepostAnytime(false); setRepostDate(''); }}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  !repostAnytime ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400 hover:text-white'
+                }`}
+              >
+                Specific Time
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRepostAnytime(true); setRepostDate(''); }}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  repostAnytime ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400 hover:text-white'
+                }`}
+              >
+                Anytime
+              </button>
+            </div>
+          </div>
+          <Input
+            label={repostAnytime ? 'Date' : 'Date & Time'}
+            name="repostDate"
+            type={repostAnytime ? 'date' : 'datetime-local'}
+            value={repostDate}
+            onChange={(e) => setRepostDate(e.target.value)}
+          />
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => { setRepostModal(null); setRepostDate(''); setRepostAnytime(false); }}>Cancel</Button>
+            <Button variant="gold" className="flex-1" onClick={handleRepost} disabled={!repostDate}>Repost</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Clear All Expired Modal */}
+      <Modal isOpen={clearModal} onClose={() => setClearModal(false)} title="Clear All Expired">
+        <p className="text-sm text-gray-400 mb-4">
+          Are you sure you want to clear all expired Moves? This will permanently delete all cancelled and completed Moves along with their interest data.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setClearModal(false)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleClearAll} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
+            Clear All
+          </button>
         </div>
       </Modal>
 

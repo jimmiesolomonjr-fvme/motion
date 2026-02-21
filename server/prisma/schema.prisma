@@ -238,6 +238,7 @@ model Move {
   status           MoveStatus    @default(OPEN)
   category         MoveCategory?
   photo            String?
+  isAnytime        Boolean       @default(false)
   selectedBaddieId String?
   dressCode        String?
   playlistLink     String?
