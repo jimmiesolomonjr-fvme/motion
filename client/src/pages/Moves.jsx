@@ -74,16 +74,23 @@ export default function Moves() {
   const fetchMoves = async () => {
     setLoading(true);
     try {
-      await fetchBrowseData();
+      const promises = [fetchBrowseData()];
+
       if (user?.role === 'STEPPER') {
-        const { data: mine } = await api.get('/moves/mine');
-        setMyMoves(mine);
-        const { data: expired } = await api.get('/moves/expired');
-        setExpiredMoves(expired);
+        promises.push(api.get('/moves/mine'), api.get('/moves/expired'));
       }
       if (user?.role === 'BADDIE') {
-        const { data: saved } = await api.get('/moves/saved');
-        setSavedMoves(saved);
+        promises.push(api.get('/moves/saved'));
+      }
+
+      const results = await Promise.allSettled(promises);
+
+      if (user?.role === 'STEPPER') {
+        if (results[1]?.status === 'fulfilled') setMyMoves(results[1].value.data);
+        if (results[2]?.status === 'fulfilled') setExpiredMoves(results[2].value.data);
+      }
+      if (user?.role === 'BADDIE') {
+        if (results[1]?.status === 'fulfilled') setSavedMoves(results[1].value.data);
       }
     } catch (err) {
       console.error('Moves error:', err);
