@@ -71,6 +71,11 @@ model User {
   stories          Story[]
   storyViews       StoryView[] @relation("storyViews")
   storyLikes       StoryLike[] @relation("storyLikes")
+
+  @@index([role, isBanned, isHidden, isDummy])
+  @@index([lastOnline])
+  @@index([createdAt])
+  @@index([referredBy])
 }
 
 model Profile {

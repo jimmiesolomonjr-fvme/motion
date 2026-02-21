@@ -255,44 +255,54 @@ router.get('/feed', authenticate, async (req, res) => {
       : [];
     const referralCountMap = new Map(referralCounts.map((r) => [r.referredBy, r._count]));
 
+    // Batch vibe score calculation — fetch once instead of per-user
+    const myAnswers = await prisma.vibeAnswer.findMany({ where: { userId: req.userId } });
+    const myAnswerMap = new Map(myAnswers.map((a) => [a.questionId, a.answer]));
+
+    const feedUserIds = users.map((u) => u.id);
+    const allTheirAnswers = feedUserIds.length > 0
+      ? await prisma.vibeAnswer.findMany({ where: { userId: { in: feedUserIds } } })
+      : [];
+    const answersByUser = new Map();
+    for (const a of allTheirAnswers) {
+      if (!answersByUser.has(a.userId)) answersByUser.set(a.userId, []);
+      answersByUser.get(a.userId).push(a);
+    }
+
     // Calculate distances and vibe scores
-    let results = await Promise.all(
-      users.map(async (user) => {
-        let distance = null;
-        if (currentUser.locationLat && currentUser.locationLng && user.locationLat && user.locationLng) {
-          distance = Math.round(
-            getDistanceMiles(currentUser.locationLat, currentUser.locationLng, user.locationLat, user.locationLng)
-          );
-        }
+    let results = users.map((user) => {
+      let distance = null;
+      if (currentUser.locationLat && currentUser.locationLng && user.locationLat && user.locationLng) {
+        distance = Math.round(
+          getDistanceMiles(currentUser.locationLat, currentUser.locationLng, user.locationLat, user.locationLng)
+        );
+      }
 
-        // Calculate vibe score
-        const myAnswers = await prisma.vibeAnswer.findMany({ where: { userId: req.userId } });
-        const theirAnswers = await prisma.vibeAnswer.findMany({ where: { userId: user.id } });
-        const myMap = new Map(myAnswers.map((a) => [a.questionId, a.answer]));
-        let shared = 0;
-        let matching = 0;
-        for (const a of theirAnswers) {
-          if (myMap.has(a.questionId)) {
-            shared++;
-            if (myMap.get(a.questionId) === a.answer) matching++;
-          }
+      // Calculate vibe score from pre-fetched data
+      const theirAnswers = answersByUser.get(user.id) || [];
+      let shared = 0;
+      let matching = 0;
+      for (const a of theirAnswers) {
+        if (myAnswerMap.has(a.questionId)) {
+          shared++;
+          if (myAnswerMap.get(a.questionId) === a.answer) matching++;
         }
-        const vibeScore = shared > 0 ? Math.round((matching / shared) * 100) : null;
+      }
+      const vibeScore = shared > 0 ? Math.round((matching / shared) * 100) : null;
 
-        return {
-          id: user.id,
-          role: user.role,
-          isPremium: user.isPremium,
-          isVerified: user.isVerified,
-          lastOnline: user.lastOnline,
-          profile: user.profile,
-          distance,
-          vibeScore,
-          hasLiked: likedIds.has(user.id),
-          isPlug: user.referralCode ? (referralCountMap.get(user.referralCode) || 0) > 0 : false,
-        };
-      })
-    );
+      return {
+        id: user.id,
+        role: user.role,
+        isPremium: user.isPremium,
+        isVerified: user.isVerified,
+        lastOnline: user.lastOnline,
+        profile: user.profile,
+        distance,
+        vibeScore,
+        hasLiked: likedIds.has(user.id),
+        isPlug: user.referralCode ? (referralCountMap.get(user.referralCode) || 0) > 0 : false,
+      };
+    });
 
     // Filter by distance
     if (maxDistance && currentUser.locationLat) {
