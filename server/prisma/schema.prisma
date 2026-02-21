@@ -24,6 +24,22 @@ enum ReportStatus {
   ACTIONED
 }
 
+enum MoveStatus {
+  OPEN
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum MoveCategory {
+  DINNER
+  DRINKS
+  ADVENTURE
+  GROUP
+  CONCERT
+  OTHER
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -62,8 +78,10 @@ model User {
   blocks        Block[]   @relation("Blocker")
   blockedBy     Block[]   @relation("Blocked")
   vibeAnswers   VibeAnswer[]
-  moves         Move[]
-  moveInterests MoveInterest[]
+  moves             Move[]         @relation("StepperMoves")
+  selectedForMoves  Move[]         @relation("SelectedBaddieMoves")
+  moveInterests     MoveInterest[]
+  savedMoves        SavedMove[]
   hiddenFrom    HiddenPair[] @relation("HiddenUser1")
   hiddenTo      HiddenPair[] @relation("HiddenUser2")
   profileViews     ProfileView[] @relation("Viewer")
@@ -209,31 +227,58 @@ model Subscription {
 }
 
 model Move {
-  id          String   @id @default(uuid())
-  stepperId   String
-  title       String
-  description String
-  date        DateTime
-  location    String
-  maxInterest Int      @default(10)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id               String        @id @default(uuid())
+  stepperId        String
+  title            String
+  description      String
+  date             DateTime
+  location         String
+  maxInterest      Int           @default(10)
+  isActive         Boolean       @default(true)
+  status           MoveStatus    @default(OPEN)
+  category         MoveCategory?
+  photo            String?
+  selectedBaddieId String?
+  dressCode        String?
+  playlistLink     String?
+  stepperOnMyWay   Boolean       @default(false)
+  baddieOnMyWay    Boolean       @default(false)
+  createdAt        DateTime      @default(now())
 
-  stepper   User           @relation(fields: [stepperId], references: [id])
-  interests MoveInterest[]
+  stepper        User           @relation("StepperMoves", fields: [stepperId], references: [id])
+  selectedBaddie User?          @relation("SelectedBaddieMoves", fields: [selectedBaddieId], references: [id])
+  interests      MoveInterest[]
+  savedBy        SavedMove[]
+
+  @@index([status, date])
+  @@index([stepperId])
+  @@index([selectedBaddieId])
 }
 
 model MoveInterest {
-  id        String   @id @default(uuid())
-  moveId    String
-  baddieId  String
-  message   String?
-  createdAt DateTime @default(now())
+  id              String   @id @default(uuid())
+  moveId          String
+  baddieId        String
+  message         String?
+  counterProposal String?
+  createdAt       DateTime @default(now())
 
   move   Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
   baddie User @relation(fields: [baddieId], references: [id])
 
   @@unique([moveId, baddieId])
+}
+
+model SavedMove {
+  id        String   @id @default(uuid())
+  userId    String
+  moveId    String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  move Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moveId])
 }
 
 model HiddenPair {

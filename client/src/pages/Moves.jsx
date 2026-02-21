@@ -3,40 +3,96 @@ import AppLayout from '../components/layout/AppLayout';
 import MoveCard from '../components/moves/MoveCard';
 import CreateMove from '../components/moves/CreateMove';
 import MoveInterestList from '../components/moves/MoveInterestList';
+import MoveFilters from '../components/moves/MoveFilters';
+import MoveCountdown from '../components/moves/MoveCountdown';
 import Modal from '../components/ui/Modal';
 import Button from '../components/ui/Button';
-import Input, { Textarea } from '../components/ui/Input';
+import { Textarea } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Flame, Trash2 } from 'lucide-react';
+import { Plus, Flame, Trash2, Bookmark } from 'lucide-react';
 import { formatDate } from '../utils/formatters';
+
+function getTimeFilterDates(time) {
+  if (!time) return {};
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  if (time === 'tonight') {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return { after: now.toISOString(), before: tomorrow.toISOString() };
+  }
+  if (time === 'weekend') {
+    const day = now.getDay();
+    const friday = new Date(today);
+    friday.setDate(today.getDate() + ((5 - day + 7) % 7));
+    const monday = new Date(friday);
+    monday.setDate(friday.getDate() + 3);
+    return { after: friday.toISOString(), before: monday.toISOString() };
+  }
+  if (time === 'week') {
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    return { after: now.toISOString(), before: nextWeek.toISOString() };
+  }
+  return {};
+}
 
 export default function Moves() {
   const { user } = useAuth();
   const [moves, setMoves] = useState([]);
   const [myMoves, setMyMoves] = useState([]);
+  const [savedMoves, setSavedMoves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [interestModal, setInterestModal] = useState(null);
   const [interestMessage, setInterestMessage] = useState('');
+  const [counterProposal, setCounterProposal] = useState('');
   const [deleteModal, setDeleteModal] = useState(null);
+  const [selectModal, setSelectModal] = useState(null); // { moveId, baddieId, baddieName }
   const [tab, setTab] = useState(user?.role === 'STEPPER' ? 'mine' : 'browse');
+  const [filters, setFilters] = useState({ time: null, category: null, sort: 'soonest' });
 
   useEffect(() => { fetchMoves(); }, []);
+
+  useEffect(() => {
+    if (tab === 'browse' || (tab === 'saved' && user?.role === 'BADDIE')) {
+      fetchBrowseData();
+    }
+  }, [filters, tab]);
 
   const fetchMoves = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/moves');
-      setMoves(data);
+      await fetchBrowseData();
       if (user?.role === 'STEPPER') {
         const { data: mine } = await api.get('/moves/mine');
         setMyMoves(mine);
+      }
+      if (user?.role === 'BADDIE') {
+        const { data: saved } = await api.get('/moves/saved');
+        setSavedMoves(saved);
       }
     } catch (err) {
       console.error('Moves error:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchBrowseData = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.category) params.set('category', filters.category);
+      if (filters.sort) params.set('sort', filters.sort);
+      const timeDates = getTimeFilterDates(filters.time);
+      if (timeDates.after) params.set('after', timeDates.after);
+      if (timeDates.before) params.set('before', timeDates.before);
+      const { data } = await api.get(`/moves?${params.toString()}`);
+      setMoves(data);
+    } catch (err) {
+      console.error('Browse error:', err);
     }
   };
 
@@ -47,12 +103,16 @@ export default function Moves() {
   const submitInterest = async () => {
     if (!interestModal) return;
     try {
-      await api.post(`/moves/${interestModal}/interest`, { message: interestMessage });
+      await api.post(`/moves/${interestModal}/interest`, {
+        message: interestMessage || null,
+        counterProposal: counterProposal || null,
+      });
       setInterestModal(null);
       setInterestMessage('');
+      setCounterProposal('');
       fetchMoves();
     } catch (err) {
-      console.error('Interest error:', err);
+      alert(err.response?.data?.error || 'Failed to express interest');
     }
   };
 
@@ -77,6 +137,47 @@ export default function Moves() {
     }
   };
 
+  const handleSelect = (baddieId, baddieName, moveId) => {
+    setSelectModal({ moveId, baddieId, baddieName });
+  };
+
+  const confirmSelect = async () => {
+    if (!selectModal) return;
+    try {
+      await api.put(`/moves/${selectModal.moveId}/select/${selectModal.baddieId}`);
+      setSelectModal(null);
+      const { data: mine } = await api.get('/moves/mine');
+      setMyMoves(mine);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to select');
+    }
+  };
+
+  const handleSave = async (moveId) => {
+    try {
+      await api.post(`/moves/${moveId}/save`);
+      setMoves((prev) => prev.map((m) => m.id === moveId ? { ...m, isSaved: true } : m));
+      const { data: saved } = await api.get('/moves/saved');
+      setSavedMoves(saved);
+    } catch (err) {
+      console.error('Save error:', err);
+    }
+  };
+
+  const handleUnsave = async (moveId) => {
+    try {
+      await api.delete(`/moves/${moveId}/save`);
+      setMoves((prev) => prev.map((m) => m.id === moveId ? { ...m, isSaved: false } : m));
+      setSavedMoves((prev) => prev.filter((m) => m.id !== moveId));
+    } catch (err) {
+      console.error('Unsave error:', err);
+    }
+  };
+
+  const handleMoveUpdate = (updatedMove) => {
+    setMyMoves((prev) => prev.map((m) => m.id === updatedMove.id ? { ...m, ...updatedMove } : m));
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -87,6 +188,9 @@ export default function Moves() {
     );
   }
 
+  const isStepper = user?.role === 'STEPPER';
+  const isBaddie = user?.role === 'BADDIE';
+
   return (
     <AppLayout>
       <div className="flex items-center justify-between mb-4">
@@ -94,33 +198,50 @@ export default function Moves() {
           <Flame className="text-gold" size={20} />
           <h1 className="text-xl font-bold text-white">The Move</h1>
         </div>
-        {user?.role === 'STEPPER' && (
+        {isStepper && (
           <Button variant="gold" className="!px-3 !py-1.5 text-sm" onClick={() => setShowCreate(true)}>
             <Plus size={16} className="inline mr-1" /> New Move
           </Button>
         )}
       </div>
 
-      {/* Tabs for Steppers */}
-      {user?.role === 'STEPPER' && (
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setTab('mine')}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'mine' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-          >
-            My Moves
-          </button>
-          <button
-            onClick={() => setTab('browse')}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-          >
-            All Moves
-          </button>
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        {isStepper ? (
+          <>
+            <button
+              onClick={() => setTab('mine')}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'mine' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              My Moves
+            </button>
+            <button
+              onClick={() => setTab('browse')}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              All Moves
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setTab('browse')}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              Browse
+            </button>
+            <button
+              onClick={() => setTab('saved')}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'saved' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              <Bookmark size={14} className="inline mr-1" /> Saved
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Content */}
-      {tab === 'mine' && user?.role === 'STEPPER' ? (
+      {tab === 'mine' && isStepper ? (
         <div className="space-y-4">
           {myMoves.length === 0 ? (
             <div className="text-center py-12">
@@ -131,27 +252,73 @@ export default function Moves() {
             </div>
           ) : (
             myMoves.map((move) => (
-              <div key={move.id} className="card-elevated">
-                <div className="flex items-start justify-between mb-1">
-                  <h3 className="font-bold text-white">{move.title}</h3>
-                  <button
-                    onClick={() => setDeleteModal(move.id)}
-                    className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                    title="Delete move"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-                <p className="text-gray-400 text-sm mb-2">{move.description}</p>
-                <p className="text-xs text-gray-500 mb-3">{formatDate(move.date)} · {move.location}</p>
-                <h4 className="text-sm font-semibold text-gray-300 mb-2">Interested ({move.interests.length})</h4>
-                <MoveInterestList interests={move.interests} onStartConversation={startConversation} />
+              <div key={move.id}>
+                {move.status === 'CONFIRMED' && move.selectedBaddie ? (
+                  <MoveCountdown move={move} currentUserId={user.id} onUpdate={handleMoveUpdate} />
+                ) : (
+                  <div className="card-elevated">
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-white">{move.title}</h3>
+                        {move.status === 'COMPLETED' && (
+                          <span className="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs font-medium rounded-full">Completed</span>
+                        )}
+                        {move.category && (
+                          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                            {move.category.charAt(0) + move.category.slice(1).toLowerCase()}
+                          </span>
+                        )}
+                      </div>
+                      {move.status === 'OPEN' && (
+                        <button
+                          onClick={() => setDeleteModal(move.id)}
+                          className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                          title="Delete move"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
+                    {move.photo && (
+                      <img src={move.photo} alt="" className="w-full h-36 object-cover rounded-lg mb-2" />
+                    )}
+                    <p className="text-gray-400 text-sm mb-2">{move.description}</p>
+                    <p className="text-xs text-gray-500 mb-3">{formatDate(move.date)} · {move.location}</p>
+                    {move.status !== 'COMPLETED' && (
+                      <>
+                        <h4 className="text-sm font-semibold text-gray-300 mb-2">Interested ({move.interests.length})</h4>
+                        <MoveInterestList
+                          interests={move.interests}
+                          onStartConversation={startConversation}
+                          onSelect={(baddieId, baddieName) => handleSelect(baddieId, baddieName, move.id)}
+                          moveStatus={move.status}
+                          selectedBaddieId={move.selectedBaddieId}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
+            ))
+          )}
+        </div>
+      ) : tab === 'saved' && isBaddie ? (
+        <div className="space-y-4">
+          {savedMoves.length === 0 ? (
+            <div className="text-center py-12">
+              <Bookmark className="text-gray-600 mx-auto mb-3" size={40} />
+              <p className="text-gray-400 mb-2">No saved Moves</p>
+              <p className="text-gray-500 text-sm">Bookmark Moves you&apos;re interested in to find them later</p>
+            </div>
+          ) : (
+            savedMoves.map((move) => (
+              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} isAdmin={user?.isAdmin} onDelete={(id) => setDeleteModal(id)} onSave={handleSave} onUnsave={handleUnsave} />
             ))
           )}
         </div>
       ) : (
         <div className="space-y-4">
+          {isBaddie && <MoveFilters filters={filters} onFilterChange={setFilters} />}
           {moves.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-400">No active Moves right now</p>
@@ -159,7 +326,7 @@ export default function Moves() {
             </div>
           ) : (
             moves.map((move) => (
-              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} isAdmin={user?.isAdmin} onDelete={(id) => setDeleteModal(id)} />
+              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} isAdmin={user?.isAdmin} onDelete={(id) => setDeleteModal(id)} onSave={handleSave} onUnsave={handleUnsave} />
             ))
           )}
         </div>
@@ -171,7 +338,7 @@ export default function Moves() {
       </Modal>
 
       {/* Interest Modal */}
-      <Modal isOpen={!!interestModal} onClose={() => setInterestModal(null)} title="Express Interest">
+      <Modal isOpen={!!interestModal} onClose={() => { setInterestModal(null); setCounterProposal(''); setInterestMessage(''); }} title="Express Interest">
         <div className="space-y-4">
           <p className="text-gray-400 text-sm">Leave a message to stand out (optional)</p>
           <Textarea
@@ -179,9 +346,33 @@ export default function Moves() {
             value={interestMessage}
             onChange={(e) => setInterestMessage(e.target.value)}
           />
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">Counter-proposal (optional)</label>
+            <Textarea
+              placeholder="How about a different time or place?"
+              value={counterProposal}
+              onChange={(e) => setCounterProposal(e.target.value)}
+            />
+          </div>
           <Button variant="gold" className="w-full" onClick={submitInterest}>
             I&apos;m Interested
           </Button>
+        </div>
+      </Modal>
+
+      {/* Selection Confirmation Modal */}
+      <Modal isOpen={!!selectModal} onClose={() => setSelectModal(null)} title="Confirm Selection">
+        <div className="space-y-4">
+          <p className="text-gray-300 text-sm">
+            Select <span className="text-white font-semibold">{selectModal?.baddieName}</span> for this Move?
+          </p>
+          <p className="text-gray-500 text-xs">
+            This will confirm the Move and notify all interested Baddies.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={() => setSelectModal(null)}>Cancel</Button>
+            <Button variant="gold" className="flex-1" onClick={confirmSelect}>Confirm Selection</Button>
+          </div>
         </div>
       </Modal>
 

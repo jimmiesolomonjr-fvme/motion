@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2, Check, Zap } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2, Check, Zap, Flame, Calendar } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
@@ -38,6 +38,7 @@ export default function Profile() {
   const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [moveHistory, setMoveHistory] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null); // index of open prompt dropdown
   const dropdownRefs = useRef([]);
 
@@ -60,6 +61,11 @@ export default function Profile() {
           setVibeScore(scoreRes.data.score);
           setLiked(likeRes.data.hasLiked);
           if (payRes.data.freeMessaging !== undefined) setFreeMessaging(payRes.data.freeMessaging);
+
+          // Fetch move history for Steppers
+          if (data.role === 'STEPPER') {
+            api.get(`/moves/history/${userId}`).then(({ data: hist }) => setMoveHistory(hist)).catch(() => {});
+          }
 
           // Track profile view (fire and forget)
           api.post(`/users/profile/${userId}/view`).catch(() => {});
@@ -459,6 +465,30 @@ export default function Profile() {
                     <p className="text-white font-medium text-sm">{p.answer}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Move History (Stepper profiles, viewed by others) */}
+            {!isOwnProfile && moveHistory && moveHistory.completedCount > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Flame size={16} className="text-gold" />
+                  <h3 className="text-sm font-semibold text-gray-300">Moves ({moveHistory.completedCount} completed)</h3>
+                </div>
+                <div className="space-y-2">
+                  {moveHistory.recentMoves.map((m, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2.5 bg-dark-100 rounded-xl">
+                      <Calendar size={14} className="text-gold flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-medium truncate">{m.title}</p>
+                        <p className="text-gray-500 text-xs">
+                          {new Date(m.date).toLocaleDateString()} · {m.location}
+                          {m.category && ` · ${m.category.charAt(0) + m.category.slice(1).toLowerCase()}`}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
