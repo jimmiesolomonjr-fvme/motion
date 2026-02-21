@@ -8,7 +8,7 @@ import Button from '../components/ui/Button';
 import Input, { Textarea } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Flame } from 'lucide-react';
+import { Plus, Flame, Trash2 } from 'lucide-react';
 import { formatDate } from '../utils/formatters';
 
 export default function Moves() {
@@ -19,6 +19,7 @@ export default function Moves() {
   const [showCreate, setShowCreate] = useState(false);
   const [interestModal, setInterestModal] = useState(null);
   const [interestMessage, setInterestMessage] = useState('');
+  const [deleteModal, setDeleteModal] = useState(null);
   const [tab, setTab] = useState(user?.role === 'STEPPER' ? 'mine' : 'browse');
 
   useEffect(() => { fetchMoves(); }, []);
@@ -61,6 +62,18 @@ export default function Moves() {
       window.location.href = `/chat/${data.id}`;
     } catch (err) {
       console.error('Start conversation error:', err);
+    }
+  };
+
+  const handleDeleteMove = async () => {
+    if (!deleteModal) return;
+    try {
+      await api.delete(`/moves/${deleteModal}`);
+      setDeleteModal(null);
+      setMoves((prev) => prev.filter((m) => m.id !== deleteModal));
+      setMyMoves((prev) => prev.filter((m) => m.id !== deleteModal));
+    } catch (err) {
+      console.error('Delete move error:', err);
     }
   };
 
@@ -119,7 +132,16 @@ export default function Moves() {
           ) : (
             myMoves.map((move) => (
               <div key={move.id} className="card-elevated">
-                <h3 className="font-bold text-white mb-1">{move.title}</h3>
+                <div className="flex items-start justify-between mb-1">
+                  <h3 className="font-bold text-white">{move.title}</h3>
+                  <button
+                    onClick={() => setDeleteModal(move.id)}
+                    className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                    title="Delete move"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
                 <p className="text-gray-400 text-sm mb-2">{move.description}</p>
                 <p className="text-xs text-gray-500 mb-3">{formatDate(move.date)} · {move.location}</p>
                 <h4 className="text-sm font-semibold text-gray-300 mb-2">Interested ({move.interests.length})</h4>
@@ -137,7 +159,7 @@ export default function Moves() {
             </div>
           ) : (
             moves.map((move) => (
-              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} />
+              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} isAdmin={user?.isAdmin} onDelete={(id) => setDeleteModal(id)} />
             ))
           )}
         </div>
@@ -160,6 +182,21 @@ export default function Moves() {
           <Button variant="gold" className="w-full" onClick={submitInterest}>
             I&apos;m Interested
           </Button>
+        </div>
+      </Modal>
+
+      {/* Delete Move Modal */}
+      <Modal isOpen={!!deleteModal} onClose={() => setDeleteModal(null)} title="Delete Move">
+        <p className="text-sm text-gray-400 mb-4">
+          Are you sure you want to delete this move? This cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setDeleteModal(null)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleDeleteMove} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
+            Delete
+          </button>
         </div>
       </Modal>
     </AppLayout>

@@ -65,6 +65,41 @@ export function SocketProvider({ children }) {
     }).catch(() => {});
   }, [user?.id]);
 
+  const subscribeToPush = async () => {
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+      const permission = Notification.permission;
+      if (permission === 'denied') return;
+      if (permission === 'default') {
+        const result = await Notification.requestPermission();
+        if (result !== 'granted') return;
+      }
+
+      const { data } = await api.get('/push/vapid-key');
+      if (!data.publicKey) return;
+
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        const applicationServerKey = Uint8Array.from(atob(data.publicKey.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      }
+
+      const subJson = subscription.toJSON();
+      await api.post('/push/subscribe', {
+        endpoint: subJson.endpoint,
+        keys: { p256dh: subJson.keys.p256dh, auth: subJson.keys.auth },
+      });
+    } catch {
+      // Push subscription is best-effort
+    }
+  };
+
   useEffect(() => {
     if (!user) {
       if (socket) {
@@ -82,6 +117,8 @@ export function SocketProvider({ children }) {
 
     newSocket.on('connect', () => {
       console.log('Socket connected');
+      // Subscribe to push notifications
+      subscribeToPush();
     });
 
     newSocket.on('connect_error', (err) => {

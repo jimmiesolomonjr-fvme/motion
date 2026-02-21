@@ -55,6 +55,8 @@ model User {
   conversations1 Conversation[] @relation("ConvUser1")
   conversations2 Conversation[] @relation("ConvUser2")
   sentMessages  Message[]
+  messageReactions MessageReaction[]
+  pushSubscriptions PushSubscription[]
   sentReports   Report[]  @relation("Reporter")
   receivedReports Report[] @relation("Reported")
   blocks        Block[]   @relation("Blocker")
@@ -118,6 +120,7 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id])
+  reactions    MessageReaction[]
 }
 
 model Like {
@@ -323,4 +326,28 @@ model StoryLike {
   user  User  @relation("storyLikes", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([storyId, userId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

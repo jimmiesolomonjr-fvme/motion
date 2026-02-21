@@ -1,8 +1,37 @@
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import webpush from 'web-push';
 import config from '../config/index.js';
 
 const prisma = new PrismaClient();
+
+// Configure web-push if VAPID keys are set
+if (config.vapid.publicKey && config.vapid.privateKey) {
+  webpush.setVapidDetails(config.vapid.email, config.vapid.publicKey, config.vapid.privateKey);
+}
+
+async function sendPushNotification(recipientId, payload) {
+  if (!config.vapid.publicKey || !config.vapid.privateKey) return;
+  try {
+    const subscriptions = await prisma.pushSubscription.findMany({
+      where: { userId: recipientId },
+    });
+    for (const sub of subscriptions) {
+      try {
+        await webpush.sendNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          JSON.stringify(payload)
+        );
+      } catch (err) {
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
+        }
+      }
+    }
+  } catch {
+    // Push is best-effort
+  }
+}
 
 export function setupSocketHandlers(io) {
   // Auth middleware for sockets
@@ -96,6 +125,15 @@ export function setupSocketHandlers(io) {
             conversationId,
             message,
           });
+
+          // Send web push notification
+          const senderProfile = await prisma.profile.findUnique({
+            where: { userId: socket.userId },
+            select: { displayName: true },
+          });
+          const title = senderProfile?.displayName || 'New message';
+          const body = contentType === 'TEXT' ? content.substring(0, 100) : (contentType === 'VOICE' ? 'Voice note' : 'Photo');
+          sendPushNotification(otherUserId, { title, body, conversationId });
         }
       } catch (error) {
         console.error('Socket send-message error:', error);
@@ -116,6 +154,35 @@ export function setupSocketHandlers(io) {
         userId: socket.userId,
         conversationId: data.conversationId,
       });
+    });
+
+    // Message reaction (toggle)
+    socket.on('react-message', async (data) => {
+      try {
+        const { messageId, emoji, conversationId } = data;
+        if (!messageId || !emoji || !conversationId) return;
+
+        const existing = await prisma.messageReaction.findUnique({
+          where: { messageId_userId_emoji: { messageId, userId: socket.userId, emoji } },
+        });
+
+        if (existing) {
+          await prisma.messageReaction.delete({ where: { id: existing.id } });
+        } else {
+          await prisma.messageReaction.create({
+            data: { messageId, userId: socket.userId, emoji },
+          });
+        }
+
+        const reactions = await prisma.messageReaction.findMany({
+          where: { messageId },
+          select: { id: true, userId: true, emoji: true },
+        });
+
+        io.to(`conv:${conversationId}`).emit('message-reaction', { messageId, reactions });
+      } catch (error) {
+        console.error('React message error:', error);
+      }
     });
 
     // Read receipt

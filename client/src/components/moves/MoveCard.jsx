@@ -1,9 +1,9 @@
-import { MapPin, Calendar, Users, BadgeCheck, Check } from 'lucide-react';
+import { MapPin, Calendar, Users, BadgeCheck, Check, Trash2 } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import { formatDate } from '../../utils/formatters';
 
-export default function MoveCard({ move, onInterest, userRole }) {
+export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete }) {
   const baddies = move.interestedBaddies || [];
 
   return (
@@ -19,6 +19,15 @@ export default function MoveCard({ move, onInterest, userRole }) {
             <span className="badge-stepper ml-1">Stepper</span>
           </div>
         </div>
+        {isAdmin && onDelete && (
+          <button
+            onClick={() => onDelete(move.id)}
+            className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+            title="Delete move"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
       </div>
 
       <h3 className="text-lg font-bold text-white mb-2">{move.title}</h3>

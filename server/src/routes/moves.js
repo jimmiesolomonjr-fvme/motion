@@ -5,6 +5,13 @@ import { authenticate } from '../middleware/auth.js';
 const router = Router();
 const prisma = new PrismaClient();
 
+const BLOCKED_WORDS = ['sex', 'fuck', 'pussy', 'dick', 'shit', 'ass', 'bitch', 'nigga', 'nigger', 'whore', 'slut', 'cock', 'cum'];
+
+function containsOffensiveWords(text) {
+  if (!text) return false;
+  return BLOCKED_WORDS.some((word) => new RegExp(`\\b${word}\\b`, 'i').test(text));
+}
+
 // Create a Move (Steppers only)
 router.post('/', authenticate, async (req, res) => {
   try {
@@ -16,6 +23,10 @@ router.post('/', authenticate, async (req, res) => {
 
     if (!title || !description || !date || !location) {
       return res.status(400).json({ error: 'Title, description, date, and location are required' });
+    }
+
+    if (containsOffensiveWords(title) || containsOffensiveWords(description)) {
+      return res.status(400).json({ error: 'Move contains inappropriate language' });
     }
 
     const move = await prisma.move.create({
@@ -219,12 +230,21 @@ router.delete('/interests/:interestId', authenticate, async (req, res) => {
   }
 });
 
-// Delete a Move (Stepper only)
+// Delete a Move (owner or admin)
 router.delete('/:moveId', authenticate, async (req, res) => {
   try {
     const move = await prisma.move.findUnique({ where: { id: req.params.moveId } });
-    if (!move || move.stepperId !== req.userId) {
+    if (!move) {
       return res.status(404).json({ error: 'Move not found' });
+    }
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { isAdmin: true },
+    });
+
+    if (move.stepperId !== req.userId && !currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Not authorized to delete this move' });
     }
 
     await prisma.move.update({

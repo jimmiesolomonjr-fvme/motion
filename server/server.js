@@ -16,6 +16,7 @@ import reportRoutes from './src/routes/reports.js';
 import adminRoutes from './src/routes/admin.js';
 import notificationRoutes from './src/routes/notifications.js';
 import storyRoutes from './src/routes/stories.js';
+import pushRoutes from './src/routes/push.js';
 import { setupSocketHandlers } from './src/sockets/chat.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -50,6 +51,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/stories', storyRoutes);
+app.use('/api/push', pushRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

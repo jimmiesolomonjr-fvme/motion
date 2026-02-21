@@ -100,12 +100,19 @@ export default function ChatView({ conversationId, otherUser }) {
       if (data?.error) setSocketError(data.error);
     };
 
+    const handleReaction = (data) => {
+      setMessages((prev) => prev.map((m) =>
+        m.id === data.messageId ? { ...m, reactions: data.reactions } : m
+      ));
+    };
+
     socket.on('new-message', handleNewMessage);
     socket.on('user-typing', handleTyping);
     socket.on('user-stop-typing', handleStopTyping);
     socket.on('messages-read', handleRead);
     socket.on('error', handleError);
     socket.on('send-message-error', handleSendError);
+    socket.on('message-reaction', handleReaction);
 
     return () => {
       socket.emit('leave-conversation', conversationId);
@@ -115,6 +122,7 @@ export default function ChatView({ conversationId, otherUser }) {
       socket.off('messages-read', handleRead);
       socket.off('error', handleError);
       socket.off('send-message-error', handleSendError);
+      socket.off('message-reaction', handleReaction);
     };
   }, [socket, conversationId]);
 
@@ -150,6 +158,11 @@ export default function ChatView({ conversationId, otherUser }) {
     } finally {
       setUpgrading(false);
     }
+  };
+
+  const handleReact = (messageId, emoji) => {
+    if (!socket) return;
+    socket.emit('react-message', { messageId, emoji, conversationId });
   };
 
   const handleKeyDown = (e) => {
@@ -305,7 +318,7 @@ export default function ChatView({ conversationId, otherUser }) {
           </div>
         )}
         {messages.map((msg) => (
-          <ChatBubble key={msg.id} message={msg} isOwn={msg.senderId === user.id} />
+          <ChatBubble key={msg.id} message={msg} isOwn={msg.senderId === user.id} onReact={handleReact} currentUserId={user.id} />
         ))}
         <div ref={bottomRef} />
       </div>
