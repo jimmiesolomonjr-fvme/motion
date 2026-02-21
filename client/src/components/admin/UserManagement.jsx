@@ -3,13 +3,15 @@ import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import api from '../../services/api';
-import { BadgeCheck, Ban, EyeOff, MessageSquareOff } from 'lucide-react';
+import Modal from '../ui/Modal';
+import { BadgeCheck, Ban, EyeOff, MessageSquareOff, Trash2 } from 'lucide-react';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [deleteModal, setDeleteModal] = useState(null);
 
   const fetchUsers = async () => {
     const { data } = await api.get(`/admin/users?search=${search}&page=${page}`);
@@ -37,6 +39,17 @@ export default function UserManagement() {
   const toggleMute = async (userId, currentMuted) => {
     await api.put(`/admin/users/${userId}/mute`, { muted: !currentMuted });
     fetchUsers();
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteModal) return;
+    try {
+      await api.delete(`/admin/users/${deleteModal}`);
+      setDeleteModal(null);
+      fetchUsers();
+    } catch (err) {
+      console.error('Delete user error:', err);
+    }
   };
 
   return (
@@ -92,6 +105,13 @@ export default function UserManagement() {
               >
                 <Ban size={16} />
               </button>
+              <button
+                onClick={() => setDeleteModal(u.id)}
+                className="p-1.5 rounded-lg bg-dark-50 text-gray-500 hover:text-red-400 transition-colors"
+                title="Delete user"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           </div>
         ))}
@@ -104,6 +124,20 @@ export default function UserManagement() {
           <Button variant="ghost" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
         </div>
       )}
+
+      <Modal isOpen={!!deleteModal} onClose={() => setDeleteModal(null)} title="Delete User">
+        <p className="text-sm text-gray-400 mb-4">
+          This will permanently delete this user and all their data (messages, matches, moves, etc). This cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setDeleteModal(null)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleDeleteUser} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
+            Delete User
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

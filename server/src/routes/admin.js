@@ -151,6 +151,49 @@ router.put('/users/:userId/mute', authenticate, requireAdmin, async (req, res) =
   }
 });
 
+// Delete user (admin only)
+router.delete('/users/:userId', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const targetUser = await prisma.user.findUnique({ where: { id: req.params.userId } });
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (targetUser.isAdmin) {
+      return res.status(403).json({ error: 'Cannot delete an admin user' });
+    }
+
+    // Delete related records that don't cascade automatically
+    await prisma.$transaction([
+      prisma.messageReaction.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.pushSubscription.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.moveInterest.deleteMany({ where: { baddieId: req.params.userId } }),
+      prisma.move.deleteMany({ where: { stepperId: req.params.userId } }),
+      prisma.message.deleteMany({ where: { senderId: req.params.userId } }),
+      prisma.conversation.deleteMany({ where: { OR: [{ user1Id: req.params.userId }, { user2Id: req.params.userId }] } }),
+      prisma.like.deleteMany({ where: { OR: [{ likerId: req.params.userId }, { likedId: req.params.userId }] } }),
+      prisma.match.deleteMany({ where: { OR: [{ user1Id: req.params.userId }, { user2Id: req.params.userId }] } }),
+      prisma.block.deleteMany({ where: { OR: [{ blockerId: req.params.userId }, { blockedId: req.params.userId }] } }),
+      prisma.report.deleteMany({ where: { OR: [{ reporterId: req.params.userId }, { reportedId: req.params.userId }] } }),
+      prisma.hiddenPair.deleteMany({ where: { OR: [{ user1Id: req.params.userId }, { user2Id: req.params.userId }] } }),
+      prisma.notification.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.profileView.deleteMany({ where: { OR: [{ viewerId: req.params.userId }, { viewedId: req.params.userId }] } }),
+      prisma.storyLike.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.storyView.deleteMany({ where: { viewerId: req.params.userId } }),
+      prisma.story.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.profilePrompt.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.vibeAnswer.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.subscription.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.profile.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.user.delete({ where: { id: req.params.userId } }),
+    ]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===== Vibe Questions CRUD =====
 
 // List all vibe questions

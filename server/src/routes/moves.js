@@ -122,14 +122,14 @@ router.get('/mine', authenticate, async (req, res) => {
     }
 
     const moves = await prisma.move.findMany({
-      where: { stepperId: req.userId },
+      where: { stepperId: req.userId, isActive: true, date: { gte: new Date() } },
       include: {
         interests: {
           include: { baddie: { include: { profile: true } } },
           orderBy: { createdAt: 'desc' },
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { date: 'asc' },
     });
 
     res.json(moves);

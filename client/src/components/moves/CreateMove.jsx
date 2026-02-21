@@ -17,7 +17,8 @@ export default function CreateMove({ onCreated, onClose }) {
     setError('');
 
     try {
-      const { data } = await api.post('/moves', form);
+      const payload = { ...form, date: new Date(form.date).toISOString() };
+      const { data } = await api.post('/moves', payload);
       onCreated(data);
       onClose();
     } catch (err) {
