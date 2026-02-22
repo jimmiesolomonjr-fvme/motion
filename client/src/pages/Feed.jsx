@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import FeedGrid from '../components/feed/FeedGrid';
 import FeedFilters from '../components/feed/FeedFilters';
@@ -16,27 +16,63 @@ export default function Feed() {
   const [maxDistance, setMaxDistance] = useState(100);
   const [loading, setLoading] = useState(true);
   const [matchModal, setMatchModal] = useState(null);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const sentinelRef = useRef(null);
 
   useGeolocation();
 
-  const fetchFeed = async () => {
-    setLoading(true);
+  const fetchFeed = useCallback(async (pageNum) => {
+    if (pageNum === 0) setLoading(true);
+    else setLoadingMore(true);
     try {
-      const params = { sort, onlineOnly: onlineOnly.toString() };
+      const params = { sort, onlineOnly: onlineOnly.toString(), page: pageNum };
       if (ageRange[0] !== 18) params.minAge = ageRange[0];
       if (ageRange[1] !== 99) params.maxAge = ageRange[1];
       if (maxDistance < 100) params.maxDistance = maxDistance;
 
       const { data } = await api.get('/users/feed', { params });
-      setUsers(data);
+      if (pageNum === 0) {
+        setUsers(data.users);
+      } else {
+        setUsers((prev) => [...prev, ...data.users]);
+      }
+      setHasMore(data.hasMore);
     } catch (err) {
       console.error('Feed error:', err);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [sort, onlineOnly, ageRange, maxDistance]);
 
-  useEffect(() => { fetchFeed(); }, [sort, onlineOnly, ageRange[0], ageRange[1], maxDistance]);
+  // Reset to page 0 when filters change
+  useEffect(() => {
+    setPage(0);
+    fetchFeed(0);
+  }, [sort, onlineOnly, ageRange[0], ageRange[1], maxDistance]);
+
+  // Fetch next page when page increments beyond 0
+  useEffect(() => {
+    if (page > 0) fetchFeed(page);
+  }, [page]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasMore && !loadingMore && !loading) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading]);
 
   const handleApplyFilters = ({ ageRange: newAge, maxDistance: newDist }) => {
     setAgeRange(newAge);
@@ -81,7 +117,7 @@ export default function Feed() {
           <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
-        <FeedGrid users={users} onLike={handleLike} onUnlike={handleUnlike} />
+        <FeedGrid users={users} onLike={handleLike} onUnlike={handleUnlike} hasMore={hasMore} loadingMore={loadingMore} sentinelRef={sentinelRef} />
       )}
 
       {/* Match Modal */}

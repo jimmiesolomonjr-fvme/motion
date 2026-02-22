@@ -188,7 +188,9 @@ router.put('/location', authenticate, async (req, res) => {
 // Browse feed
 router.get('/feed', authenticate, async (req, res) => {
   try {
-    const { sort = 'newest', maxDistance, onlineOnly, minAge, maxAge } = req.query;
+    const { sort = 'newest', maxDistance, onlineOnly, minAge, maxAge, page: pageStr = '0', limit: limitStr = '12' } = req.query;
+    const page = Math.max(0, parseInt(pageStr) || 0);
+    const limit = Math.min(50, Math.max(1, parseInt(limitStr) || 12));
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
       select: { id: true, role: true, locationLat: true, locationLng: true },
@@ -296,7 +298,10 @@ router.get('/feed', authenticate, async (req, res) => {
         isPremium: user.isPremium,
         isVerified: user.isVerified,
         lastOnline: user.lastOnline,
-        profile: user.profile,
+        profile: {
+          ...user.profile,
+          photos: user.profile?.photos?.[0] ? [user.profile.photos[0]] : [],
+        },
         distance,
         vibeScore,
         hasLiked: likedIds.has(user.id),
@@ -317,7 +322,12 @@ router.get('/feed', authenticate, async (req, res) => {
       results.sort((a, b) => (b.vibeScore ?? 0) - (a.vibeScore ?? 0));
     }
 
-    res.json(results);
+    // Paginate results
+    const start = page * limit;
+    const paginatedResults = results.slice(start, start + limit);
+    const hasMore = start + limit < results.length;
+
+    res.json({ users: paginatedResults, hasMore, page });
   } catch (error) {
     console.error('Feed error:', error);
     res.status(500).json({ error: 'Server error' });
