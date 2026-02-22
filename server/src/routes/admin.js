@@ -194,6 +194,78 @@ router.delete('/users/:userId', authenticate, requireAdmin, async (req, res) => 
   }
 });
 
+// ===== Vibe Stats =====
+
+router.get('/vibe-stats', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [
+      totalQuestions,
+      activeQuestions,
+      totalAnswers,
+      activeToday,
+      avgStreakResult,
+      questionDistribution,
+    ] = await Promise.all([
+      prisma.vibeQuestion.count(),
+      prisma.vibeQuestion.count({ where: { isActive: true } }),
+      prisma.vibeAnswer.count(),
+      prisma.vibeAnswer.groupBy({
+        by: ['userId'],
+        where: { answeredAt: { gte: todayStart } },
+      }).then((r) => r.length),
+      prisma.user.aggregate({
+        _avg: { vibeStreak: true },
+        where: { vibeStreak: { gt: 0 } },
+      }),
+      prisma.vibeQuestion.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          questionText: true,
+          category: true,
+          answers: { select: { answer: true } },
+        },
+        orderBy: { category: 'asc' },
+      }),
+    ]);
+
+    const perQuestion = questionDistribution.map((q) => {
+      const total = q.answers.length;
+      const trueCount = q.answers.filter((a) => a.answer === true).length;
+      return {
+        id: q.id,
+        questionText: q.questionText,
+        category: q.category,
+        totalAnswers: total,
+        truePercent: total > 0 ? Math.round((trueCount / total) * 100) : 0,
+        falsePercent: total > 0 ? Math.round(((total - trueCount) / total) * 100) : 0,
+      };
+    });
+
+    // Avg answers per user
+    const distinctUsers = await prisma.vibeAnswer.groupBy({ by: ['userId'] });
+    const avgPerUser = distinctUsers.length > 0
+      ? Math.round(totalAnswers / distinctUsers.length)
+      : 0;
+
+    res.json({
+      totalQuestions,
+      activeQuestions,
+      totalAnswers,
+      activeToday,
+      avgStreak: Math.round((avgStreakResult._avg.vibeStreak || 0) * 10) / 10,
+      avgPerUser,
+      perQuestion,
+    });
+  } catch (error) {
+    console.error('Vibe stats error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===== Vibe Questions CRUD =====
 
 // List all vibe questions

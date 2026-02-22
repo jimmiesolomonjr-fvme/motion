@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { Plus, Trash2, Edit3, Check, X, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Trash2, Edit3, Check, X, ToggleLeft, ToggleRight, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 
 const CATEGORIES = ['Lifestyle', 'Values', 'Social', 'Romance', 'Fun'];
 
@@ -12,6 +12,8 @@ export default function VibeQuestions() {
   const [newQ, setNewQ] = useState({ questionText: '', category: CATEGORIES[0], resp1: '', resp2: '' });
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [stats, setStats] = useState(null);
+  const [showDistribution, setShowDistribution] = useState(false);
 
   const fetchQuestions = async () => {
     try {
@@ -24,7 +26,16 @@ export default function VibeQuestions() {
     }
   };
 
-  useEffect(() => { fetchQuestions(); }, []);
+  const fetchStats = async () => {
+    try {
+      const { data } = await api.get('/admin/vibe-stats');
+      setStats(data);
+    } catch (err) {
+      console.error('Fetch vibe stats error:', err);
+    }
+  };
+
+  useEffect(() => { fetchQuestions(); fetchStats(); }, []);
 
   const handleCreate = async () => {
     if (!newQ.questionText.trim()) return;
@@ -101,6 +112,66 @@ export default function VibeQuestions() {
 
   return (
     <div className="space-y-6">
+      {/* Vibe Stats */}
+      {stats && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="card-elevated text-center">
+              <p className="text-2xl font-bold text-gold">{stats.activeQuestions}<span className="text-sm text-gray-500">/{stats.totalQuestions}</span></p>
+              <p className="text-xs text-gray-400">Questions</p>
+            </div>
+            <div className="card-elevated text-center">
+              <p className="text-2xl font-bold text-purple-glow">{stats.totalAnswers.toLocaleString()}</p>
+              <p className="text-xs text-gray-400">Total Answers</p>
+            </div>
+            <div className="card-elevated text-center">
+              <p className="text-2xl font-bold text-green-400">{stats.activeToday}</p>
+              <p className="text-xs text-gray-400">Active Today</p>
+            </div>
+          </div>
+          <div className="flex gap-3 text-xs text-gray-500">
+            <span>Avg {stats.avgPerUser} answers/user</span>
+            <span>·</span>
+            <span>Avg streak: {stats.avgStreak}</span>
+          </div>
+
+          {/* Per-question distribution */}
+          <button
+            onClick={() => setShowDistribution(!showDistribution)}
+            className="flex items-center gap-1 text-sm text-gray-400 hover:text-white"
+          >
+            <BarChart3 size={14} />
+            Answer Distribution
+            {showDistribution ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {showDistribution && (
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {stats.perQuestion.map((q) => (
+                <div key={q.id} className="card-elevated p-3">
+                  <p className="text-xs text-white mb-1 truncate">{q.questionText}</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-3 bg-dark-100 rounded-full overflow-hidden flex">
+                      <div
+                        className="h-full bg-green-500 transition-all"
+                        style={{ width: `${q.truePercent}%` }}
+                      />
+                      <div
+                        className="h-full bg-red-400 transition-all"
+                        style={{ width: `${q.falsePercent}%` }}
+                      />
+                    </div>
+                    <span className="text-xs text-gray-500 w-20 text-right">
+                      {q.truePercent}% / {q.falsePercent}%
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mt-0.5">{q.totalAnswers} answers</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Add new question */}
       <div className="card-elevated space-y-3">
         <h3 className="text-sm font-semibold text-white">Add New Question</h3>

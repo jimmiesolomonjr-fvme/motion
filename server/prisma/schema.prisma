@@ -92,6 +92,10 @@ model User {
   storyViews       StoryView[] @relation("storyViews")
   storyLikes       StoryLike[] @relation("storyLikes")
 
+  vibeStreak           Int       @default(0)
+  vibeLastAnsweredDate DateTime?
+  vibeMatchShownAt     DateTime?
+
   @@index([role, isBanned, isHidden, isDummy])
   @@index([lastOnline])
   @@index([createdAt])

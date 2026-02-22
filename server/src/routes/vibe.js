@@ -26,15 +26,21 @@ router.get('/questions', authenticate, async (req, res) => {
       })
     ).map((a) => a.questionId);
 
-    const questions = await prisma.vibeQuestion.findMany({
-      where: {
-        isActive: true,
-        ...(answeredIds.length > 0 && { id: { notIn: answeredIds } }),
-      },
-      take: 25 - answeredInWindow,
-    });
+    const [questions, user] = await Promise.all([
+      prisma.vibeQuestion.findMany({
+        where: {
+          isActive: true,
+          ...(answeredIds.length > 0 && { id: { notIn: answeredIds } }),
+        },
+        take: 25 - answeredInWindow,
+      }),
+      prisma.user.findUnique({
+        where: { id: req.userId },
+        select: { vibeStreak: true },
+      }),
+    ]);
 
-    res.json({ questions, remaining: 25 - answeredInWindow });
+    res.json({ questions, remaining: 25 - answeredInWindow, vibeStreak: user?.vibeStreak || 0 });
   } catch (error) {
     console.error('Vibe questions error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -65,9 +71,132 @@ router.post('/answer', authenticate, async (req, res) => {
       create: { userId: req.userId, questionId, answer },
     });
 
-    res.json(vibeAnswer);
+    // Compute streak
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { vibeStreak: true, vibeLastAnsweredDate: true, vibeMatchShownAt: true, role: true },
+    });
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const lastStr = user.vibeLastAnsweredDate
+      ? new Date(user.vibeLastAnsweredDate).toISOString().slice(0, 10)
+      : null;
+
+    let newStreak = user.vibeStreak;
+    if (lastStr === todayStr) {
+      // Already answered today — no change
+    } else {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().slice(0, 10);
+      newStreak = lastStr === yesterdayStr ? user.vibeStreak + 1 : 1;
+    }
+
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { vibeStreak: newStreak, vibeLastAnsweredDate: new Date() },
+    });
+
+    // Check for vibeMatch (once per 24h)
+    let vibeMatchResult = null;
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const shouldCheck = !user.vibeMatchShownAt || new Date(user.vibeMatchShownAt) < twentyFourHoursAgo;
+
+    if (shouldCheck) {
+      const oppositeRole = user.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
+      const recentMatch = await prisma.vibeAnswer.findFirst({
+        where: {
+          questionId,
+          answer,
+          answeredAt: { gte: twentyFourHoursAgo },
+          userId: { not: req.userId },
+          user: { role: oppositeRole, isBanned: false, isHidden: false },
+        },
+        include: {
+          user: { include: { profile: { select: { displayName: true, photos: true } } } },
+        },
+      });
+
+      if (recentMatch) {
+        vibeMatchResult = {
+          userId: recentMatch.userId,
+          displayName: recentMatch.user.profile?.displayName || 'Someone',
+          photo: Array.isArray(recentMatch.user.profile?.photos) ? recentMatch.user.profile.photos[0] : null,
+        };
+        await prisma.user.update({
+          where: { id: req.userId },
+          data: { vibeMatchShownAt: new Date() },
+        });
+      }
+    }
+
+    res.json({ ...vibeAnswer, vibeStreak: newStreak, vibeMatch: vibeMatchResult });
   } catch (error) {
     console.error('Vibe answer error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get top 3 vibe matches
+router.get('/top-matches', authenticate, async (req, res) => {
+  try {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { role: true },
+    });
+    const oppositeRole = currentUser.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
+
+    const myAnswers = await prisma.vibeAnswer.findMany({
+      where: { userId: req.userId },
+    });
+
+    if (myAnswers.length < 5) {
+      return res.json({ matches: [], minAnswers: 5 - myAnswers.length });
+    }
+
+    const myMap = new Map(myAnswers.map((a) => [a.questionId, a.answer]));
+
+    // Get all opposite-role users who have answers
+    const candidates = await prisma.user.findMany({
+      where: {
+        role: oppositeRole,
+        isBanned: false,
+        isHidden: false,
+        vibeAnswers: { some: {} },
+      },
+      select: {
+        id: true,
+        profile: { select: { displayName: true, photos: true } },
+        vibeAnswers: { select: { questionId: true, answer: true } },
+      },
+    });
+
+    const scores = candidates
+      .map((c) => {
+        let shared = 0;
+        let matching = 0;
+        for (const a of c.vibeAnswers) {
+          if (myMap.has(a.questionId)) {
+            shared++;
+            if (myMap.get(a.questionId) === a.answer) matching++;
+          }
+        }
+        if (shared < 5) return null;
+        return {
+          userId: c.id,
+          displayName: c.profile?.displayName || 'Unknown',
+          photo: Array.isArray(c.profile?.photos) ? c.profile.photos[0] : null,
+          score: Math.round((matching / shared) * 100),
+          shared,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+
+    res.json({ matches: scores });
+  } catch (error) {
+    console.error('Top matches error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

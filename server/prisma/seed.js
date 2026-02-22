@@ -77,19 +77,15 @@ const vibeQuestions = [
 async function main() {
   console.log('Seeding database...');
 
-  // Seed vibe questions — upsert so existing questions & answers survive deploys
-  let vibeCreated = 0;
-  for (const q of vibeQuestions) {
-    const existing = await prisma.vibeQuestion.findFirst({
-      where: { questionText: q.questionText },
-    });
-    if (!existing) {
-      await prisma.vibeQuestion.create({ data: q });
-      vibeCreated++;
-    }
+  // Seed vibe questions — only on fresh DB with zero questions
+  // Admin-managed questions are never overwritten by deploys
+  const existingCount = await prisma.vibeQuestion.count();
+  if (existingCount > 0) {
+    console.log(`Vibe questions: skipped (${existingCount} already exist, managed via admin panel)`);
+  } else {
+    await prisma.vibeQuestion.createMany({ data: vibeQuestions });
+    console.log(`Vibe questions: seeded ${vibeQuestions.length} questions`);
   }
-
-  console.log(`Vibe questions: ${vibeCreated} new, ${vibeQuestions.length - vibeCreated} already existed`);
 
   // Create test admin user
   const adminHash = await bcrypt.hash('admin12345', 12);

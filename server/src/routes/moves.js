@@ -150,6 +150,8 @@ router.get('/', authenticate, async (req, res) => {
 
     const now = Date.now();
 
+    const isBaddie = req.userRole === 'BADDIE';
+
     let result = moves.map((m) => {
       const hoursUntil = (new Date(m.date).getTime() - now) / (1000 * 60 * 60);
       return {
@@ -164,13 +166,13 @@ router.get('/', authenticate, async (req, res) => {
         photo: m.photo,
         isAnytime: m.isAnytime,
         selectedBaddieId: m.selectedBaddieId,
-        interestCount: m._count.interests,
+        interestCount: isBaddie ? 0 : m._count.interests,
         createdAt: m.createdAt,
         hasInterest: interestedMoveIds.has(m.id),
         isSaved: savedMoveIds.has(m.id),
         interestClosingSoon: hoursUntil <= 4 && hoursUntil > 2,
         interestClosed: hoursUntil <= 2,
-        interestedBaddies: m.interests.map((i) => ({
+        interestedBaddies: isBaddie ? [] : m.interests.map((i) => ({
           id: i.baddie.id,
           displayName: i.baddie.profile?.displayName,
           photo: Array.isArray(i.baddie.profile?.photos) ? i.baddie.profile.photos[0] : null,
@@ -305,6 +307,8 @@ router.get('/saved', authenticate, async (req, res) => {
 
     const now = Date.now();
 
+    const isBaddieSaved = req.userRole === 'BADDIE';
+
     const result = saved.map((s) => {
       const m = s.move;
       const hoursUntil = (new Date(m.date).getTime() - now) / (1000 * 60 * 60);
@@ -320,13 +324,13 @@ router.get('/saved', authenticate, async (req, res) => {
         photo: m.photo,
         isAnytime: m.isAnytime,
         selectedBaddieId: m.selectedBaddieId,
-        interestCount: m._count.interests,
+        interestCount: isBaddieSaved ? 0 : m._count.interests,
         createdAt: m.createdAt,
         hasInterest: interestedMoveIds.has(m.id),
         isSaved: true,
         interestClosingSoon: hoursUntil <= 4 && hoursUntil > 2,
         interestClosed: hoursUntil <= 2,
-        interestedBaddies: m.interests.map((i) => ({
+        interestedBaddies: isBaddieSaved ? [] : m.interests.map((i) => ({
           id: i.baddie.id,
           displayName: i.baddie.profile?.displayName,
           photo: Array.isArray(i.baddie.profile?.photos) ? i.baddie.profile.photos[0] : null,
