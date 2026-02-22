@@ -343,12 +343,12 @@ router.get('/prompts/mine', authenticate, async (req, res) => {
   }
 });
 
-// Save profile prompts (max 2)
+// Save profile prompts (max 3)
 router.put('/prompts', authenticate, async (req, res) => {
   try {
     const { prompts } = req.body;
-    if (!Array.isArray(prompts) || prompts.length > 2) {
-      return res.status(400).json({ error: 'Max 2 prompts allowed' });
+    if (!Array.isArray(prompts) || prompts.length > 3) {
+      return res.status(400).json({ error: 'Max 3 prompts allowed' });
     }
 
     // Validate prompt text is from allowed list

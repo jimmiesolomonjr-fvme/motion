@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, ChevronDown, Plus, Trash2, Check, Zap, Flame, Calendar } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
@@ -39,8 +39,8 @@ export default function Profile() {
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const [moveHistory, setMoveHistory] = useState(null);
-  const [openDropdown, setOpenDropdown] = useState(null); // index of open prompt dropdown
-  const dropdownRefs = useRef([]);
+  const [promptModalOpen, setPromptModalOpen] = useState(false);
+  const [modalPrompt, setModalPrompt] = useState({ prompt: '', answer: '' });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -78,18 +78,6 @@ export default function Profile() {
     };
     fetchProfile();
   }, [userId]);
-
-  // Close prompt dropdown on outside click
-  useEffect(() => {
-    if (openDropdown === null) return;
-    const handleClick = (e) => {
-      if (dropdownRefs.current[openDropdown] && !dropdownRefs.current[openDropdown].contains(e.target)) {
-        setOpenDropdown(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [openDropdown]);
 
   // Fetch available prompts when entering edit mode
   useEffect(() => {
@@ -184,8 +172,9 @@ export default function Profile() {
   };
 
   const addPromptSlot = () => {
-    if (editPrompts.length < 2) {
-      setEditPrompts([...editPrompts, { prompt: '', answer: '' }]);
+    if (editPrompts.length < 3) {
+      setModalPrompt({ prompt: '', answer: '' });
+      setPromptModalOpen(true);
     }
   };
 
@@ -193,8 +182,11 @@ export default function Profile() {
     setEditPrompts(editPrompts.filter((_, i) => i !== index));
   };
 
-  const updatePromptSlot = (index, field, value) => {
-    setEditPrompts(editPrompts.map((p, i) => i === index ? { ...p, [field]: value } : p));
+  const handleModalSave = () => {
+    if (!modalPrompt.prompt || !modalPrompt.answer?.trim()) return;
+    setEditPrompts([...editPrompts, { prompt: modalPrompt.prompt, answer: modalPrompt.answer.trim() }]);
+    setPromptModalOpen(false);
+    setModalPrompt({ prompt: '', answer: '' });
   };
 
   if (loading) {
@@ -340,74 +332,23 @@ export default function Profile() {
 
             {/* Profile Prompts Edit */}
             <div className={editPrompts.length === 0 ? 'ring-2 ring-gold/50 rounded-xl p-1' : ''}>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Profile Prompts (max 2)</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Profile Prompts (max 3)</label>
               {editPrompts.length === 0 && (
                 <p className="text-xs text-gold/70 mb-2">Add prompts to show your personality</p>
               )}
               <div className="space-y-3">
                 {editPrompts.map((ep, i) => (
-                  <div key={i} className="bg-dark-100 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 relative" ref={(el) => (dropdownRefs.current[i] = el)}>
-                        <button
-                          type="button"
-                          onClick={() => setOpenDropdown(openDropdown === i ? null : i)}
-                          className="w-full bg-dark-50 text-sm rounded-lg px-3 py-2 border border-dark-50 hover:border-gold/30 outline-none flex items-center justify-between transition-colors"
-                        >
-                          <span className={ep.prompt ? 'text-white' : 'text-gray-500'}>
-                            {ep.prompt || 'Select a prompt...'}
-                          </span>
-                          <ChevronDown size={14} className={`text-gray-500 transition-transform ${openDropdown === i ? 'rotate-180' : ''}`} />
-                        </button>
-                        {openDropdown === i && (
-                          <div className="absolute left-0 right-0 top-full mt-1 bg-dark-100 border border-dark-50 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto">
-                            {availablePrompts.map((p) => {
-                              const isUsed = editPrompts.some((ep2, j) => j !== i && ep2.prompt === p);
-                              const isSelected = ep.prompt === p;
-                              return (
-                                <button
-                                  key={p}
-                                  type="button"
-                                  disabled={isUsed}
-                                  onClick={() => {
-                                    if (!isUsed) {
-                                      updatePromptSlot(i, 'prompt', p);
-                                      setOpenDropdown(null);
-                                    }
-                                  }}
-                                  className={`w-full text-left px-4 py-3 text-sm transition-colors flex items-center justify-between ${
-                                    isUsed
-                                      ? 'opacity-40 cursor-not-allowed text-gray-500'
-                                      : isSelected
-                                        ? 'text-gold bg-dark-50'
-                                        : 'text-gray-300 hover:text-white hover:bg-dark-50 cursor-pointer'
-                                  }`}
-                                >
-                                  <span>{p}</span>
-                                  {isSelected && <Check size={14} className="text-gold" />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <button onClick={() => removePromptSlot(i)} className="ml-2 text-gray-500 hover:text-red-400">
-                        <Trash2 size={16} />
-                      </button>
+                  <div key={i} className="bg-dark-100 rounded-xl p-3 flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 italic mb-1">{ep.prompt}</p>
+                      <p className="text-white text-sm font-medium">{ep.answer}</p>
                     </div>
-                    {ep.prompt && (
-                      <input
-                        type="text"
-                        value={ep.answer}
-                        onChange={(e) => updatePromptSlot(i, 'answer', e.target.value)}
-                        placeholder="Your answer..."
-                        className="w-full bg-dark-50 text-white text-sm rounded-lg px-3 py-2 border border-dark-50 focus:border-gold/50 outline-none"
-                        maxLength={150}
-                      />
-                    )}
+                    <button onClick={() => removePromptSlot(i)} className="mt-1 text-gray-500 hover:text-red-400 flex-shrink-0">
+                      <Trash2 size={16} />
+                    </button>
                   </div>
                 ))}
-                {editPrompts.length < 2 && (
+                {editPrompts.length < 3 && (
                   <button
                     onClick={addPromptSlot}
                     className="w-full py-2 border border-dashed border-dark-50 rounded-xl text-sm text-gray-500 hover:text-gold hover:border-gold/30 flex items-center justify-center gap-1 transition-colors"
@@ -559,6 +500,58 @@ export default function Profile() {
           <Textarea placeholder="Additional details (optional)..." value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} />
           <Button variant="danger" className="w-full" onClick={handleReport} disabled={!reportReason}>
             Submit Report
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Prompt Modal */}
+      <Modal isOpen={promptModalOpen} onClose={() => setPromptModalOpen(false)} title="Add Prompt">
+        <div className="space-y-3">
+          <p className="text-xs text-gray-500 mb-1">Choose a prompt</p>
+          <div className="space-y-2 max-h-52 overflow-y-auto">
+            {availablePrompts.map((p) => {
+              const isUsed = editPrompts.some((ep) => ep.prompt === p);
+              const isSelected = modalPrompt.prompt === p;
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  disabled={isUsed}
+                  onClick={() => setModalPrompt({ ...modalPrompt, prompt: p })}
+                  className={`w-full text-left px-4 py-3 rounded-xl text-sm transition-colors flex items-center justify-between ${
+                    isUsed
+                      ? 'opacity-40 cursor-not-allowed text-gray-500 bg-dark-100'
+                      : isSelected
+                        ? 'bg-dark-100 text-gold border border-gold/50'
+                        : 'bg-dark-100 text-gray-300 hover:text-white hover:bg-dark-50 cursor-pointer'
+                  }`}
+                >
+                  <span>{p}</span>
+                  {isSelected && <Check size={14} className="text-gold" />}
+                </button>
+              );
+            })}
+          </div>
+          {modalPrompt.prompt && (
+            <div className="space-y-1">
+              <textarea
+                value={modalPrompt.answer}
+                onChange={(e) => setModalPrompt({ ...modalPrompt, answer: e.target.value.slice(0, 150) })}
+                placeholder="Your answer..."
+                className="w-full bg-dark-50 text-white text-sm rounded-lg px-3 py-2 border border-dark-50 focus:border-gold/50 outline-none min-h-[120px] resize-none"
+                maxLength={150}
+                autoFocus
+              />
+              <p className="text-xs text-gray-500 text-right">{modalPrompt.answer.length}/150</p>
+            </div>
+          )}
+          <Button
+            variant="gold"
+            className="w-full"
+            onClick={handleModalSave}
+            disabled={!modalPrompt.prompt || !modalPrompt.answer?.trim()}
+          >
+            Add Prompt
           </Button>
         </div>
       </Modal>
