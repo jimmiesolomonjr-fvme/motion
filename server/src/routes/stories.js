@@ -13,6 +13,14 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
       return res.status(400).json({ error: 'Photo is required' });
     }
 
+    // Max 3 active stories per user
+    const activeCount = await prisma.story.count({
+      where: { userId: req.userId, expiresAt: { gt: new Date() } },
+    });
+    if (activeCount >= 3) {
+      return res.status(400).json({ error: 'You can only have 3 active stories at a time' });
+    }
+
     const photo = req.file.buffer ? toDataUrl(req.file) : `/uploads/${req.file.filename}`;
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 

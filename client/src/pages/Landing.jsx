@@ -1,21 +1,31 @@
+import { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Crown, Sparkles, Flame, Mic, Heart } from 'lucide-react';
 
 export default function Landing() {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.play().catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-dark">
       {/* Hero */}
       <section className="relative min-h-screen flex flex-col items-center justify-center px-6 text-center overflow-hidden">
         {/* Background video */}
         <video
+          ref={videoRef}
           autoPlay
           loop
           muted
           playsInline
+          preload="auto"
           className="absolute inset-0 w-full h-full object-cover"
-        >
-          <source src="/bg-video.mp4" type="video/mp4" />
-        </video>
+          src="/bg-video.mp4"
+        />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-dark" />
 
         <div className="relative z-10 max-w-lg">

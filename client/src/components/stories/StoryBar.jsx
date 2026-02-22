@@ -27,6 +27,12 @@ export default function StoryBar() {
     setViewerIndex(index);
   };
 
+  const handleOwnAdd = () => {
+    const own = storyGroups.find((g) => g.userId === user?.id);
+    if (own && own.stories.length >= 3) return;
+    setShowCreate(true);
+  };
+
   const ownGroup = storyGroups.find((g) => g.userId === user?.id);
 
   return (
@@ -34,7 +40,7 @@ export default function StoryBar() {
       <div className="flex gap-3 overflow-x-auto pb-2 mb-3 scrollbar-hide">
         {/* Own story slot (always first) */}
         {!ownGroup && (
-          <button onClick={() => setShowCreate(true)} className="flex flex-col items-center gap-1 flex-shrink-0">
+          <button onClick={handleOwnAdd} className="flex flex-col items-center gap-1 flex-shrink-0">
             <div className="relative w-14 h-14 rounded-full bg-dark-100 border-2 border-dashed border-gold/40 flex items-center justify-center">
               <Plus className="text-gold" size={20} />
             </div>
@@ -69,10 +75,13 @@ export default function StoryBar() {
                     <span className="text-lg">👤</span>
                   </div>
                 )}
-                {isOwn && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-gold rounded-full flex items-center justify-center border-2 border-dark">
+                {isOwn && group.stories.length < 3 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleOwnAdd(); }}
+                    className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-gold rounded-full flex items-center justify-center border-2 border-dark"
+                  >
                     <Plus className="text-dark" size={10} />
-                  </div>
+                  </button>
                 )}
               </div>
               <span className="text-[10px] text-gray-500 w-14 truncate text-center">

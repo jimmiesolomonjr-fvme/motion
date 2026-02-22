@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Eye, Heart, Send } from 'lucide-react';
+import { X, Eye, Heart, Send, MoreVertical, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 
 export default function StoryViewer({ storyGroups, startIndex, currentUserId, onClose }) {
@@ -18,6 +18,8 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
   const [replySending, setReplySending] = useState(false);
   const [replySuccess, setReplySuccess] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const pausedAtRef = useRef(0); // elapsed ms when paused
   const replyAreaRef = useRef(null);
 
@@ -96,6 +98,8 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
     setReplySuccess(false);
     setReplySending(false);
     setIsPaused(false);
+    setShowMenu(false);
+    setShowDeleteConfirm(false);
     pausedAtRef.current = 0;
   }, [groupIdx, storyIdx]);
 
@@ -142,6 +146,33 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
     }
   };
 
+  const handleDelete = async () => {
+    if (!story) return;
+    try {
+      await api.delete(`/stories/${story.id}`);
+      // Remove from current group
+      group.stories.splice(storyIdx, 1);
+      if (group.stories.length === 0) {
+        // No more stories in this group, close or go to next group
+        if (groupIdx < storyGroups.length - 1) {
+          setGroupIdx(groupIdx + 1);
+          setStoryIdx(0);
+        } else {
+          onClose();
+        }
+      } else if (storyIdx >= group.stories.length) {
+        setStoryIdx(group.stories.length - 1);
+      } else {
+        // Force re-render by setting same index
+        setStoryIdx(storyIdx);
+      }
+      setShowDeleteConfirm(false);
+      setShowMenu(false);
+    } catch (err) {
+      console.error('Delete story error:', err);
+    }
+  };
+
   if (!group || !story) return null;
 
   const handleTap = (e) => {
@@ -183,14 +214,61 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
           />
           <span className="text-white text-sm font-semibold flex-1">{group.displayName}</span>
           {isOwn && (
-            <span className="flex items-center gap-1 text-white/70 text-xs">
-              <Eye size={14} /> {story.viewCount}
-            </span>
+            <>
+              <span className="flex items-center gap-1 text-white/70 text-xs">
+                <Eye size={14} /> {story.viewCount}
+              </span>
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); if (!showMenu) pauseTimer(); }}
+                  className="text-white/80 hover:text-white p-1"
+                >
+                  <MoreVertical size={20} />
+                </button>
+                {showMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-1 bg-dark-100 border border-dark-50 rounded-xl shadow-xl z-50 min-w-[140px] overflow-hidden"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
+                    >
+                      <Trash2 size={14} /> Delete Story
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
           <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-white/80 hover:text-white">
             <X size={24} />
           </button>
         </div>
+
+        {/* Delete confirmation overlay */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 z-30 bg-black/70 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-dark-100 rounded-2xl p-6 mx-6 max-w-xs w-full">
+              <p className="text-white font-semibold text-center mb-2">Delete this story?</p>
+              <p className="text-gray-400 text-sm text-center mb-5">This cannot be undone.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setShowDeleteConfirm(false); resumeTimer(); }}
+                  className="flex-1 px-4 py-2.5 bg-dark-50 text-white rounded-xl font-semibold text-sm hover:bg-dark-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Story image */}
         <img src={story.photo} alt="" className="w-full h-full object-cover" />
