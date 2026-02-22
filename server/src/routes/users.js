@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { authenticate } from '../middleware/auth.js';
-import { upload, toDataUrl } from '../middleware/upload.js';
+import { upload, uploadToCloud, deleteFromCloud } from '../middleware/upload.js';
 import { getDistanceMiles } from '../utils/distance.js';
 import { validateAge } from '../utils/validators.js';
 
@@ -72,8 +72,8 @@ router.post('/photos', authenticate, upload.array('photos', 6), async (req, res)
     }
 
     const existingPhotos = profile.photos || [];
-    const newPhotos = req.files.map((f) =>
-      f.buffer ? toDataUrl(f) : `/uploads/${f.filename}`
+    const newPhotos = await Promise.all(
+      req.files.map(f => uploadToCloud(f, 'motion/profiles'))
     );
     const allPhotos = [...existingPhotos, ...newPhotos].slice(0, 6);
 
@@ -113,6 +113,7 @@ router.delete('/photos/:index', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid photo index' });
     }
 
+    await deleteFromCloud(photos[index]);
     photos.splice(index, 1);
     const updated = await prisma.profile.update({
       where: { userId: req.userId },

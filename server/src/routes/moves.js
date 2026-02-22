@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
-import { upload, toDataUrl } from '../middleware/upload.js';
+import { upload, uploadToCloud } from '../middleware/upload.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -45,7 +45,7 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
 
     let photo = null;
     if (req.file) {
-      photo = req.file.buffer ? toDataUrl(req.file) : `/uploads/${req.file.filename}`;
+      photo = await uploadToCloud(req.file, 'motion/moves');
     }
 
     const anytime = isAnytime === 'true' || isAnytime === true;

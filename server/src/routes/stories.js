@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
-import { upload, toDataUrl } from '../middleware/upload.js';
+import { upload, uploadToCloud } from '../middleware/upload.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -21,7 +21,7 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
       return res.status(400).json({ error: 'You can only have 3 active stories at a time' });
     }
 
-    const photo = req.file.buffer ? toDataUrl(req.file) : `/uploads/${req.file.filename}`;
+    const photo = await uploadToCloud(req.file, 'motion/stories');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const story = await prisma.story.create({

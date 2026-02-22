@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requirePremium } from '../middleware/premium.js';
-import { upload, uploadVoice, toDataUrl } from '../middleware/upload.js';
+import { upload, uploadVoice, uploadToCloud } from '../middleware/upload.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -203,7 +203,7 @@ router.post('/:conversationId/voice', authenticate, requirePremium, uploadVoice.
       data: {
         conversationId: req.params.conversationId,
         senderId: req.userId,
-        content: req.file.buffer ? toDataUrl(req.file) : `/uploads/${req.file.filename}`,
+        content: await uploadToCloud(req.file, 'motion/messages'),
         contentType: 'VOICE',
       },
     });
@@ -235,7 +235,7 @@ router.post('/:conversationId/image', authenticate, requirePremium, upload.singl
       data: {
         conversationId: req.params.conversationId,
         senderId: req.userId,
-        content: req.file.buffer ? toDataUrl(req.file) : `/uploads/${req.file.filename}`,
+        content: await uploadToCloud(req.file, 'motion/messages'),
         contentType: 'IMAGE',
       },
     });
