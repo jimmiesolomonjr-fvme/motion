@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { SlidersHorizontal, X, LayoutGrid, Rows3 } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 
-export default function FeedFilters({ sort, setSort, onlineOnly, setOnlineOnly, ageRange, maxDistance, onApply, viewMode, setViewMode }) {
+export default function FeedFilters({ sort, setSort, onlineOnly, setOnlineOnly, ageRange, maxDistance, onApply }) {
   const [showFilters, setShowFilters] = useState(false);
   const [pendingAge, setPendingAge] = useState(ageRange);
   const [pendingDistance, setPendingDistance] = useState(maxDistance);
@@ -62,26 +62,6 @@ export default function FeedFilters({ sort, setSort, onlineOnly, setOnlineOnly, 
         >
           <SlidersHorizontal size={14} /> Filters
         </button>
-        {setViewMode && (
-          <div className="flex items-center bg-dark-50 rounded-full p-0.5 ml-auto flex-shrink-0">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-full transition-colors ${
-                viewMode === 'grid' ? 'bg-gold text-dark' : 'text-gray-500 hover:text-white'
-              }`}
-            >
-              <LayoutGrid size={14} />
-            </button>
-            <button
-              onClick={() => setViewMode('vertical')}
-              className={`p-1.5 rounded-full transition-colors ${
-                viewMode === 'vertical' ? 'bg-gold text-dark' : 'text-gray-500 hover:text-white'
-              }`}
-            >
-              <Rows3 size={14} />
-            </button>
-          </div>
-        )}
       </div>
 
       {showFilters && (

@@ -111,7 +111,6 @@ model Profile {
   city           String
   photos         Json     @default("[]")
   lookingFor     String?
-  videoIntro     String?
   songTitle      String?
   songArtist     String?
   songPreviewUrl String?

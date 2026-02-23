@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { authenticate } from '../middleware/auth.js';
-import { upload, uploadVideo, uploadToCloud, deleteFromCloud } from '../middleware/upload.js';
+import { uploadMedia, uploadToCloud, uploadVideoToCloud, deleteFromCloud } from '../middleware/upload.js';
 import { getDistanceMiles } from '../utils/distance.js';
 import { validateAge } from '../utils/validators.js';
+import { isVideoUrl } from '../utils/mediaUtils.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -68,8 +69,8 @@ router.post('/profile', authenticate, async (req, res) => {
   }
 });
 
-// Upload photos
-router.post('/photos', authenticate, upload.array('photos', 6), async (req, res) => {
+// Upload photos/videos (unified media)
+router.post('/photos', authenticate, uploadMedia.array('photos', 6), async (req, res) => {
   try {
     const profile = await prisma.profile.findUnique({ where: { userId: req.userId } });
     if (!profile) {
@@ -77,8 +78,21 @@ router.post('/photos', authenticate, upload.array('photos', 6), async (req, res)
     }
 
     const existingPhotos = profile.photos || [];
+
+    // Count existing videos
+    const existingVideoCount = existingPhotos.filter(isVideoUrl).length;
+    const newVideoCount = req.files.filter(f => f.mimetype.startsWith('video/')).length;
+    if (existingVideoCount + newVideoCount > 3) {
+      return res.status(400).json({ error: 'Maximum 3 videos allowed' });
+    }
+
+    // Upload each file: videos go through uploadVideoToCloud (with trimming), images through uploadToCloud
     const newPhotos = await Promise.all(
-      req.files.map(f => uploadToCloud(f, 'motion/profiles'))
+      req.files.map(f =>
+        f.mimetype.startsWith('video/')
+          ? uploadVideoToCloud(f, 'motion/profiles', 15)
+          : uploadToCloud(f, 'motion/profiles')
+      )
     );
     const allPhotos = [...existingPhotos, ...newPhotos].slice(0, 6);
 
@@ -298,6 +312,7 @@ router.get('/feed', authenticate, async (req, res) => {
       }
       const vibeScore = shared > 0 ? Math.round((matching / shared) * 100) : null;
 
+      const userPhotos = user.profile?.photos || [];
       return {
         id: user.id,
         role: user.role,
@@ -306,9 +321,9 @@ router.get('/feed', authenticate, async (req, res) => {
         lastOnline: user.lastOnline,
         profile: {
           ...user.profile,
-          photos: user.profile?.photos?.[0] ? [user.profile.photos[0]] : [],
-          videoIntro: user.profile?.videoIntro || null,
+          photos: userPhotos[0] ? [userPhotos[0]] : [],
         },
+        hasVideo: userPhotos.some(isVideoUrl),
         distance,
         vibeScore,
         hasLiked: likedIds.has(user.id),
@@ -481,45 +496,6 @@ router.put('/notifications', authenticate, async (req, res) => {
     });
     res.json({ notificationsEnabled: !!enabled });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Upload video intro
-router.post('/video-intro', authenticate, uploadVideo.single('video'), async (req, res) => {
-  try {
-    const profile = await prisma.profile.findUnique({ where: { userId: req.userId } });
-    if (!profile) return res.status(400).json({ error: 'Create a profile first' });
-
-    // Delete old video if exists
-    if (profile.videoIntro) await deleteFromCloud(profile.videoIntro);
-
-    const videoUrl = await uploadToCloud(req.file, 'motion/profiles');
-    const updated = await prisma.profile.update({
-      where: { userId: req.userId },
-      data: { videoIntro: videoUrl },
-    });
-    res.json(updated);
-  } catch (error) {
-    console.error('Video intro upload error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Delete video intro
-router.delete('/video-intro', authenticate, async (req, res) => {
-  try {
-    const profile = await prisma.profile.findUnique({ where: { userId: req.userId } });
-    if (!profile) return res.status(404).json({ error: 'Profile not found' });
-
-    if (profile.videoIntro) await deleteFromCloud(profile.videoIntro);
-    const updated = await prisma.profile.update({
-      where: { userId: req.userId },
-      data: { videoIntro: null },
-    });
-    res.json(updated);
-  } catch (error) {
-    console.error('Video intro delete error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

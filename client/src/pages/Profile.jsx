@@ -8,10 +8,11 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, Video, VolumeX, Volume2, Music, Play, Pause } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
+import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
 
 export default function Profile() {
@@ -38,11 +39,10 @@ export default function Profile() {
   const [nudgeDismissed, setNudgeDismissed] = useState(() => sessionStorage.getItem('profileNudgeDismissed') === 'true');
   const [showCreateStory, setShowCreateStory] = useState(false);
   const [photoError, setPhotoError] = useState('');
+  const [trimNotice, setTrimNotice] = useState('');
   const [moveHistory, setMoveHistory] = useState(null);
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [modalPrompt, setModalPrompt] = useState({ prompt: '', answer: '' });
-  const [videoUploading, setVideoUploading] = useState(false);
-  const [videoError, setVideoError] = useState('');
   const [videoMuted, setVideoMuted] = useState(true);
   const videoRef = useRef(null);
   const [songPlaying, setSongPlaying] = useState(false);
@@ -135,7 +135,7 @@ export default function Profile() {
 
   const handleLike = async () => {
     try {
-      const { data } = await api.post(`/likes/${userId}`);
+      await api.post(`/likes/${userId}`);
       setLiked(true);
     } catch (err) {
       console.error('Like error:', err);
@@ -153,12 +153,22 @@ export default function Profile() {
   };
 
   const handlePhotoUpload = async (e) => {
-    const files = e.target.files;
+    const files = Array.from(e.target.files);
     if (!files.length) return;
     setPhotoError('');
+    setTrimNotice('');
 
-    // First photo must contain a face
-    if (photos.length === 0) {
+    // Check video count (max 3)
+    const existingVideoCount = photos.filter(isVideoUrl).length;
+    const newVideoCount = files.filter(f => f.type.startsWith('video/')).length;
+    if (existingVideoCount + newVideoCount > 3) {
+      setPhotoError('Maximum 3 videos allowed');
+      e.target.value = '';
+      return;
+    }
+
+    // First photo must contain a face (only check images)
+    if (photos.length === 0 && files.length > 0 && !files[0].type.startsWith('video/')) {
       const hasFace = await detectFace(files[0]);
       if (!hasFace) {
         setPhotoError('Your first photo must clearly show your face');
@@ -167,65 +177,27 @@ export default function Profile() {
       }
     }
 
+    // Check video durations — show trim notice for >15s
+    for (const f of files) {
+      if (f.type.startsWith('video/')) {
+        const duration = await getVideoDuration(f);
+        if (duration > 15) {
+          setTrimNotice('Video will be trimmed to 15 seconds');
+          break;
+        }
+      }
+    }
+
     const formData = new FormData();
-    Array.from(files).forEach((f) => formData.append('photos', f));
+    files.forEach((f) => formData.append('photos', f));
     try {
       const { data } = await api.post('/users/photos', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setProfile({ ...profile, photos: data.photos });
+      setTrimNotice('');
     } catch (err) {
-      console.error('Upload error:', err);
-    }
-  };
-
-  const handleVideoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setVideoError('');
-
-    // Client-side 15s duration check
-    const checkDuration = () => new Promise((resolve) => {
-      const video = document.createElement('video');
-      video.preload = 'metadata';
-      video.onloadedmetadata = () => {
-        URL.revokeObjectURL(video.src);
-        resolve(video.duration);
-      };
-      video.onerror = () => resolve(0);
-      video.src = URL.createObjectURL(file);
-    });
-
-    const duration = await checkDuration();
-    if (duration > 15) {
-      setVideoError('Video must be 15 seconds or less');
-      e.target.value = '';
-      return;
-    }
-
-    setVideoUploading(true);
-    const formData = new FormData();
-    formData.append('video', file);
-    try {
-      const { data } = await api.post('/users/video-intro', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      setProfile({ ...profile, videoIntro: data.videoIntro });
-    } catch (err) {
-      console.error('Video upload error:', err);
-      setVideoError('Failed to upload video');
-    } finally {
-      setVideoUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleVideoDelete = async () => {
-    try {
-      await api.delete('/users/video-intro');
-      setProfile({ ...profile, videoIntro: null });
-    } catch (err) {
-      console.error('Video delete error:', err);
+      setPhotoError(err.response?.data?.error || 'Upload failed');
     }
   };
 
@@ -318,6 +290,8 @@ export default function Profile() {
   };
 
   const lastOnlineLabel = getLastOnlineLabel();
+  const selectedMedia = photos[selectedPhotoIndex] || photos[0];
+  const selectedIsVideo = isVideoUrl(selectedMedia);
 
   return (
     <AppLayout>
@@ -344,16 +318,20 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Photo Gallery */}
+      {/* Photo/Video Gallery */}
       {editing ? (
         <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-300 mb-2">Photos ({photos.length}/6)</label>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Media ({photos.length}/6, max 3 videos)</label>
           <div className={`grid grid-cols-3 gap-2${photos.length < 2 ? ' ring-2 ring-gold/50 rounded-xl p-1' : ''}`}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
                 {photos[i] ? (
                   <>
-                    <img src={photos[i]} alt="" className="w-full h-full object-cover" />
+                    {isVideoUrl(photos[i]) ? (
+                      <video src={photos[i]} className="w-full h-full object-cover" playsInline muted loop autoPlay />
+                    ) : (
+                      <img src={photos[i]} alt="" className="w-full h-full object-cover" />
+                    )}
                     <button
                       onClick={() => handlePhotoDelete(i)}
                       className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
@@ -364,7 +342,7 @@ export default function Profile() {
                 ) : (
                   <label className="w-full h-full bg-dark-100 border-2 border-dashed border-dark-50 hover:border-gold/40 flex flex-col items-center justify-center cursor-pointer transition-colors">
                     <Plus className="text-gray-500" size={24} />
-                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                    <input type="file" accept="image/*,video/*" className="hidden" onChange={handlePhotoUpload} />
                   </label>
                 )}
               </div>
@@ -373,55 +351,32 @@ export default function Profile() {
           {photos.length < 2 && (
             <p className="text-xs text-gold/70 mt-1.5">Add at least 2 photos to stand out</p>
           )}
+          {trimNotice && <p className="text-gold text-sm mt-2">{trimNotice}</p>}
           {photoError && <p className="text-red-400 text-sm mt-2">{photoError}</p>}
-
-          {/* Video Intro Edit */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">Video Intro (15s max)</label>
-            {profile.videoIntro ? (
-              <div className="relative rounded-xl overflow-hidden">
-                <video src={profile.videoIntro} className="w-full aspect-video object-cover rounded-xl" playsInline muted loop autoPlay />
-                <button
-                  onClick={handleVideoDelete}
-                  className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
-                >
-                  <X className="text-white" size={14} />
-                </button>
-              </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-28 bg-dark-100 border-2 border-dashed border-dark-50 hover:border-gold/40 rounded-xl cursor-pointer transition-colors">
-                {videoUploading ? (
-                  <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Video className="text-gray-500 mb-1" size={24} />
-                    <span className="text-xs text-gray-500">Upload Video (15s max)</span>
-                  </>
-                )}
-                <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={videoUploading} />
-              </label>
-            )}
-            {videoError && <p className="text-red-400 text-sm mt-1">{videoError}</p>}
-          </div>
         </div>
       ) : (
         <>
-          {/* Video Intro */}
-          {profile.videoIntro && (
-            <div className="relative rounded-2xl overflow-hidden mb-4">
+          <div className="relative rounded-2xl overflow-hidden mb-4">
+            {selectedIsVideo ? (
               <video
                 ref={videoRef}
-                src={profile.videoIntro}
+                src={selectedMedia}
                 className="w-full aspect-[3/4] object-cover"
                 playsInline
                 autoPlay
                 muted={videoMuted}
                 loop
-                onClick={() => {
-                  setVideoMuted(!videoMuted);
-                  if (videoRef.current) videoRef.current.muted = !videoMuted;
-                }}
               />
+            ) : photos.length > 0 ? (
+              <img src={selectedMedia} alt="" className="w-full aspect-[3/4] object-cover" />
+            ) : (
+              <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
+                <span className="text-6xl">👤</span>
+              </div>
+            )}
+
+            {/* Video mute toggle */}
+            {selectedIsVideo && (
               <button
                 onClick={() => {
                   setVideoMuted(!videoMuted);
@@ -431,40 +386,6 @@ export default function Profile() {
               >
                 {videoMuted ? <VolumeX size={16} className="text-white" /> : <Volume2 size={16} className="text-white" />}
               </button>
-              {isOwnProfile && !editing && (
-                <button
-                  onClick={handleVideoDelete}
-                  className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
-                >
-                  <X size={14} className="text-white" />
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Upload video intro button (own profile, no video) */}
-          {isOwnProfile && !profile.videoIntro && (
-            <label className="flex items-center justify-center gap-2 w-full py-3 mb-4 bg-dark-50 border border-dashed border-dark-50 hover:border-gold/40 rounded-xl cursor-pointer transition-colors">
-              {videoUploading ? (
-                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Video size={16} className="text-gray-500" />
-                  <span className="text-sm text-gray-500">Add Video Intro</span>
-                </>
-              )}
-              <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={videoUploading} />
-            </label>
-          )}
-          {videoError && <p className="text-red-400 text-sm mb-4">{videoError}</p>}
-
-          <div className="relative rounded-2xl overflow-hidden mb-4">
-            {photos.length > 0 ? (
-              <img src={photos[selectedPhotoIndex] || photos[0]} alt="" className="w-full aspect-[3/4] object-cover" />
-            ) : (
-              <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
-                <span className="text-6xl">👤</span>
-              </div>
             )}
 
             {lastOnlineLabel && (
@@ -478,27 +399,37 @@ export default function Profile() {
             {isOwnProfile && (
               <label className="absolute bottom-3 right-3 w-10 h-10 bg-gold rounded-full flex items-center justify-center cursor-pointer">
                 <Camera className="text-dark" size={18} />
-                <input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
+                <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={handlePhotoUpload} />
               </label>
             )}
           </div>
 
-          {/* Photo thumbnails */}
+          {/* Media thumbnails */}
           {photos.length > 1 && (
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
               {photos.map((p, i) => (
-                <img
+                <div
                   key={i}
-                  src={p}
-                  alt=""
                   onClick={() => setSelectedPhotoIndex(i)}
-                  className={`w-16 h-16 rounded-lg object-cover flex-shrink-0 cursor-pointer transition-opacity ${
+                  className={`relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer transition-opacity ${
                     i === selectedPhotoIndex ? 'ring-2 ring-gold' : 'opacity-60 hover:opacity-100'
                   }`}
-                />
+                >
+                  {isVideoUrl(p) ? (
+                    <>
+                      <video src={p} className="w-full h-full object-cover" preload="metadata" muted />
+                      <span className="absolute inset-0 flex items-center justify-center">
+                        <Play size={12} className="text-white drop-shadow" fill="currentColor" />
+                      </span>
+                    </>
+                  ) : (
+                    <img src={p} alt="" className="w-full h-full object-cover" />
+                  )}
+                </div>
               ))}
             </div>
           )}
+          {trimNotice && <p className="text-gold text-sm mb-4">{trimNotice}</p>}
           {photoError && <p className="text-red-400 text-sm mb-4">{photoError}</p>}
         </>
       )}

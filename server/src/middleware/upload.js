@@ -38,7 +38,7 @@ const voiceStorage = useMemory
       filename: (req, file, cb) => cb(null, `voice-${randomUUID()}.webm`),
     });
 
-const fileFilter = (req, file, cb) => {
+const imageFilter = (req, file, cb) => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
@@ -47,10 +47,34 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+const mediaFilter = (req, file, cb) => {
+  const allowedTypes = [
+    'image/jpeg', 'image/png', 'image/webp',
+    'video/mp4', 'video/webm', 'video/quicktime',
+  ];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JPEG, PNG, WebP images and MP4, WebM, MOV videos are allowed'), false);
+  }
+};
+
 export const upload = multer({
   storage: imageStorage,
-  fileFilter,
+  fileFilter: imageFilter,
   limits: { fileSize: config.upload.maxFileSize },
+});
+
+export const uploadMedia = multer({
+  storage: useMemory ? multer.memoryStorage() : multer.diskStorage({
+    destination: (req, file, cb) => cb(null, config.upload.dir),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `${randomUUID()}${ext}`);
+    },
+  }),
+  fileFilter: mediaFilter,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
 export const uploadVoice = multer({
@@ -119,6 +143,32 @@ export async function uploadToCloud(fileOrDataUrl, folder = 'motion/uploads') {
     folder,
     resource_type: 'auto',
   });
+  return result.secure_url;
+}
+
+/**
+ * Upload a video file to Cloudinary with server-side trimming.
+ * Uses eager transformation to cap duration at maxDuration seconds.
+ * Falls back to base64/disk path when Cloudinary is not configured.
+ */
+export async function uploadVideoToCloud(file, folder = 'motion/profiles', maxDuration = 15) {
+  if (!cloudinaryEnabled) {
+    return file.buffer ? toDataUrl(file) : `/uploads/${file.filename}`;
+  }
+
+  const b64 = file.buffer.toString('base64');
+  const dataUri = `data:${file.mimetype};base64,${b64}`;
+  const result = await cloudinary.uploader.upload(dataUri, {
+    folder,
+    resource_type: 'video',
+    eager: [{ duration: `${maxDuration}` }],
+    eager_async: false,
+  });
+
+  // Use the eager (trimmed) URL if available, otherwise the original
+  if (result.eager && result.eager.length > 0 && result.eager[0].secure_url) {
+    return result.eager[0].secure_url;
+  }
   return result.secure_url;
 }
 

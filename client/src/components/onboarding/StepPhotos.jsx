@@ -2,26 +2,48 @@ import { useState } from 'react';
 import { Plus, X, Image } from 'lucide-react';
 import api from '../../services/api';
 import { detectFace } from '../../utils/faceDetection';
+import { isVideoUrl, getVideoDuration } from '../../utils/mediaUtils';
 
 export default function StepPhotos({ onComplete }) {
   const [photos, setPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [trimNotice, setTrimNotice] = useState('');
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files);
     if (photos.length + files.length > 6) {
-      setError('Maximum 6 photos allowed');
+      setError('Maximum 6 media items allowed');
       return;
     }
 
-    // First photo must contain a face
-    if (photos.length === 0 && files.length > 0) {
+    // Check video count (max 3)
+    const existingVideoCount = photos.filter(isVideoUrl).length;
+    const newVideoCount = files.filter(f => f.type.startsWith('video/')).length;
+    if (existingVideoCount + newVideoCount > 3) {
+      setError('Maximum 3 videos allowed');
+      return;
+    }
+
+    // First media must contain a face (only check images)
+    if (photos.length === 0 && files.length > 0 && !files[0].type.startsWith('video/')) {
       const hasFace = await detectFace(files[0]);
       if (!hasFace) {
         setError('Your first photo must clearly show your face');
         e.target.value = '';
         return;
+      }
+    }
+
+    // Check video durations — show trim notice for >15s
+    setTrimNotice('');
+    for (const f of files) {
+      if (f.type.startsWith('video/')) {
+        const duration = await getVideoDuration(f);
+        if (duration > 15) {
+          setTrimNotice('Video will be trimmed to 15 seconds');
+          break;
+        }
       }
     }
 
@@ -37,6 +59,7 @@ export default function StepPhotos({ onComplete }) {
       });
 
       setPhotos(data.photos || []);
+      setTrimNotice('');
     } catch (err) {
       setError(err.response?.data?.error || 'Upload failed');
     } finally {
@@ -56,14 +79,18 @@ export default function StepPhotos({ onComplete }) {
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">Add Photos</h2>
-        <p className="text-gray-400">Add at least 1 photo (up to 6) to your profile</p>
+        <h2 className="text-2xl font-bold mb-2">Add Photos & Videos</h2>
+        <p className="text-gray-400">Add at least 1 photo (up to 6 items, max 3 videos)</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
         {photos.map((photo, i) => (
           <div key={i} className="relative aspect-square rounded-xl overflow-hidden">
-            <img src={photo} alt="" className="w-full h-full object-cover" />
+            {isVideoUrl(photo) ? (
+              <video src={photo} className="w-full h-full object-cover" playsInline muted loop autoPlay />
+            ) : (
+              <img src={photo} alt="" className="w-full h-full object-cover" />
+            )}
             <button
               onClick={() => removePhoto(i)}
               className="absolute top-1 right-1 w-6 h-6 bg-black/70 rounded-full flex items-center justify-center"
@@ -75,7 +102,7 @@ export default function StepPhotos({ onComplete }) {
 
         {photos.length < 6 && (
           <label className="aspect-square rounded-xl border-2 border-dashed border-dark-50 flex flex-col items-center justify-center cursor-pointer hover:border-gold/40 transition-colors">
-            <input type="file" accept="image/*" multiple onChange={handleFileSelect} className="hidden" />
+            <input type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
             {uploading ? (
               <div className="animate-spin w-6 h-6 border-2 border-gold border-t-transparent rounded-full" />
             ) : (
@@ -88,6 +115,7 @@ export default function StepPhotos({ onComplete }) {
         )}
       </div>
 
+      {trimNotice && <p className="text-gold text-sm text-center">{trimNotice}</p>}
       {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
       <div className="space-y-3">

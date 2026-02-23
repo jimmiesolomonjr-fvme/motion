@@ -6,7 +6,7 @@ import VerticalFeed from '../components/feed/VerticalFeed';
 import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
 import Modal from '../components/ui/Modal';
-import { Heart } from 'lucide-react';
+import { Heart, LayoutGrid, Rows3 } from 'lucide-react';
 import StoryBar from '../components/stories/StoryBar';
 
 export default function Feed() {
@@ -169,25 +169,12 @@ export default function Feed() {
   return (
     <AppLayout>
       {viewMode === 'grid' && <StoryBar />}
-      {viewMode === 'grid' && (
-        <FeedFilters
-          sort={sort} setSort={setSort}
-          onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
-          ageRange={ageRange} maxDistance={maxDistance}
-          onApply={handleApplyFilters}
-          viewMode={viewMode} setViewMode={setViewMode}
-        />
-      )}
-
-      {viewMode === 'vertical' && (
-        <FeedFilters
-          sort={sort} setSort={setSort}
-          onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
-          ageRange={ageRange} maxDistance={maxDistance}
-          onApply={handleApplyFilters}
-          viewMode={viewMode} setViewMode={setViewMode}
-        />
-      )}
+      <FeedFilters
+        sort={sort} setSort={setSort}
+        onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
+        ageRange={ageRange} maxDistance={maxDistance}
+        onApply={handleApplyFilters}
+      />
 
       {isLoading ? (
         <div className="flex justify-center py-16">
@@ -205,6 +192,14 @@ export default function Feed() {
           onLoadMore={handleVerticalLoadMore}
         />
       )}
+
+      {/* FAB — Grid/Vertical toggle */}
+      <button
+        onClick={() => setViewMode(viewMode === 'grid' ? 'vertical' : 'grid')}
+        className="fixed bottom-24 right-4 z-20 w-12 h-12 rounded-full bg-gold text-dark shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+      >
+        {viewMode === 'grid' ? <Rows3 size={22} /> : <LayoutGrid size={22} />}
+      </button>
 
       {/* Match Modal */}
       <Modal isOpen={!!matchModal} onClose={() => setMatchModal(null)} title="">

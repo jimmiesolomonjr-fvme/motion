@@ -176,8 +176,42 @@ async function migratePhotosToCloudinary() {
   console.log(`Migration complete: ${migrated + moveMigrated + storyMigrated + messageMigrated} total files migrated`);
 }
 
+async function migrateVideoIntroToPhotos() {
+  try {
+    // Find profiles that have a videoIntro set (column may already be dropped)
+    const profiles = await prisma.$queryRawUnsafe(
+      `SELECT id, "userId", "videoIntro", photos FROM "Profile" WHERE "videoIntro" IS NOT NULL`
+    );
+    if (!profiles || profiles.length === 0) {
+      console.log('Video intro migration: nothing to migrate');
+      return;
+    }
+    for (const p of profiles) {
+      const photos = Array.isArray(p.photos) ? p.photos : JSON.parse(p.photos || '[]');
+      // Prepend videoIntro to photos array (capped at 6)
+      const merged = [p.videoIntro, ...photos].slice(0, 6);
+      await prisma.$queryRawUnsafe(
+        `UPDATE "Profile" SET photos = $1::jsonb, "videoIntro" = NULL WHERE id = $2`,
+        JSON.stringify(merged),
+        p.id
+      );
+    }
+    console.log(`Video intro migration: moved ${profiles.length} video intros into photos array`);
+  } catch (err) {
+    // Column may already be dropped — that's fine
+    if (err.message && err.message.includes('videoIntro')) {
+      console.log('Video intro migration: column already removed, skipping');
+    } else {
+      console.error('Video intro migration error:', err.message);
+    }
+  }
+}
+
 async function main() {
   console.log('Seeding database...');
+
+  // Migrate videoIntro → photos before the column is dropped
+  await migrateVideoIntroToPhotos();
 
   // Delete all dummy users except Jasmine W
   const dummyUsersToDelete = await prisma.user.findMany({

@@ -30,8 +30,8 @@ export default function ProfileCard({ user, onLike, onUnlike }) {
             </span>
           )}
 
-          {/* Video intro indicator */}
-          {user.profile?.videoIntro && (
+          {/* Video indicator */}
+          {user.hasVideo && (
             <span className="absolute bottom-2 left-2 z-10 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center">
               <Play size={12} className="text-white ml-0.5" fill="currentColor" />
             </span>

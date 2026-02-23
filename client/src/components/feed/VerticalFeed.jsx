@@ -44,7 +44,7 @@ export default function VerticalFeed({ users, onLike, onUnlike, hasMore, loading
   return (
     <div
       ref={containerRef}
-      className="overflow-y-auto snap-y snap-mandatory -mx-4"
+      className="overflow-y-auto snap-y snap-mandatory"
       style={{ height: 'calc(100dvh - 10rem)' }}
     >
       {users.map((user, i) => (
