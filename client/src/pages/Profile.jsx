@@ -356,7 +356,7 @@ export default function Profile() {
         </div>
       ) : (
         <>
-          <div className="relative rounded-2xl overflow-hidden mb-4">
+          <div className="relative rounded-2xl overflow-hidden mb-5">
             {selectedIsVideo ? (
               <video
                 ref={videoRef}
@@ -406,7 +406,7 @@ export default function Profile() {
 
           {/* Media thumbnails */}
           {photos.length > 1 && (
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+            <div className="flex gap-2 mb-5 overflow-x-auto pb-1">
               {photos.map((p, i) => (
                 <div
                   key={i}
@@ -435,9 +435,9 @@ export default function Profile() {
       )}
 
       {/* Profile Info */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         {editing ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <Input label="Display Name" value={editForm.displayName} onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })} />
             <Textarea label="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
             <LocationAutocomplete label="City" name="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
@@ -625,7 +625,7 @@ export default function Profile() {
 
             {/* Detail pills — height, weight, occupation */}
             {(profile.height || profile.weight || profile.occupation) && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-1">
                 {profile.height && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-50 rounded-full text-xs text-gray-300">
                     <Ruler size={12} className="text-gold" /> {profile.height}
@@ -678,62 +678,78 @@ export default function Profile() {
               </button>
             )}
 
-            {profile.bio && <p className="text-gray-300 leading-relaxed">{profile.bio}</p>}
-            {profile.lookingFor && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-400 mb-1">Looking for</h3>
-                <p className="text-white">{profile.lookingFor}</p>
-              </div>
-            )}
+            {/* ── About ── */}
+            {(profile.bio || profile.lookingFor || (profile.lookingForTags || []).length > 0) && (
+              <>
+                <div className="border-t border-dark-50" />
+                <div className="space-y-4">
+                  {profile.bio && <p className="text-gray-300 leading-relaxed">{profile.bio}</p>}
 
-            {/* Looking For Tags */}
-            {(profile.lookingForTags || []).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {profile.lookingForTags.map((tag) => (
-                  <span key={tag} className="px-2.5 py-1 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
+                  {profile.lookingFor && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-400 mb-1">Looking for</h3>
+                      <p className="text-white">{profile.lookingFor}</p>
+                    </div>
+                  )}
 
-            {/* Profile Prompts Display */}
-            {prompts.length > 0 && (
-              <div className="space-y-3">
-                {prompts.map((p, i) => (
-                  <div key={i} className="border-l-2 border-purple-accent/50 bg-purple-accent/5 rounded-r-xl p-3">
-                    <p className="text-xs text-gray-500 italic mb-1">{p.prompt}</p>
-                    <p className="text-white font-medium text-sm">{p.answer}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Move History (Stepper profiles, viewed by others) */}
-            {!isOwnProfile && moveHistory && moveHistory.completedCount > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Flame size={16} className="text-gold" />
-                  <h3 className="text-sm font-semibold text-gray-300">Moves ({moveHistory.completedCount} completed)</h3>
+                  {/* Looking For Tags */}
+                  {(profile.lookingForTags || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {profile.lookingForTags.map((tag) => (
+                        <span key={tag} className="px-2.5 py-1 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <div className="space-y-2">
-                  {moveHistory.recentMoves.map((m, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2.5 bg-dark-100 rounded-xl">
-                      <Calendar size={14} className="text-gold flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-medium truncate">{m.title}</p>
-                        <p className="text-gray-500 text-xs">
-                          {new Date(m.date).toLocaleDateString()} · {m.location}
-                          {m.category && ` · ${m.category.charAt(0) + m.category.slice(1).toLowerCase()}`}
-                        </p>
-                      </div>
+              </>
+            )}
+
+            {/* ── Profile Prompts ── */}
+            {prompts.length > 0 && (
+              <>
+                <div className="border-t border-dark-50" />
+                <div className="space-y-3">
+                  {prompts.map((p, i) => (
+                    <div key={i} className="border-l-2 border-purple-accent/50 bg-purple-accent/5 rounded-r-xl p-3">
+                      <p className="text-xs text-gray-500 italic mb-1">{p.prompt}</p>
+                      <p className="text-white font-medium text-sm">{p.answer}</p>
                     </div>
                   ))}
                 </div>
-              </div>
+              </>
             )}
 
-            {/* Actions */}
+            {/* ── Move History (Stepper profiles, viewed by others) ── */}
+            {!isOwnProfile && moveHistory && moveHistory.completedCount > 0 && (
+              <>
+                <div className="border-t border-dark-50" />
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Flame size={16} className="text-gold" />
+                    <h3 className="text-sm font-semibold text-gray-300">Moves ({moveHistory.completedCount} completed)</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {moveHistory.recentMoves.map((m, i) => (
+                      <div key={i} className="flex items-center gap-3 p-2.5 bg-dark-100 rounded-xl">
+                        <Calendar size={14} className="text-gold flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{m.title}</p>
+                          <p className="text-gray-500 text-xs">
+                            {new Date(m.date).toLocaleDateString()} · {m.location}
+                            {m.category && ` · ${m.category.charAt(0) + m.category.slice(1).toLowerCase()}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* ── Actions ── */}
+            <div className="border-t border-dark-50 pt-1" />
             {isOwnProfile ? (
               <div className="space-y-2">
                 <Button variant="outline" className="w-full" onClick={() => setEditing(true)}>
