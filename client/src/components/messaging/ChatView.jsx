@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap, X, Play, Loader } from 'lucide-react';
+import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap, X, Loader } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
@@ -27,6 +27,7 @@ export default function ChatView({ conversationId, otherUser }) {
   const [icebreakers, setIcebreakers] = useState([]);
   const [activePickerMsgId, setActivePickerMsgId] = useState(null);
   const [sendingImage, setSendingImage] = useState(null); // { file, preview, progress }
+  const imageAbortRef = useRef(null);
   const [voicePreview, setVoicePreview] = useState(null); // { blob, url, duration }
   const [voiceSending, setVoiceSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -251,26 +252,34 @@ export default function ChatView({ conversationId, otherUser }) {
     const preview = URL.createObjectURL(file);
     setSendingImage({ file, preview, progress: 0 });
 
+    const abortController = new AbortController();
+    imageAbortRef.current = abortController;
+
     const formData = new FormData();
     formData.append('image', file);
     try {
       await api.post(`/messages/${conversationId}/image`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        signal: abortController.signal,
         onUploadProgress: (e) => {
           const pct = Math.round((e.loaded * 100) / (e.total || 1));
           setSendingImage((prev) => prev ? { ...prev, progress: pct } : null);
         },
       });
-    } catch {
+    } catch (err) {
+      if (abortController.signal.aborted) return;
       setSendingImage((prev) => prev ? { ...prev, error: true } : null);
       setTimeout(() => setSendingImage(null), 3000);
       return;
+    } finally {
+      imageAbortRef.current = null;
     }
     URL.revokeObjectURL(preview);
     setSendingImage(null);
   };
 
   const cancelImageUpload = () => {
+    if (imageAbortRef.current) imageAbortRef.current.abort();
     if (sendingImage?.preview) URL.revokeObjectURL(sendingImage.preview);
     setSendingImage(null);
   };
@@ -421,8 +430,11 @@ export default function ChatView({ conversationId, otherUser }) {
 
             {voicePreview ? (
               <div className="flex items-center gap-2">
-                <audio controls src={voicePreview.url} className="h-8 flex-1" style={{ filter: 'invert(0.8)' }} />
-                <span className="text-xs text-gray-500 tabular-nums">{voicePreview.duration}s</span>
+                <div className="flex items-center gap-2 flex-1 px-3 py-2 bg-dark-50 rounded-xl">
+                  <Mic size={16} className="text-gray-400 shrink-0" />
+                  <audio controls src={voicePreview.url} className="h-8 flex-1 min-w-0" style={{ filter: 'invert(1)' }} />
+                </div>
+                <span className="text-xs text-gray-500 tabular-nums shrink-0">{voicePreview.duration}s</span>
                 <button onClick={discardVoiceNote} className="p-2.5 rounded-xl bg-dark-50 text-red-400 hover:text-red-300 transition-colors">
                   <Trash2 size={18} />
                 </button>

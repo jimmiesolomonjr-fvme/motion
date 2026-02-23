@@ -38,7 +38,7 @@ export default function ChatBubble({ message, isOwn, onReact, currentUserId, sho
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2`}>
       <div className="relative max-w-[75%]">
         <div
-          className={`rounded-2xl ${isImage ? 'p-1' : 'px-4 py-2'} ${
+          className={`rounded-2xl ${isImage ? (message.replyTo ? 'pt-2 px-2 pb-1' : 'p-1') : 'px-4 py-2'} ${
             isOwn
               ? 'bg-gold text-dark rounded-br-md'
               : 'bg-dark-50 text-white rounded-bl-md'
