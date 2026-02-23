@@ -168,7 +168,7 @@ export default function Feed() {
 
   return (
     <AppLayout>
-      {viewMode === 'grid' && <StoryBar />}
+      <StoryBar />
       <FeedFilters
         sort={sort} setSort={setSort}
         onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}

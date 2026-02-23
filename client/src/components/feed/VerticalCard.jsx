@@ -113,8 +113,8 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
           </div>
         </div>
 
-        {/* Content Area - static, no scrolling */}
-        <div className="flex-1 overflow-hidden px-4 pt-3 pb-24">
+        {/* Content Area + Actions — flows naturally, no big gap */}
+        <div className="flex-1 flex flex-col overflow-hidden px-4 pt-3 pb-4">
           {/* Song Player */}
           {profile.songTitle && (
             <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit">
@@ -150,10 +150,12 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
               <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">{profile.bio}</p>
             </div>
           )}
-        </div>
 
-        {/* Action Buttons — View Profile, Like, Message */}
-        <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-5 z-20">
+          {/* Spacer pushes buttons to right after content (not far bottom) */}
+          <div className="flex-1 min-h-2 max-h-8" />
+
+          {/* Action Buttons — View Profile, Like, Message */}
+          <div className="flex justify-center gap-5 pb-2">
           <button
             onClick={() => navigate(`/profile/${user.id}`)}
             className="w-14 h-14 rounded-full bg-dark-50 border border-dark-50 flex items-center justify-center"
@@ -185,6 +187,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
           >
             <MessageCircle size={22} className="text-gray-400" />
           </button>
+          </div>
         </div>
       </div>
     </div>
