@@ -40,7 +40,7 @@ router.get('/referral', authenticate, async (req, res) => {
 // Create/update profile (onboarding)
 router.post('/profile', authenticate, async (req, res) => {
   try {
-    const { displayName, bio, age, city, lookingFor, songTitle, songArtist, songPreviewUrl } = req.body;
+    const { displayName, bio, age, city, lookingFor, height, weight, occupation, lookingForTags, songTitle, songArtist, songPreviewUrl } = req.body;
 
     if (!displayName || !age || !city) {
       return res.status(400).json({ error: 'Display name, age, and city are required' });
@@ -52,6 +52,10 @@ router.post('/profile', authenticate, async (req, res) => {
     }
 
     const profileData = { displayName, bio, age: parsedAge, city, lookingFor };
+    if (height !== undefined) profileData.height = height || null;
+    if (weight !== undefined) profileData.weight = weight || null;
+    if (occupation !== undefined) profileData.occupation = occupation || null;
+    if (lookingForTags !== undefined) profileData.lookingForTags = lookingForTags || [];
     if (songTitle !== undefined) profileData.songTitle = songTitle || null;
     if (songArtist !== undefined) profileData.songArtist = songArtist || null;
     if (songPreviewUrl !== undefined) profileData.songPreviewUrl = songPreviewUrl || null;
@@ -61,6 +65,28 @@ router.post('/profile', authenticate, async (req, res) => {
       update: profileData,
       create: { userId: req.userId, ...profileData },
     });
+
+    // Auto-dismiss completion notifications
+    if (profile.height && profile.weight) {
+      prisma.notification.deleteMany({
+        where: {
+          userId: req.userId,
+          type: 'profile_incomplete',
+          readAt: null,
+          data: { path: ['action'], equals: 'add_height_weight' },
+        },
+      }).catch(() => {});
+    }
+    if (profile.occupation) {
+      prisma.notification.deleteMany({
+        where: {
+          userId: req.userId,
+          type: 'profile_incomplete',
+          readAt: null,
+          data: { path: ['action'], equals: 'add_occupation' },
+        },
+      }).catch(() => {});
+    }
 
     res.json(profile);
   } catch (error) {

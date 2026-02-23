@@ -263,6 +263,20 @@ async function generateCompletionNotifications(userId) {
       body: 'Show your personality — pick and answer prompts',
     });
   }
+  if (!user.profile.height || !user.profile.weight) {
+    items.push({
+      action: 'add_height_weight',
+      title: 'Add Height & Weight',
+      body: 'Help others get the full picture — add your height and weight',
+    });
+  }
+  if (!user.profile.occupation) {
+    items.push({
+      action: 'add_occupation',
+      title: 'Add Your Occupation',
+      body: 'Let people know what you do — add your occupation',
+    });
+  }
 
   for (const item of items) {
     const existing = await prisma.notification.findFirst({

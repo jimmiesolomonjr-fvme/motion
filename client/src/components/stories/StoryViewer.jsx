@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Eye, Heart, Send, MoreVertical, Trash2 } from 'lucide-react';
 import api from '../../services/api';
+import { isVideoUrl } from '../../utils/mediaUtils';
 
 export default function StoryViewer({ storyGroups, startIndex, currentUserId, isAdmin, onClose }) {
   const [groupIdx, setGroupIdx] = useState(startIndex);
@@ -9,8 +10,10 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
   const [progress, setProgress] = useState(0);
   const animRef = useRef(null);
   const startTimeRef = useRef(null);
+  const storyVideoRef = useRef(null);
 
-  const DURATION = 5000; // 5 seconds per story
+  const [duration, setDuration] = useState(5000); // default 5s for images
+  const durationRef = useRef(5000);
   const [likedStories, setLikedStories] = useState({});
 
   // Reply state
@@ -27,6 +30,7 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
   const story = group?.stories[storyIdx];
   const isOwn = group?.userId === currentUserId;
   const hasLiked = story?.hasLiked || likedStories[story?.id];
+  const storyIsVideo = story ? isVideoUrl(story.photo) : false;
 
   const markViewed = useCallback((storyId) => {
     api.post(`/stories/${storyId}/view`).catch(() => {});
@@ -69,20 +73,22 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
     clearTimeout(timerRef.current);
     cancelAnimationFrame(animRef.current);
     setIsPaused(true);
+    if (storyVideoRef.current) storyVideoRef.current.pause();
   }, []);
 
   const resumeTimer = useCallback(() => {
-    const remaining = DURATION - pausedAtRef.current;
+    const remaining = durationRef.current - pausedAtRef.current;
     if (remaining <= 0) {
       advance();
       return;
     }
     startTimeRef.current = Date.now() - pausedAtRef.current;
     setIsPaused(false);
+    if (storyVideoRef.current) storyVideoRef.current.play().catch(() => {});
 
     const animate = () => {
       const elapsed = Date.now() - startTimeRef.current;
-      const pct = Math.min(elapsed / DURATION, 1);
+      const pct = Math.min(elapsed / durationRef.current, 1);
       setProgress(pct);
       if (pct < 1) {
         animRef.current = requestAnimationFrame(animate);
@@ -103,6 +109,29 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
     pausedAtRef.current = 0;
   }, [groupIdx, storyIdx]);
 
+  // Handle video metadata to get actual duration
+  const handleVideoMetadata = useCallback(() => {
+    if (storyVideoRef.current) {
+      const videoDur = Math.min(storyVideoRef.current.duration, 15) * 1000;
+      setDuration(videoDur);
+      durationRef.current = videoDur;
+      // Restart the timer with the actual video duration
+      clearTimeout(timerRef.current);
+      cancelAnimationFrame(animRef.current);
+      startTimeRef.current = Date.now();
+      const animate = () => {
+        const elapsed = Date.now() - startTimeRef.current;
+        const pct = Math.min(elapsed / durationRef.current, 1);
+        setProgress(pct);
+        if (pct < 1) {
+          animRef.current = requestAnimationFrame(animate);
+        }
+      };
+      animRef.current = requestAnimationFrame(animate);
+      timerRef.current = setTimeout(advance, videoDur);
+    }
+  }, [advance]);
+
   // Auto-advance timer with progress animation
   useEffect(() => {
     if (!story) return;
@@ -110,9 +139,14 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
     setProgress(0);
     startTimeRef.current = Date.now();
 
+    const isVid = isVideoUrl(story.photo);
+    const initialDuration = isVid ? 15000 : 5000; // default, will be adjusted by onLoadedMetadata for video
+    setDuration(initialDuration);
+    durationRef.current = initialDuration;
+
     const animate = () => {
       const elapsed = Date.now() - startTimeRef.current;
-      const pct = Math.min(elapsed / DURATION, 1);
+      const pct = Math.min(elapsed / durationRef.current, 1);
       setProgress(pct);
       if (pct < 1) {
         animRef.current = requestAnimationFrame(animate);
@@ -120,7 +154,7 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
     };
     animRef.current = requestAnimationFrame(animate);
 
-    timerRef.current = setTimeout(advance, DURATION);
+    timerRef.current = setTimeout(advance, initialDuration);
     return () => {
       clearTimeout(timerRef.current);
       cancelAnimationFrame(animRef.current);
@@ -153,7 +187,6 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
       // Remove from current group
       group.stories.splice(storyIdx, 1);
       if (group.stories.length === 0) {
-        // No more stories in this group, close or go to next group
         if (groupIdx < storyGroups.length - 1) {
           setGroupIdx(groupIdx + 1);
           setStoryIdx(0);
@@ -163,7 +196,6 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
       } else if (storyIdx >= group.stories.length) {
         setStoryIdx(group.stories.length - 1);
       } else {
-        // Force re-render by setting same index
         setStoryIdx(storyIdx);
       }
       setShowDeleteConfirm(false);
@@ -176,7 +208,6 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
   if (!group || !story) return null;
 
   const handleTap = (e) => {
-    // Don't navigate if tapping in the reply area
     if (replyAreaRef.current?.contains(e.target)) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -270,8 +301,20 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
           </div>
         )}
 
-        {/* Story image */}
-        <img src={story.photo} alt="" className="w-full h-full object-cover" />
+        {/* Story media */}
+        {storyIsVideo ? (
+          <video
+            ref={storyVideoRef}
+            src={story.photo}
+            className="w-full h-full object-cover"
+            autoPlay
+            muted
+            playsInline
+            onLoadedMetadata={handleVideoMetadata}
+          />
+        ) : (
+          <img src={story.photo} alt="" className="w-full h-full object-cover" />
+        )}
 
         {/* Bottom area */}
         <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-16 pb-6 px-4">

@@ -15,6 +15,7 @@ import Premium from './pages/Premium';
 import Settings from './pages/Settings';
 import Admin from './pages/Admin';
 import Notifications from './pages/Notifications';
+import FeatureUpdatesOverlay from './components/ui/FeatureUpdatesOverlay';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -49,6 +50,8 @@ function PublicRoute({ children }) {
 
 function AppRoutes() {
   return (
+    <>
+    <FeatureUpdatesOverlay />
     <Routes>
       {/* Public */}
       <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
@@ -72,6 +75,7 @@ function AppRoutes() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
+    </>
   );
 }
 

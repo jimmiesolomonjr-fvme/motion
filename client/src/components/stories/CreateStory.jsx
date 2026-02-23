@@ -3,21 +3,32 @@ import { X, Camera } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import api from '../../services/api';
+import { getVideoDuration } from '../../utils/mediaUtils';
 
 export default function CreateStory({ isOpen, onClose, onCreated }) {
   const [preview, setPreview] = useState(null);
   const [file, setFile] = useState(null);
+  const [isVideo, setIsVideo] = useState(false);
   const [caption, setCaption] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [trimNotice, setTrimNotice] = useState('');
   const inputRef = useRef(null);
 
-  const handleFile = (e) => {
+  const handleFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    const video = f.type.startsWith('video/');
     setFile(f);
-    const reader = new FileReader();
-    reader.onload = (ev) => setPreview(ev.target.result);
-    reader.readAsDataURL(f);
+    setIsVideo(video);
+    setPreview(URL.createObjectURL(f));
+    setTrimNotice('');
+
+    if (video) {
+      const duration = await getVideoDuration(f);
+      if (duration > 15) {
+        setTrimNotice('Video will be trimmed to 15 seconds');
+      }
+    }
   };
 
   const handleSubmit = async () => {
@@ -40,9 +51,12 @@ export default function CreateStory({ isOpen, onClose, onCreated }) {
   };
 
   const handleClose = () => {
+    if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
     setFile(null);
+    setIsVideo(false);
     setCaption('');
+    setTrimNotice('');
     onClose();
   };
 
@@ -51,9 +65,13 @@ export default function CreateStory({ isOpen, onClose, onCreated }) {
       <div className="space-y-4">
         {preview ? (
           <div className="relative">
-            <img src={preview} alt="Preview" className="w-full aspect-[3/4] object-cover rounded-xl" />
+            {isVideo ? (
+              <video src={preview} className="w-full aspect-[3/4] object-cover rounded-xl" playsInline autoPlay muted loop />
+            ) : (
+              <img src={preview} alt="Preview" className="w-full aspect-[3/4] object-cover rounded-xl" />
+            )}
             <button
-              onClick={() => { setPreview(null); setFile(null); }}
+              onClick={() => { if (preview) URL.revokeObjectURL(preview); setPreview(null); setFile(null); setIsVideo(false); setTrimNotice(''); }}
               className="absolute top-2 right-2 w-8 h-8 bg-black/70 rounded-full flex items-center justify-center"
             >
               <X className="text-white" size={16} />
@@ -62,10 +80,11 @@ export default function CreateStory({ isOpen, onClose, onCreated }) {
         ) : (
           <label className="flex flex-col items-center justify-center w-full aspect-[3/4] bg-dark-100 border-2 border-dashed border-dark-50 hover:border-gold/40 rounded-xl cursor-pointer transition-colors">
             <Camera className="text-gray-500 mb-2" size={32} />
-            <span className="text-sm text-gray-500">Tap to select a photo</span>
-            <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+            <span className="text-sm text-gray-500">Tap to add a photo or video</span>
+            <input ref={inputRef} type="file" accept="image/*,video/*" className="hidden" onChange={handleFile} />
           </label>
         )}
+        {trimNotice && <p className="text-gold text-sm">{trimNotice}</p>}
         {preview && (
           <>
             <input

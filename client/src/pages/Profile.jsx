@@ -8,9 +8,9 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
-import { REPORT_REASONS } from '../utils/constants';
+import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_OPTIONS, LOOKING_FOR_TAGS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
@@ -57,7 +57,7 @@ export default function Profile() {
         const endpoint = isOwnProfile ? '/users/profile' : `/users/profile/${userId}`;
         const { data } = await api.get(endpoint);
         setProfile(data);
-        setEditForm({ displayName: data.displayName, bio: data.bio || '', city: data.city, lookingFor: data.lookingFor || '' });
+        setEditForm({ displayName: data.displayName, bio: data.bio || '', city: data.city, lookingFor: data.lookingFor || '', height: data.height || '', weight: data.weight || '', occupation: data.occupation || '', lookingForTags: data.lookingForTags || [] });
         setEditPrompts((data.profilePrompts || []).map((p) => ({ prompt: p.prompt, answer: p.answer })));
 
         if (!isOwnProfile) {
@@ -98,7 +98,7 @@ export default function Profile() {
 
   const handleSave = async () => {
     try {
-      await api.post('/users/profile', { ...editForm, age: profile.age });
+      await api.post('/users/profile', { ...editForm, age: profile.age, lookingForTags: editForm.lookingForTags || [] });
 
       // Save prompts
       const validPrompts = editPrompts.filter((p) => p.prompt && p.answer?.trim());
@@ -443,6 +443,102 @@ export default function Profile() {
             <LocationAutocomplete label="City" name="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
             <Input label="Looking For" value={editForm.lookingFor} onChange={(e) => setEditForm({ ...editForm, lookingFor: e.target.value })} />
 
+            {/* Height & Weight */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Height</label>
+                <div className="flex gap-1.5">
+                  <select
+                    value={editForm.height?.match(/^(\d)/)?.[1] || ''}
+                    onChange={(e) => {
+                      const ft = e.target.value;
+                      const inMatch = editForm.height?.match(/'(\d{1,2})"/);
+                      const inc = inMatch ? inMatch[1] : '0';
+                      setEditForm({ ...editForm, height: ft ? `${ft}'${inc}"` : '' });
+                    }}
+                    className="flex-1 input-field py-2.5 text-sm"
+                  >
+                    <option value="">ft</option>
+                    {HEIGHT_FEET.map((f) => <option key={f} value={f}>{f}ft</option>)}
+                  </select>
+                  <select
+                    value={editForm.height?.match(/'(\d{1,2})"/)?.[1] || ''}
+                    onChange={(e) => {
+                      const inc = e.target.value;
+                      const ftMatch = editForm.height?.match(/^(\d)/);
+                      const ft = ftMatch ? ftMatch[1] : '5';
+                      setEditForm({ ...editForm, height: `${ft}'${inc}"` });
+                    }}
+                    className="flex-1 input-field py-2.5 text-sm"
+                  >
+                    <option value="">in</option>
+                    {HEIGHT_INCHES.map((i) => <option key={i} value={i}>{i}in</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Weight</label>
+                <select
+                  value={editForm.weight?.replace(' lbs', '') || ''}
+                  onChange={(e) => setEditForm({ ...editForm, weight: e.target.value ? `${e.target.value} lbs` : '' })}
+                  className="w-full input-field py-2.5 text-sm"
+                >
+                  <option value="">Select</option>
+                  {WEIGHT_OPTIONS.map((w) => <option key={w} value={w}>{w} lbs</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Occupation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Occupation</label>
+              <select
+                value={editForm.occupation && !OCCUPATION_OPTIONS.includes(editForm.occupation) ? 'Other' : (editForm.occupation || '')}
+                onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value === 'Other' ? '' : e.target.value })}
+                className="w-full input-field py-2.5 text-sm"
+              >
+                <option value="">Select occupation</option>
+                {OCCUPATION_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+              {editForm.occupation !== undefined && !OCCUPATION_OPTIONS.includes(editForm.occupation) && editForm.occupation !== '' ? (
+                <input
+                  value={editForm.occupation}
+                  onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value })}
+                  placeholder="Enter your occupation"
+                  className="w-full input-field py-2.5 text-sm mt-2"
+                  maxLength={50}
+                />
+              ) : null}
+            </div>
+
+            {/* Looking For Tags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">Looking For Tags</label>
+              <div className="flex flex-wrap gap-2">
+                {LOOKING_FOR_TAGS.map((tag) => {
+                  const isActive = (editForm.lookingForTags || []).includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        const tags = editForm.lookingForTags || [];
+                        setEditForm({
+                          ...editForm,
+                          lookingForTags: isActive ? tags.filter((t) => t !== tag) : [...tags, tag],
+                        });
+                      }}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                        isActive ? 'bg-gold text-dark' : 'bg-dark-100 text-gray-400 border border-dark-50 hover:border-gold/40'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Song Edit */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Profile Song</label>
@@ -527,6 +623,27 @@ export default function Profile() {
               {!isOwnProfile && vibeScore !== null && <VibeScore score={vibeScore} size="lg" />}
             </div>
 
+            {/* Detail pills — height, weight, occupation */}
+            {(profile.height || profile.weight || profile.occupation) && (
+              <div className="flex flex-wrap gap-2">
+                {profile.height && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-50 rounded-full text-xs text-gray-300">
+                    <Ruler size={12} className="text-gold" /> {profile.height}
+                  </span>
+                )}
+                {profile.weight && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-50 rounded-full text-xs text-gray-300">
+                    {profile.weight}
+                  </span>
+                )}
+                {profile.occupation && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-dark-50 rounded-full text-xs text-gray-300">
+                    <Briefcase size={12} className="text-gold" /> {profile.occupation}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Song Player Pill */}
             {profile.songTitle && (
               <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 w-fit">
@@ -566,6 +683,17 @@ export default function Profile() {
               <div>
                 <h3 className="text-sm font-semibold text-gray-400 mb-1">Looking for</h3>
                 <p className="text-white">{profile.lookingFor}</p>
+              </div>
+            )}
+
+            {/* Looking For Tags */}
+            {(profile.lookingForTags || []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {profile.lookingForTags.map((tag) => (
+                  <span key={tag} className="px-2.5 py-1 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
+                    {tag}
+                  </span>
+                ))}
               </div>
             )}
 

@@ -110,6 +110,11 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
                 </span>
               )}
             </div>
+            {(profile.height || profile.occupation) && (
+              <p className="text-xs text-gray-400 mt-0.5">
+                {[profile.height, profile.occupation].filter(Boolean).join(' · ')}
+              </p>
+            )}
           </div>
         </div>
 
@@ -148,6 +153,22 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
           {profile.bio && (
             <div className="mb-3">
               <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">{profile.bio}</p>
+            </div>
+          )}
+
+          {/* Looking For Tags */}
+          {(profile.lookingForTags || []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {profile.lookingForTags.slice(0, 3).map((tag) => (
+                <span key={tag} className="px-2 py-0.5 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
+                  {tag}
+                </span>
+              ))}
+              {profile.lookingForTags.length > 3 && (
+                <span className="px-2 py-0.5 text-gold/60 text-xs font-medium">
+                  +{profile.lookingForTags.length - 3}
+                </span>
+              )}
             </div>
           )}
 

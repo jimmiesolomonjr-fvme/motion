@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import StepRole from '../components/onboarding/StepRole';
 import StepProfile from '../components/onboarding/StepProfile';
+import StepLookingFor from '../components/onboarding/StepLookingFor';
 import StepPhotos from '../components/onboarding/StepPhotos';
 import api from '../services/api';
 import AuthLayout from '../components/layout/AuthLayout';
@@ -10,14 +11,28 @@ import AuthLayout from '../components/layout/AuthLayout';
 export default function Onboarding() {
   const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
-  const [step, setStep] = useState(user?.hasProfile ? 3 : 1);
+  const [step, setStep] = useState(user?.hasProfile ? 4 : 1);
   const [role, setRole] = useState(user?.role || '');
-  const [profile, setProfile] = useState({ displayName: '', bio: '', age: '', city: '', lookingFor: '' });
+  const [profile, setProfile] = useState({
+    displayName: '',
+    bio: '',
+    age: '',
+    city: '',
+    height: '',
+    weight: '',
+    occupation: '',
+    lookingFor: '',
+    lookingForTags: [],
+  });
 
-  const handleProfileNext = async () => {
+  const handleProfileNext = () => {
+    setStep(3);
+  };
+
+  const handleLookingForNext = async () => {
     try {
       await api.post('/users/profile', profile);
-      setStep(3);
+      setStep(4);
     } catch (err) {
       console.error('Profile save error:', err);
     }
@@ -31,7 +46,8 @@ export default function Onboarding() {
   const steps = [
     { num: 1, label: 'Role' },
     { num: 2, label: 'Profile' },
-    { num: 3, label: 'Photos' },
+    { num: 3, label: 'Looking For' },
+    { num: 4, label: 'Photos' },
   ];
 
   return (
@@ -59,6 +75,9 @@ export default function Onboarding() {
         <StepProfile profile={profile} setProfile={setProfile} onNext={handleProfileNext} onBack={() => setStep(1)} />
       )}
       {step === 3 && (
+        <StepLookingFor profile={profile} setProfile={setProfile} onNext={handleLookingForNext} onBack={() => setStep(2)} />
+      )}
+      {step === 4 && (
         <StepPhotos onComplete={handleComplete} />
       )}
     </AuthLayout>

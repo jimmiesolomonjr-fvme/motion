@@ -113,6 +113,10 @@ model Profile {
   city           String
   photos         Json     @default("[]")
   lookingFor     String?
+  height         String?
+  weight         String?
+  occupation     String?
+  lookingForTags Json     @default("[]")
   songTitle      String?
   songArtist     String?
   songPreviewUrl String?

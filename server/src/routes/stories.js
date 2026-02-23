@@ -1,17 +1,17 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
-import { upload, uploadToCloud } from '../middleware/upload.js';
+import { uploadMedia, uploadToCloud, uploadVideoToCloud } from '../middleware/upload.js';
 import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // Create a story
-router.post('/', authenticate, upload.single('photo'), async (req, res) => {
+router.post('/', authenticate, uploadMedia.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Photo is required' });
+      return res.status(400).json({ error: 'Photo or video is required' });
     }
 
     // Max 3 active stories per user
@@ -22,7 +22,10 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
       return res.status(400).json({ error: 'You can only have 3 active stories at a time' });
     }
 
-    const photo = await uploadToCloud(req.file, 'motion/stories');
+    const isVideo = req.file.mimetype.startsWith('video/');
+    const photo = isVideo
+      ? await uploadVideoToCloud(req.file, 'motion/stories', 15)
+      : await uploadToCloud(req.file, 'motion/stories');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const story = await prisma.story.create({
