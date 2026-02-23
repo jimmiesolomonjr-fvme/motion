@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { upload, uploadToCloud } from '../middleware/upload.js';
+import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -88,12 +89,14 @@ router.get('/', authenticate, async (req, res) => {
       select: { isAdmin: true },
     });
 
+    const hiddenIds = await getHiddenIds(req.userId);
     const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
 
     const whereClause = {
       isActive: true,
       status: { in: ['OPEN', 'CONFIRMED'] },
       date: { gte: new Date() },
+      ...(hiddenIds.size > 0 && { stepperId: { notIn: [...hiddenIds] } }),
     };
 
     // Baddies: hide moves within 2h (interest already closed)
@@ -248,8 +251,13 @@ router.get('/interests', authenticate, async (req, res) => {
       return res.status(403).json({ error: 'Only Steppers have move interests' });
     }
 
+    const hiddenIds = await getHiddenIds(req.userId);
+
     const interests = await prisma.moveInterest.findMany({
-      where: { move: { stepperId: req.userId } },
+      where: {
+        move: { stepperId: req.userId },
+        ...(hiddenIds.size > 0 && { baddieId: { notIn: [...hiddenIds] } }),
+      },
       include: {
         baddie: { include: { profile: true } },
         move: { select: { id: true, title: true } },
@@ -281,8 +289,13 @@ router.get('/saved', authenticate, async (req, res) => {
   try {
     await autoCompletePastMoves();
 
+    const hiddenIds = await getHiddenIds(req.userId);
+
     const saved = await prisma.savedMove.findMany({
-      where: { userId: req.userId },
+      where: {
+        userId: req.userId,
+        ...(hiddenIds.size > 0 && { move: { stepperId: { notIn: [...hiddenIds] } } }),
+      },
       include: {
         move: {
           include: {
@@ -428,6 +441,10 @@ router.get('/history/:userId', authenticate, async (req, res) => {
       return res.json({ completedCount: 0, recentMoves: [] });
     }
 
+    if (await isHiddenFrom(req.userId, req.params.userId)) {
+      return res.json({ completedCount: 0, recentMoves: [] });
+    }
+
     const completedCount = await prisma.move.count({
       where: { stepperId: req.params.userId, status: 'COMPLETED' },
     });
@@ -464,6 +481,10 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
 
     if (move.status !== 'OPEN') {
       return res.status(400).json({ error: 'This Move is no longer accepting interest' });
+    }
+
+    if (await isHiddenFrom(req.userId, move.stepperId)) {
+      return res.status(403).json({ error: 'Cannot interact with this Move' });
     }
 
     // 2-hour window check

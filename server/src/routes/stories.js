@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { upload, uploadToCloud } from '../middleware/upload.js';
+import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -52,9 +53,13 @@ router.get('/', authenticate, async (req, res) => {
     });
     const oppositeRole = currentUser.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
 
+    const hiddenIds = await getHiddenIds(req.userId);
+    const excludeIds = hiddenIds.size > 0 ? [...hiddenIds] : [];
+
     const stories = await prisma.story.findMany({
       where: {
         expiresAt: { gt: new Date() },
+        ...(excludeIds.length > 0 && { userId: { notIn: excludeIds } }),
         OR: [
           { userId: req.userId },
           { user: { role: oppositeRole } },
@@ -123,6 +128,10 @@ router.post('/:storyId/view', authenticate, async (req, res) => {
       return res.json({ success: true });
     }
 
+    if (await isHiddenFrom(req.userId, story.userId)) {
+      return res.status(403).json({ error: 'Story not found' });
+    }
+
     await prisma.storyView.upsert({
       where: { storyId_viewerId: { storyId: req.params.storyId, viewerId: req.userId } },
       create: { storyId: req.params.storyId, viewerId: req.userId },
@@ -145,6 +154,10 @@ router.post('/:storyId/like', authenticate, async (req, res) => {
     // Can't like own story
     if (story.userId === req.userId) {
       return res.status(400).json({ error: 'Cannot like your own story' });
+    }
+
+    if (await isHiddenFrom(req.userId, story.userId)) {
+      return res.status(403).json({ error: 'Story not found' });
     }
 
     await prisma.storyLike.upsert({
@@ -190,6 +203,11 @@ router.post('/:storyId/reply', authenticate, async (req, res) => {
     if (!story) return res.status(404).json({ error: 'Story not found' });
     if (story.expiresAt < new Date()) return res.status(400).json({ error: 'Story has expired' });
     if (story.userId === req.userId) return res.status(400).json({ error: 'Cannot reply to your own story' });
+
+    // Check hidden pairs
+    if (await isHiddenFrom(req.userId, story.userId)) {
+      return res.status(403).json({ error: 'Cannot reply to this story' });
+    }
 
     // Check blocks
     const block = await prisma.block.findFirst({

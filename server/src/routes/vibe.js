@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
+import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -104,12 +105,15 @@ router.post('/answer', authenticate, async (req, res) => {
 
     if (shouldCheck) {
       const oppositeRole = user.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
+      const hiddenIds = await getHiddenIds(req.userId);
+      const excludeIds = [req.userId, ...hiddenIds];
+
       const recentMatch = await prisma.vibeAnswer.findFirst({
         where: {
           questionId,
           answer,
           answeredAt: { gte: twentyFourHoursAgo },
-          userId: { not: req.userId },
+          userId: { notIn: excludeIds },
           user: { role: oppositeRole, isBanned: false, isHidden: false },
         },
         include: {
@@ -156,9 +160,13 @@ router.get('/top-matches', authenticate, async (req, res) => {
 
     const myMap = new Map(myAnswers.map((a) => [a.questionId, a.answer]));
 
-    // Get all opposite-role users who have answers
+    // Get all opposite-role users who have answers (exclude hidden pairs)
+    const hiddenIds = await getHiddenIds(req.userId);
+    const excludeIds = hiddenIds.size > 0 ? [req.userId, ...hiddenIds] : [req.userId];
+
     const candidates = await prisma.user.findMany({
       where: {
+        id: { notIn: excludeIds },
         role: oppositeRole,
         isBanned: false,
         isHidden: false,
@@ -204,6 +212,10 @@ router.get('/top-matches', authenticate, async (req, res) => {
 // Get vibe score with another user
 router.get('/score/:userId', authenticate, async (req, res) => {
   try {
+    if (await isHiddenFrom(req.userId, req.params.userId)) {
+      return res.json({ score: null, sharedQuestions: 0, matchingAnswers: 0 });
+    }
+
     const myAnswers = await prisma.vibeAnswer.findMany({ where: { userId: req.userId } });
     const theirAnswers = await prisma.vibeAnswer.findMany({ where: { userId: req.params.userId } });
 

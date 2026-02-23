@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requirePremium } from '../middleware/premium.js';
 import { upload, uploadVoice, uploadToCloud } from '../middleware/upload.js';
+import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -20,29 +21,33 @@ router.get('/conversations', authenticate, async (req, res) => {
       orderBy: { lastMessageAt: 'desc' },
     });
 
-    const result = conversations.map((c) => {
-      const other = c.user1Id === req.userId ? c.user2 : c.user1;
-      const lastMessage = c.messages[0] || null;
-      return {
-        id: c.id,
-        lastMessageAt: c.lastMessageAt,
-        otherUser: {
-          id: other.id,
-          role: other.role,
-          lastOnline: other.lastOnline,
-          profile: other.profile,
-        },
-        lastMessage: lastMessage
-          ? {
-              content: lastMessage.content,
-              contentType: lastMessage.contentType,
-              senderId: lastMessage.senderId,
-              createdAt: lastMessage.createdAt,
-              read: !!lastMessage.readAt,
-            }
-          : null,
-      };
-    });
+    const hiddenIds = await getHiddenIds(req.userId);
+
+    const result = conversations
+      .map((c) => {
+        const other = c.user1Id === req.userId ? c.user2 : c.user1;
+        const lastMessage = c.messages[0] || null;
+        return {
+          id: c.id,
+          lastMessageAt: c.lastMessageAt,
+          otherUser: {
+            id: other.id,
+            role: other.role,
+            lastOnline: other.lastOnline,
+            profile: other.profile,
+          },
+          lastMessage: lastMessage
+            ? {
+                content: lastMessage.content,
+                contentType: lastMessage.contentType,
+                senderId: lastMessage.senderId,
+                createdAt: lastMessage.createdAt,
+                read: !!lastMessage.readAt,
+              }
+            : null,
+        };
+      })
+      .filter((c) => !hiddenIds.has(c.otherUser.id));
 
     res.json(result);
   } catch (error) {
@@ -124,6 +129,11 @@ router.post('/:conversationId', authenticate, requirePremium, async (req, res) =
 router.post('/start/:userId', authenticate, async (req, res) => {
   try {
     const otherUserId = req.params.userId;
+
+    // Check hidden pairs
+    if (await isHiddenFrom(req.userId, otherUserId)) {
+      return res.status(403).json({ error: 'Cannot message this user' });
+    }
 
     // Check match exists
     const [u1, u2] = [req.userId, otherUserId].sort();

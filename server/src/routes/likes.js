@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
+import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -32,6 +33,11 @@ router.post('/:userId', authenticate, async (req, res) => {
     });
     if (blocked) {
       return res.status(400).json({ error: 'Cannot like blocked user' });
+    }
+
+    // Check hidden pairs
+    if (await isHiddenFrom(req.userId, likedId)) {
+      return res.status(400).json({ error: 'Cannot like this user' });
     }
 
     await prisma.like.create({
@@ -112,21 +118,25 @@ router.get('/matches', authenticate, async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    const result = matches.map((m) => {
-      const other = m.user1Id === req.userId ? m.user2 : m.user1;
-      return {
-        matchId: m.id,
-        matchedAt: m.createdAt,
-        user: {
-          id: other.id,
-          role: other.role,
-          isPremium: other.isPremium,
-          isVerified: other.isVerified,
-          lastOnline: other.lastOnline,
-          profile: other.profile,
-        },
-      };
-    });
+    const hiddenIds = await getHiddenIds(req.userId);
+
+    const result = matches
+      .map((m) => {
+        const other = m.user1Id === req.userId ? m.user2 : m.user1;
+        return {
+          matchId: m.id,
+          matchedAt: m.createdAt,
+          user: {
+            id: other.id,
+            role: other.role,
+            isPremium: other.isPremium,
+            isVerified: other.isVerified,
+            lastOnline: other.lastOnline,
+            profile: other.profile,
+          },
+        };
+      })
+      .filter((m) => !hiddenIds.has(m.user.id));
 
     res.json(result);
   } catch (error) {
