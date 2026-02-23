@@ -9,9 +9,10 @@ export default function ChatBubble({ message, isOwn, onReact, currentUserId, sho
   const [lightbox, setLightbox] = useState(false);
   const lastTapRef = useRef(0);
 
-  const handleTap = () => {
+  const handleTap = (e) => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
+      e.stopPropagation();
       onTogglePicker?.(message.id);
     }
     lastTapRef.current = now;
