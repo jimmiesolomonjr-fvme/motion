@@ -97,6 +97,7 @@ export default function StoryBar() {
           storyGroups={storyGroups}
           startIndex={viewerIndex}
           currentUserId={user?.id}
+          isAdmin={!!user?.isAdmin}
           onClose={() => { setViewerIndex(null); fetchStories(); }}
         />
       )}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Eye, Heart, Send, MoreVertical, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 
-export default function StoryViewer({ storyGroups, startIndex, currentUserId, onClose }) {
+export default function StoryViewer({ storyGroups, startIndex, currentUserId, isAdmin, onClose }) {
   const [groupIdx, setGroupIdx] = useState(startIndex);
   const [storyIdx, setStoryIdx] = useState(0);
   const timerRef = useRef(null);
@@ -214,32 +214,32 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, on
           />
           <span className="text-white text-sm font-semibold flex-1">{group.displayName}</span>
           {isOwn && (
-            <>
-              <span className="flex items-center gap-1 text-white/70 text-xs">
-                <Eye size={14} /> {story.viewCount}
-              </span>
-              <div className="relative">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); if (!showMenu) pauseTimer(); }}
-                  className="text-white/80 hover:text-white p-1"
+            <span className="flex items-center gap-1 text-white/70 text-xs">
+              <Eye size={14} /> {story.viewCount}
+            </span>
+          )}
+          {(isOwn || isAdmin) && (
+            <div className="relative">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); if (!showMenu) pauseTimer(); }}
+                className="text-white/80 hover:text-white p-1"
+              >
+                <MoreVertical size={20} />
+              </button>
+              {showMenu && (
+                <div
+                  className="absolute right-0 top-full mt-1 bg-dark-100 border border-dark-50 rounded-xl shadow-xl z-50 min-w-[140px] overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <MoreVertical size={20} />
-                </button>
-                {showMenu && (
-                  <div
-                    className="absolute right-0 top-full mt-1 bg-dark-100 border border-dark-50 rounded-xl shadow-xl z-50 min-w-[140px] overflow-hidden"
-                    onClick={(e) => e.stopPropagation()}
+                  <button
+                    onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
                   >
-                    <button
-                      onClick={() => { setShowMenu(false); setShowDeleteConfirm(true); }}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
-                    >
-                      <Trash2 size={14} /> Delete Story
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
+                    <Trash2 size={14} /> Delete Story
+                  </button>
+                </div>
+              )}
+            </div>
           )}
           <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="text-white/80 hover:text-white">
             <X size={24} />
