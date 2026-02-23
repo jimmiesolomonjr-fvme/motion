@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import Avatar from '../ui/Avatar';
 import { isOnline, timeAgo } from '../../utils/formatters';
-import { Mic, Trash2 } from 'lucide-react';
+import { Mic, Trash2, ImageIcon } from 'lucide-react';
 
 function SwipeableConversation({ conv, onDelete }) {
   const x = useMotionValue(0);
@@ -77,6 +77,8 @@ function SwipeableConversation({ conv, onDelete }) {
             <p className="text-sm text-gray-400 truncate">
               {conv.lastMessage?.contentType === 'VOICE' ? (
                 <span className="flex items-center gap-1"><Mic size={12} /> Voice note</span>
+              ) : conv.lastMessage?.contentType === 'IMAGE' ? (
+                <span className="flex items-center gap-1"><ImageIcon size={12} /> Photo</span>
               ) : (
                 conv.lastMessage?.content || 'Start a conversation'
               )}
