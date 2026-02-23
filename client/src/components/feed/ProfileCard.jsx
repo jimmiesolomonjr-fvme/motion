@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Heart, MapPin, BadgeCheck, Sparkles, Zap } from 'lucide-react';
+import { Heart, MapPin, BadgeCheck, Sparkles, Zap, Play } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
 
 export default function ProfileCard({ user, onLike, onUnlike }) {
@@ -27,6 +27,13 @@ export default function ProfileCard({ user, onLike, onUnlike }) {
             <span className="absolute top-2 left-2 vibe-score flex items-center gap-1">
               <Sparkles size={10} />
               {user.vibeScore}%
+            </span>
+          )}
+
+          {/* Video intro indicator */}
+          {user.profile?.videoIntro && (
+            <span className="absolute bottom-2 left-2 z-10 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center">
+              <Play size={12} className="text-white ml-0.5" fill="currentColor" />
             </span>
           )}
 

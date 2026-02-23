@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useAuth } from '../context/AuthContext';
@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, Video, VolumeX, Volume2, Music, Play, Pause } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
@@ -41,6 +41,14 @@ export default function Profile() {
   const [moveHistory, setMoveHistory] = useState(null);
   const [promptModalOpen, setPromptModalOpen] = useState(false);
   const [modalPrompt, setModalPrompt] = useState({ prompt: '', answer: '' });
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoError, setVideoError] = useState('');
+  const [videoMuted, setVideoMuted] = useState(true);
+  const videoRef = useRef(null);
+  const [songPlaying, setSongPlaying] = useState(false);
+  const audioRef = useRef(null);
+  const [songModalOpen, setSongModalOpen] = useState(false);
+  const [songForm, setSongForm] = useState({ songTitle: '', songArtist: '', songPreviewUrl: '' });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -171,6 +179,99 @@ export default function Profile() {
     }
   };
 
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoError('');
+
+    // Client-side 15s duration check
+    const checkDuration = () => new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        URL.revokeObjectURL(video.src);
+        resolve(video.duration);
+      };
+      video.onerror = () => resolve(0);
+      video.src = URL.createObjectURL(file);
+    });
+
+    const duration = await checkDuration();
+    if (duration > 15) {
+      setVideoError('Video must be 15 seconds or less');
+      e.target.value = '';
+      return;
+    }
+
+    setVideoUploading(true);
+    const formData = new FormData();
+    formData.append('video', file);
+    try {
+      const { data } = await api.post('/users/video-intro', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setProfile({ ...profile, videoIntro: data.videoIntro });
+    } catch (err) {
+      console.error('Video upload error:', err);
+      setVideoError('Failed to upload video');
+    } finally {
+      setVideoUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleVideoDelete = async () => {
+    try {
+      await api.delete('/users/video-intro');
+      setProfile({ ...profile, videoIntro: null });
+    } catch (err) {
+      console.error('Video delete error:', err);
+    }
+  };
+
+  const toggleSongPlay = () => {
+    if (!audioRef.current) return;
+    if (songPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setSongPlaying(!songPlaying);
+  };
+
+  const handleSongSave = async () => {
+    try {
+      await api.post('/users/profile', {
+        displayName: profile.displayName,
+        age: profile.age,
+        city: profile.city,
+        songTitle: songForm.songTitle,
+        songArtist: songForm.songArtist,
+        songPreviewUrl: songForm.songPreviewUrl,
+      });
+      setProfile({
+        ...profile,
+        songTitle: songForm.songTitle || null,
+        songArtist: songForm.songArtist || null,
+        songPreviewUrl: songForm.songPreviewUrl || null,
+      });
+      setSongModalOpen(false);
+    } catch (err) {
+      console.error('Song save error:', err);
+    }
+  };
+
+  const handleSongDelete = async () => {
+    try {
+      await api.delete('/users/profile-song');
+      setProfile({ ...profile, songTitle: null, songArtist: null, songPreviewUrl: null });
+      if (audioRef.current) audioRef.current.pause();
+      setSongPlaying(false);
+    } catch (err) {
+      console.error('Song delete error:', err);
+    }
+  };
+
   const addPromptSlot = () => {
     if (editPrompts.length < 3) {
       setModalPrompt({ prompt: '', answer: '' });
@@ -273,9 +374,90 @@ export default function Profile() {
             <p className="text-xs text-gold/70 mt-1.5">Add at least 2 photos to stand out</p>
           )}
           {photoError && <p className="text-red-400 text-sm mt-2">{photoError}</p>}
+
+          {/* Video Intro Edit */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-300 mb-2">Video Intro (15s max)</label>
+            {profile.videoIntro ? (
+              <div className="relative rounded-xl overflow-hidden">
+                <video src={profile.videoIntro} className="w-full aspect-video object-cover rounded-xl" playsInline muted loop autoPlay />
+                <button
+                  onClick={handleVideoDelete}
+                  className="absolute top-2 right-2 w-7 h-7 bg-black/70 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
+                >
+                  <X className="text-white" size={14} />
+                </button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-28 bg-dark-100 border-2 border-dashed border-dark-50 hover:border-gold/40 rounded-xl cursor-pointer transition-colors">
+                {videoUploading ? (
+                  <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Video className="text-gray-500 mb-1" size={24} />
+                    <span className="text-xs text-gray-500">Upload Video (15s max)</span>
+                  </>
+                )}
+                <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={videoUploading} />
+              </label>
+            )}
+            {videoError && <p className="text-red-400 text-sm mt-1">{videoError}</p>}
+          </div>
         </div>
       ) : (
         <>
+          {/* Video Intro */}
+          {profile.videoIntro && (
+            <div className="relative rounded-2xl overflow-hidden mb-4">
+              <video
+                ref={videoRef}
+                src={profile.videoIntro}
+                className="w-full aspect-[3/4] object-cover"
+                playsInline
+                autoPlay
+                muted={videoMuted}
+                loop
+                onClick={() => {
+                  setVideoMuted(!videoMuted);
+                  if (videoRef.current) videoRef.current.muted = !videoMuted;
+                }}
+              />
+              <button
+                onClick={() => {
+                  setVideoMuted(!videoMuted);
+                  if (videoRef.current) videoRef.current.muted = !videoMuted;
+                }}
+                className="absolute bottom-3 right-3 w-9 h-9 bg-black/60 rounded-full flex items-center justify-center"
+              >
+                {videoMuted ? <VolumeX size={16} className="text-white" /> : <Volume2 size={16} className="text-white" />}
+              </button>
+              {isOwnProfile && !editing && (
+                <button
+                  onClick={handleVideoDelete}
+                  className="absolute top-3 right-3 w-8 h-8 bg-black/60 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
+                >
+                  <X size={14} className="text-white" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Upload video intro button (own profile, no video) */}
+          {isOwnProfile && !profile.videoIntro && (
+            <label className="flex items-center justify-center gap-2 w-full py-3 mb-4 bg-dark-50 border border-dashed border-dark-50 hover:border-gold/40 rounded-xl cursor-pointer transition-colors">
+              {videoUploading ? (
+                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Video size={16} className="text-gray-500" />
+                  <span className="text-sm text-gray-500">Add Video Intro</span>
+                </>
+              )}
+              <input type="file" accept="video/*" className="hidden" onChange={handleVideoUpload} disabled={videoUploading} />
+            </label>
+          )}
+          {videoError && <p className="text-red-400 text-sm mb-4">{videoError}</p>}
+
           <div className="relative rounded-2xl overflow-hidden mb-4">
             {photos.length > 0 ? (
               <img src={photos[selectedPhotoIndex] || photos[0]} alt="" className="w-full aspect-[3/4] object-cover" />
@@ -329,6 +511,31 @@ export default function Profile() {
             <Textarea label="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
             <LocationAutocomplete label="City" name="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
             <Input label="Looking For" value={editForm.lookingFor} onChange={(e) => setEditForm({ ...editForm, lookingFor: e.target.value })} />
+
+            {/* Song Edit */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Profile Song</label>
+              {profile.songTitle ? (
+                <div className="flex items-center gap-2 bg-dark-100 rounded-xl p-3">
+                  <Music size={16} className="text-purple-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{profile.songTitle}</p>
+                    {profile.songArtist && <p className="text-gray-500 text-xs truncate">{profile.songArtist}</p>}
+                  </div>
+                  <button onClick={handleSongDelete} className="text-gray-500 hover:text-red-400 flex-shrink-0">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setSongForm({ songTitle: '', songArtist: '', songPreviewUrl: '' }); setSongModalOpen(true); }}
+                  className="w-full py-2 border border-dashed border-dark-50 rounded-xl text-sm text-gray-500 hover:text-purple-400 hover:border-purple-accent/30 flex items-center justify-center gap-1 transition-colors"
+                >
+                  <Music size={14} /> Add Song
+                </button>
+              )}
+            </div>
 
             {/* Profile Prompts Edit */}
             <div className={editPrompts.length === 0 ? 'ring-2 ring-gold/50 rounded-xl p-1' : ''}>
@@ -388,6 +595,40 @@ export default function Profile() {
               </div>
               {!isOwnProfile && vibeScore !== null && <VibeScore score={vibeScore} size="lg" />}
             </div>
+
+            {/* Song Player Pill */}
+            {profile.songTitle && (
+              <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 w-fit">
+                <Music size={14} className="text-purple-400 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-white font-medium truncate block max-w-[180px]">{profile.songTitle}</span>
+                  {profile.songArtist && <span className="text-xs text-gray-500 truncate block max-w-[180px]">{profile.songArtist}</span>}
+                </div>
+                {profile.songPreviewUrl && (
+                  <button onClick={toggleSongPlay} className="w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
+                    {songPlaying ? <Pause size={12} className="text-purple-400" /> : <Play size={12} className="text-purple-400 ml-0.5" />}
+                  </button>
+                )}
+                {isOwnProfile && (
+                  <button onClick={handleSongDelete} className="text-gray-600 hover:text-red-400 flex-shrink-0">
+                    <X size={14} />
+                  </button>
+                )}
+                {profile.songPreviewUrl && (
+                  <audio ref={audioRef} src={profile.songPreviewUrl} preload="none" onEnded={() => setSongPlaying(false)} />
+                )}
+              </div>
+            )}
+
+            {/* Add Song button (own profile, no song) */}
+            {isOwnProfile && !profile.songTitle && !editing && (
+              <button
+                onClick={() => { setSongForm({ songTitle: '', songArtist: '', songPreviewUrl: '' }); setSongModalOpen(true); }}
+                className="flex items-center gap-2 px-3 py-2 bg-dark-50 border border-dashed border-dark-50 hover:border-purple-accent/40 rounded-full text-sm text-gray-500 hover:text-purple-400 transition-colors"
+              >
+                <Music size={14} /> Add Song
+              </button>
+            )}
 
             {profile.bio && <p className="text-gray-300 leading-relaxed">{profile.bio}</p>}
             {profile.lookingFor && (
@@ -552,6 +793,34 @@ export default function Profile() {
             disabled={!modalPrompt.prompt || !modalPrompt.answer?.trim()}
           >
             Add Prompt
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Song Modal */}
+      <Modal isOpen={songModalOpen} onClose={() => setSongModalOpen(false)} title="Add Profile Song">
+        <div className="space-y-3">
+          <Input
+            label="Song Title"
+            value={songForm.songTitle}
+            onChange={(e) => setSongForm({ ...songForm, songTitle: e.target.value })}
+            placeholder="e.g. Snooze"
+          />
+          <Input
+            label="Artist"
+            value={songForm.songArtist}
+            onChange={(e) => setSongForm({ ...songForm, songArtist: e.target.value })}
+            placeholder="e.g. SZA"
+          />
+          <Input
+            label="Preview URL (optional)"
+            value={songForm.songPreviewUrl}
+            onChange={(e) => setSongForm({ ...songForm, songPreviewUrl: e.target.value })}
+            placeholder="Audio URL for playback"
+          />
+          <p className="text-xs text-gray-500">Paste a direct audio link (Spotify preview URL, etc.)</p>
+          <Button variant="gold" className="w-full" onClick={handleSongSave} disabled={!songForm.songTitle?.trim()}>
+            Save Song
           </Button>
         </div>
       </Modal>

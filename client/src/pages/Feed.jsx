@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import FeedGrid from '../components/feed/FeedGrid';
 import FeedFilters from '../components/feed/FeedFilters';
+import VerticalFeed from '../components/feed/VerticalFeed';
 import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
 import Modal from '../components/ui/Modal';
@@ -20,6 +21,14 @@ export default function Feed() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef(null);
+  const [viewMode, setViewMode] = useState('grid');
+
+  // Vertical feed state (separate from grid)
+  const [verticalUsers, setVerticalUsers] = useState([]);
+  const [verticalPage, setVerticalPage] = useState(0);
+  const [verticalHasMore, setVerticalHasMore] = useState(false);
+  const [verticalLoading, setVerticalLoading] = useState(false);
+  const [verticalLoadingMore, setVerticalLoadingMore] = useState(false);
 
   useGeolocation();
 
@@ -47,19 +56,64 @@ export default function Feed() {
     }
   }, [sort, onlineOnly, ageRange, maxDistance]);
 
+  const fetchVerticalFeed = useCallback(async (pageNum) => {
+    if (pageNum === 0) setVerticalLoading(true);
+    else setVerticalLoadingMore(true);
+    try {
+      const params = { sort, onlineOnly: onlineOnly.toString(), page: pageNum, limit: 5 };
+      if (ageRange[0] !== 18) params.minAge = ageRange[0];
+      if (ageRange[1] !== 99) params.maxAge = ageRange[1];
+      if (maxDistance < 100) params.maxDistance = maxDistance;
+
+      const { data } = await api.get('/users/feed/vertical', { params });
+      if (pageNum === 0) {
+        setVerticalUsers(data.users);
+      } else {
+        setVerticalUsers((prev) => [...prev, ...data.users]);
+      }
+      setVerticalHasMore(data.hasMore);
+    } catch (err) {
+      console.error('Vertical feed error:', err);
+    } finally {
+      setVerticalLoading(false);
+      setVerticalLoadingMore(false);
+    }
+  }, [sort, onlineOnly, ageRange, maxDistance]);
+
   // Reset to page 0 when filters change
   useEffect(() => {
     setPage(0);
-    fetchFeed(0);
+    setVerticalPage(0);
+    if (viewMode === 'grid') {
+      fetchFeed(0);
+    } else {
+      fetchVerticalFeed(0);
+    }
   }, [sort, onlineOnly, ageRange[0], ageRange[1], maxDistance]);
+
+  // Fetch when switching view modes
+  useEffect(() => {
+    if (viewMode === 'grid' && users.length === 0) {
+      setPage(0);
+      fetchFeed(0);
+    } else if (viewMode === 'vertical' && verticalUsers.length === 0) {
+      setVerticalPage(0);
+      fetchVerticalFeed(0);
+    }
+  }, [viewMode]);
 
   // Fetch next page when page increments beyond 0
   useEffect(() => {
     if (page > 0) fetchFeed(page);
   }, [page]);
 
-  // IntersectionObserver for infinite scroll
   useEffect(() => {
+    if (verticalPage > 0) fetchVerticalFeed(verticalPage);
+  }, [verticalPage]);
+
+  // IntersectionObserver for grid infinite scroll
+  useEffect(() => {
+    if (viewMode !== 'grid') return;
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
@@ -72,7 +126,7 @@ export default function Feed() {
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading]);
+  }, [hasMore, loadingMore, loading, viewMode]);
 
   const handleApplyFilters = ({ ageRange: newAge, maxDistance: newDist }) => {
     setAgeRange(newAge);
@@ -83,6 +137,7 @@ export default function Feed() {
     try {
       await api.delete(`/likes/${userId}`);
       setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
+      setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
     } catch (err) {
       console.error('Unlike error:', err);
     }
@@ -92,9 +147,10 @@ export default function Feed() {
     try {
       const { data } = await api.post(`/likes/${userId}`);
       setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
+      setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
 
       if (data.matched) {
-        const matched = users.find((u) => u.id === userId);
+        const matched = users.find((u) => u.id === userId) || verticalUsers.find((u) => u.id === userId);
         setMatchModal(matched);
       }
     } catch (err) {
@@ -102,22 +158,52 @@ export default function Feed() {
     }
   };
 
+  const handleVerticalLoadMore = useCallback(() => {
+    if (verticalHasMore && !verticalLoadingMore) {
+      setVerticalPage((prev) => prev + 1);
+    }
+  }, [verticalHasMore, verticalLoadingMore]);
+
+  const isLoading = viewMode === 'grid' ? loading : verticalLoading;
+
   return (
     <AppLayout>
-      <StoryBar />
-      <FeedFilters
-        sort={sort} setSort={setSort}
-        onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
-        ageRange={ageRange} maxDistance={maxDistance}
-        onApply={handleApplyFilters}
-      />
+      {viewMode === 'grid' && <StoryBar />}
+      {viewMode === 'grid' && (
+        <FeedFilters
+          sort={sort} setSort={setSort}
+          onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
+          ageRange={ageRange} maxDistance={maxDistance}
+          onApply={handleApplyFilters}
+          viewMode={viewMode} setViewMode={setViewMode}
+        />
+      )}
 
-      {loading ? (
+      {viewMode === 'vertical' && (
+        <FeedFilters
+          sort={sort} setSort={setSort}
+          onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
+          ageRange={ageRange} maxDistance={maxDistance}
+          onApply={handleApplyFilters}
+          viewMode={viewMode} setViewMode={setViewMode}
+        />
+      )}
+
+      {isLoading ? (
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <FeedGrid users={users} onLike={handleLike} onUnlike={handleUnlike} hasMore={hasMore} loadingMore={loadingMore} sentinelRef={sentinelRef} />
+      ) : (
+        <VerticalFeed
+          users={verticalUsers}
+          onLike={handleLike}
+          onUnlike={handleUnlike}
+          hasMore={verticalHasMore}
+          loadingMore={verticalLoadingMore}
+          onLoadMore={handleVerticalLoadMore}
+        />
       )}
 
       {/* Match Modal */}

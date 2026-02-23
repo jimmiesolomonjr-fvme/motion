@@ -62,6 +62,26 @@ export const uploadVoice = multer({
   limits: { fileSize: config.upload.maxFileSize },
 });
 
+const videoStorage = useMemory
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => cb(null, config.upload.dir),
+      filename: (req, file, cb) => cb(null, `video-${randomUUID()}${path.extname(file.originalname)}`),
+    });
+
+export const uploadVideo = multer({
+  storage: videoStorage,
+  fileFilter: (req, file, cb) => {
+    const allowed = ['video/mp4', 'video/webm', 'video/quicktime'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only MP4, WebM, and MOV videos are allowed'), false);
+    }
+  },
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+});
+
 // Convert multer memory-stored file to a base64 data URL (fallback)
 function toDataUrl(file) {
   return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;

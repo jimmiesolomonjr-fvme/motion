@@ -103,16 +103,20 @@ model User {
 }
 
 model Profile {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  displayName String
-  bio         String?
-  age         Int
-  city        String
-  photos      Json     @default("[]")
-  lookingFor  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  displayName    String
+  bio            String?
+  age            Int
+  city           String
+  photos         Json     @default("[]")
+  lookingFor     String?
+  videoIntro     String?
+  songTitle      String?
+  songArtist     String?
+  songPreviewUrl String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
