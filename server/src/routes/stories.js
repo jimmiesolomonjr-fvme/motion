@@ -296,12 +296,18 @@ router.post('/:storyId/reply', authenticate, async (req, res) => {
   }
 });
 
-// Delete own story
+// Delete story (own or admin)
 router.delete('/:storyId', authenticate, async (req, res) => {
   try {
     const story = await prisma.story.findUnique({ where: { id: req.params.storyId } });
-    if (!story || story.userId !== req.userId) {
-      return res.status(404).json({ error: 'Story not found' });
+    if (!story) return res.status(404).json({ error: 'Story not found' });
+
+    const currentUser = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { isAdmin: true },
+    });
+    if (story.userId !== req.userId && !currentUser?.isAdmin) {
+      return res.status(403).json({ error: 'Not authorized' });
     }
 
     await prisma.story.delete({ where: { id: req.params.storyId } });
