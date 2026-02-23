@@ -97,9 +97,9 @@ export default function VibeCheck() {
 
   const handleSayHey = async (userId) => {
     try {
-      await api.post(`/messages/start/${userId}`, { content: 'Hey! We vibe! 💜' });
+      const { data } = await api.post(`/messages/start/${userId}`, { content: 'Hey! We vibe! 💜' });
       setVibeMatch(null);
-      navigate('/messages');
+      navigate(`/chat/${data.id}`);
     } catch (err) {
       console.error('Say hey error:', err);
       setVibeMatch(null);

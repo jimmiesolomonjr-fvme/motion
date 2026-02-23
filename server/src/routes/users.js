@@ -597,6 +597,13 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       answersByUser.get(a.userId).push(a);
     }
 
+    // Batch-fetch vibe question texts for recentVibe display
+    const allQuestionIds = [...new Set(allTheirAnswers.map(a => a.questionId))];
+    const vibeQuestions = allQuestionIds.length > 0
+      ? await prisma.vibeQuestion.findMany({ where: { id: { in: allQuestionIds } }, select: { id: true, questionText: true } })
+      : [];
+    const questionTextMap = new Map(vibeQuestions.map(q => [q.id, q.questionText]));
+
     let results = users.map((user) => {
       let distance = null;
       if (currentUser.locationLat && currentUser.locationLng && user.locationLat && user.locationLng) {
@@ -616,6 +623,12 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       }
       const vibeScore = shared > 0 ? Math.round((matching / shared) * 100) : null;
 
+      const mostRecent = theirAnswers.sort((a, b) => new Date(b.answeredAt) - new Date(a.answeredAt))[0];
+      const recentVibe = mostRecent ? {
+        questionText: questionTextMap.get(mostRecent.questionId) || null,
+        answer: mostRecent.answer,
+      } : null;
+
       return {
         id: user.id,
         role: user.role,
@@ -626,6 +639,7 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
         profilePrompts: user.profilePrompts || [],
         distance,
         vibeScore,
+        recentVibe,
         hasLiked: likedIds.has(user.id),
         isPlug: user.referralCode ? (referralCountMap.get(user.referralCode) || 0) > 0 : false,
       };

@@ -44,7 +44,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
   };
 
   return (
-    <div className="snap-start w-full px-3 py-1.5" style={{ height: 'calc(100dvh - 10rem)' }}>
+    <div className="snap-start w-full px-3 py-1.5" style={{ height: 'calc(100dvh - 13rem)' }}>
       <div className="w-full h-full flex flex-col bg-dark rounded-2xl overflow-hidden border border-dark-50 relative">
         {/* Hero Section - top 55% */}
         <div className="relative flex-shrink-0" style={{ height: '55%' }}>
@@ -151,8 +151,17 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
             </div>
           )}
 
-          {/* Spacer pushes buttons to right after content (not far bottom) */}
-          <div className="flex-1 min-h-2 max-h-8" />
+          {/* Recent Vibe Answer */}
+          {user.recentVibe && user.recentVibe.questionText && (
+            <div className="border-l-2 border-gold/50 bg-gold/5 rounded-r-xl p-3 mb-3">
+              <p className="text-xs text-gray-500 italic mb-1">{user.recentVibe.questionText}</p>
+              <p className="text-white font-medium text-sm">
+                {user.recentVibe.answer ? 'Yes' : 'No'}
+              </p>
+            </div>
+          )}
+
+          <div className="min-h-2" />
 
           {/* Action Buttons — View Profile, Like, Message */}
           <div className="flex justify-center gap-5 pb-2">
