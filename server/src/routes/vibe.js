@@ -37,11 +37,16 @@ router.get('/questions', authenticate, async (req, res) => {
       }),
       prisma.user.findUnique({
         where: { id: req.userId },
-        select: { vibeStreak: true },
+        select: { vibeStreak: true, afterDarkEnabled: true },
       }),
     ]);
 
-    res.json({ questions, remaining: 25 - answeredInWindow, vibeStreak: user?.vibeStreak || 0 });
+    // Filter out AfterDark questions if user hasn't opted in
+    const filtered = user?.afterDarkEnabled
+      ? questions
+      : questions.filter(q => q.category !== 'AfterDark');
+
+    res.json({ questions: filtered, remaining: 25 - answeredInWindow, vibeStreak: user?.vibeStreak || 0 });
   } catch (error) {
     console.error('Vibe questions error:', error);
     res.status(500).json({ error: 'Server error' });

@@ -500,6 +500,41 @@ router.put('/notifications', authenticate, async (req, res) => {
   }
 });
 
+// Get vibe preferences
+router.get('/preferences', authenticate, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { showVibeInFeed: true, afterDarkEnabled: true },
+    });
+    res.json({ showVibeInFeed: user?.showVibeInFeed ?? true, afterDarkEnabled: user?.afterDarkEnabled ?? false });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update vibe preferences
+router.put('/preferences', authenticate, async (req, res) => {
+  try {
+    const data = {};
+    if (typeof req.body.showVibeInFeed === 'boolean') data.showVibeInFeed = req.body.showVibeInFeed;
+    if (typeof req.body.afterDarkEnabled === 'boolean') data.afterDarkEnabled = req.body.afterDarkEnabled;
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'No valid fields provided' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data,
+      select: { showVibeInFeed: true, afterDarkEnabled: true },
+    });
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete profile song
 router.delete('/profile-song', authenticate, async (req, res) => {
   try {
@@ -522,7 +557,7 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
     const limit = Math.min(20, Math.max(1, parseInt(limitStr) || 5));
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, role: true, locationLat: true, locationLng: true },
+      select: { id: true, role: true, locationLat: true, locationLng: true, showVibeInFeed: true },
     });
 
     const blocks = await prisma.block.findMany({
@@ -597,8 +632,9 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       answersByUser.get(a.userId).push(a);
     }
 
-    // Batch-fetch vibe question texts for recentVibe display
-    const allQuestionIds = [...new Set(allTheirAnswers.map(a => a.questionId))];
+    // Batch-fetch vibe question texts for recentVibe display (skip if viewer turned off vibe in feed)
+    const showVibe = currentUser.showVibeInFeed !== false;
+    const allQuestionIds = showVibe ? [...new Set(allTheirAnswers.map(a => a.questionId))] : [];
     const vibeQuestions = allQuestionIds.length > 0
       ? await prisma.vibeQuestion.findMany({ where: { id: { in: allQuestionIds } }, select: { id: true, questionText: true } })
       : [];
@@ -623,11 +659,14 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       }
       const vibeScore = shared > 0 ? Math.round((matching / shared) * 100) : null;
 
-      const mostRecent = theirAnswers.sort((a, b) => new Date(b.answeredAt) - new Date(a.answeredAt))[0];
-      const recentVibe = mostRecent ? {
-        questionText: questionTextMap.get(mostRecent.questionId) || null,
-        answer: mostRecent.answer,
-      } : null;
+      let recentVibe = null;
+      if (showVibe) {
+        const mostRecent = theirAnswers.sort((a, b) => new Date(b.answeredAt) - new Date(a.answeredAt))[0];
+        recentVibe = mostRecent ? {
+          questionText: questionTextMap.get(mostRecent.questionId) || null,
+          answer: mostRecent.answer,
+        } : null;
+      }
 
       return {
         id: user.id,

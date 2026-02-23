@@ -4,7 +4,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { Plus, Trash2, Edit3, Check, X, ToggleLeft, ToggleRight, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 
-const CATEGORIES = ['Lifestyle', 'Values', 'Social', 'Romance', 'Fun'];
+const CATEGORIES = ['Lifestyle', 'Values', 'Social', 'Romance', 'Fun', 'AfterDark'];
 
 export default function VibeQuestions() {
   const [questions, setQuestions] = useState([]);

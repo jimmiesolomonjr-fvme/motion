@@ -54,6 +54,8 @@ model User {
   isDummy      Boolean  @default(false)
   isAdmin      Boolean  @default(false)
   notificationsEnabled Boolean @default(true)
+  showVibeInFeed       Boolean @default(true)
+  afterDarkEnabled     Boolean @default(false)
   referralCode String?  @unique
   referredBy   String?
   lastOnline   DateTime @default(now())

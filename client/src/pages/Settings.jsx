@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check, Sparkles, Moon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
@@ -24,6 +24,10 @@ export default function Settings() {
   // Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
+  // Vibe preferences state
+  const [showVibeInFeed, setShowVibeInFeed] = useState(true);
+  const [afterDarkEnabled, setAfterDarkEnabled] = useState(false);
+
   // Referral state
   const [showReferral, setShowReferral] = useState(false);
   const [referralCode, setReferralCode] = useState('');
@@ -39,6 +43,10 @@ export default function Settings() {
   useEffect(() => {
     api.get('/reports/blocked').then(({ data }) => setBlocked(data)).catch(() => {});
     api.get('/users/notifications').then(({ data }) => setNotificationsEnabled(data.notificationsEnabled)).catch(() => {});
+    api.get('/users/preferences').then(({ data }) => {
+      setShowVibeInFeed(data.showVibeInFeed);
+      setAfterDarkEnabled(data.afterDarkEnabled);
+    }).catch(() => {});
     api.get('/users/referral').then(({ data }) => {
       setReferralCode(data.referralCode || '');
       setReferralCount(data.referralCount || 0);
@@ -89,6 +97,26 @@ export default function Settings() {
       await api.put('/users/notifications', { enabled: newVal });
     } catch {
       setNotificationsEnabled(!newVal);
+    }
+  };
+
+  const handleToggleShowVibe = async () => {
+    const newVal = !showVibeInFeed;
+    setShowVibeInFeed(newVal);
+    try {
+      await api.put('/users/preferences', { showVibeInFeed: newVal });
+    } catch {
+      setShowVibeInFeed(!newVal);
+    }
+  };
+
+  const handleToggleAfterDark = async () => {
+    const newVal = !afterDarkEnabled;
+    setAfterDarkEnabled(newVal);
+    try {
+      await api.put('/users/preferences', { afterDarkEnabled: newVal });
+    } catch {
+      setAfterDarkEnabled(!newVal);
     }
   };
 
@@ -255,6 +283,48 @@ export default function Settings() {
             <span
               className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
                 notificationsEnabled ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Vibe Preferences */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2 px-4">
+          <Sparkles size={16} /> Vibe Preferences
+        </h2>
+        <div className="flex items-center justify-between p-4 rounded-xl">
+          <div className="flex-1 mr-3">
+            <span className="text-white font-medium">Show Vibe Answers in Feed</span>
+            <p className="text-xs text-gray-500 mt-0.5">When off, vibe answers won't appear on anyone's card in your feed</p>
+          </div>
+          <button
+            onClick={handleToggleShowVibe}
+            className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${showVibeInFeed ? 'bg-gold' : 'bg-gray-600'}`}
+          >
+            <span
+              className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                showVibeInFeed ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+        <div className="flex items-center justify-between p-4 rounded-xl">
+          <div className="flex-1 mr-3">
+            <div className="flex items-center gap-2">
+              <Moon size={16} className="text-purple-400" />
+              <span className="text-white font-medium">AfterDark Questions</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">Enable spicier, more intimate vibe questions</p>
+          </div>
+          <button
+            onClick={handleToggleAfterDark}
+            className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${afterDarkEnabled ? 'bg-purple-500' : 'bg-gray-600'}`}
+          >
+            <span
+              className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                afterDarkEnabled ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
               }`}
             />
           </button>
