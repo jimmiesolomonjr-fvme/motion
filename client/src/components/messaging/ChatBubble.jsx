@@ -1,26 +1,25 @@
 import { useState, useRef } from 'react';
-import { Check, CheckCheck, Mic, X } from 'lucide-react';
+import { Check, CheckCheck, Mic, X, Reply } from 'lucide-react';
 
 const REACTION_EMOJIS = ['\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDE2E', '\uD83D\uDE22', '\uD83D\uDD25', '\uD83D\uDC4D'];
 
-export default function ChatBubble({ message, isOwn, onReact, currentUserId }) {
+export default function ChatBubble({ message, isOwn, onReact, currentUserId, showPicker, onTogglePicker, onReply }) {
   const isVoice = message.contentType === 'VOICE';
   const isImage = message.contentType === 'IMAGE';
   const [lightbox, setLightbox] = useState(false);
-  const [showPicker, setShowPicker] = useState(false);
   const lastTapRef = useRef(0);
 
   const handleTap = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      setShowPicker((prev) => !prev);
+      onTogglePicker?.(message.id);
     }
     lastTapRef.current = now;
   };
 
   const handleReact = (emoji) => {
     onReact?.(message.id, emoji);
-    setShowPicker(false);
+    onTogglePicker?.(null);
   };
 
   // Group reactions by emoji with counts
@@ -45,6 +44,16 @@ export default function ChatBubble({ message, isOwn, onReact, currentUserId }) {
           }`}
           onClick={handleTap}
         >
+          {message.replyTo && (
+            <div className={`mb-1.5 px-2 py-1 rounded-lg border-l-2 ${isOwn ? 'bg-dark/10 border-dark/30' : 'bg-white/5 border-gold/40'}`}>
+              <p className={`text-[10px] ${isOwn ? 'text-dark/60' : 'text-gold'} font-medium`}>
+                {message.replyTo.senderId === currentUserId ? 'You' : 'Them'}
+              </p>
+              <p className={`text-xs truncate ${isOwn ? 'text-dark/70' : 'text-gray-400'}`}>
+                {message.replyTo.contentType === 'IMAGE' ? 'Photo' : message.replyTo.contentType === 'VOICE' ? 'Voice note' : message.replyTo.content}
+              </p>
+            </div>
+          )}
           {isImage ? (
             <img
               src={message.content}
@@ -71,7 +80,7 @@ export default function ChatBubble({ message, isOwn, onReact, currentUserId }) {
 
         {/* Reaction picker */}
         {showPicker && (
-          <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} bottom-full mb-1 flex gap-1 bg-dark-100 border border-dark-50 rounded-full px-2 py-1 shadow-xl z-10`}>
+          <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} bottom-full mb-1 flex items-center gap-1 bg-dark-100 border border-dark-50 rounded-full px-2 py-1 shadow-xl z-10`}>
             {REACTION_EMOJIS.map((emoji) => (
               <button
                 key={emoji}
@@ -81,6 +90,12 @@ export default function ChatBubble({ message, isOwn, onReact, currentUserId }) {
                 {emoji}
               </button>
             ))}
+            <button
+              onClick={(e) => { e.stopPropagation(); onReply?.(message); onTogglePicker?.(null); }}
+              className="ml-1 p-1 text-gray-400 hover:text-white transition-colors"
+            >
+              <Reply size={16} />
+            </button>
           </div>
         )}
 

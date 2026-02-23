@@ -7,7 +7,8 @@ import { useSocket, useNotifications } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/ui/Avatar';
 import { Link } from 'react-router-dom';
-import { Sparkles, Trash2 } from 'lucide-react';
+import { Sparkles, Trash2, X } from 'lucide-react';
+import Modal from '../components/ui/Modal';
 
 function SwipeableInterest({ interest, onStartConversation, onDismiss }) {
   const x = useMotionValue(0);
@@ -78,6 +79,7 @@ export default function Messages() {
   const [matches, setMatches] = useState([]);
   const [moveInterests, setMoveInterests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unmatchTarget, setUnmatchTarget] = useState(null);
   const socket = useSocket();
   const { setUnreadCount } = useNotifications();
 
@@ -142,6 +144,17 @@ export default function Messages() {
     }
   };
 
+  const handleUnmatch = async () => {
+    if (!unmatchTarget) return;
+    try {
+      await api.delete(`/likes/unmatch/${unmatchTarget.id}`);
+      setMatches((prev) => prev.filter((m) => m.user.id !== unmatchTarget.id));
+    } catch (err) {
+      console.error('Unmatch error:', err);
+    }
+    setUnmatchTarget(null);
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -166,17 +179,23 @@ export default function Messages() {
           <h2 className="text-sm font-semibold text-gray-400 mb-3">New Matches</h2>
           <div className="flex gap-3 overflow-x-auto pb-2">
             {newMatches.map((match) => (
-              <button
-                key={match.matchId}
-                onClick={() => startConversation(match.user.id)}
-                className="flex flex-col items-center gap-1 flex-shrink-0"
-              >
-                <div className="relative">
-                  <Avatar src={match.user.profile?.photos} size="lg" />
-                  <div className="absolute inset-0 rounded-full border-2 border-gold" />
-                </div>
+              <div key={match.matchId} className="flex flex-col items-center gap-1 flex-shrink-0 relative">
+                <button
+                  onClick={() => startConversation(match.user.id)}
+                >
+                  <div className="relative">
+                    <Avatar src={match.user.profile?.photos} size="lg" />
+                    <div className="absolute inset-0 rounded-full border-2 border-gold" />
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setUnmatchTarget(match.user); }}
+                  className="absolute -top-1 -right-1 w-5 h-5 bg-dark-100 border border-dark-50 rounded-full flex items-center justify-center text-gray-400 hover:text-red-400 hover:border-red-400/50 transition-colors z-10"
+                >
+                  <X size={10} />
+                </button>
                 <span className="text-xs text-gray-300 max-w-[64px] truncate">{match.user.profile?.displayName}</span>
-              </button>
+              </div>
             ))}
           </div>
         </div>
@@ -202,6 +221,20 @@ export default function Messages() {
       )}
 
       <ConversationList conversations={conversations} onDelete={handleDeleteConversation} />
+
+      <Modal isOpen={!!unmatchTarget} onClose={() => setUnmatchTarget(null)} title="Remove Match">
+        <p className="text-sm text-gray-400 mb-4">
+          Remove <span className="text-white font-medium">{unmatchTarget?.profile?.displayName}</span> from your matches? This cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setUnmatchTarget(null)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={handleUnmatch} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
+            Remove
+          </button>
+        </div>
+      </Modal>
     </AppLayout>
   );
 }

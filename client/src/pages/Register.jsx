@@ -10,9 +10,11 @@ export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { register } = useAuth();
-  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', role: '', referralCode: searchParams.get('ref') || '' });
+  const refParam = searchParams.get('ref') || '';
+  const [form, setForm] = useState({ email: '', password: '', confirmPassword: '', role: '', referralCode: refParam });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showReferral, setShowReferral] = useState(!!refParam);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -74,19 +76,29 @@ export default function Register() {
             </div>
           </div>
 
-          <Input
-            label="Invite Code (optional)"
-            name="referralCode"
-            value={form.referralCode}
-            onChange={handleChange}
-            placeholder="MOTION-XXXXXX"
-          />
-
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
           <Button variant="gold" type="submit" className="w-full" loading={loading}>
             Create Account
           </Button>
+
+          {!showReferral ? (
+            <button
+              type="button"
+              onClick={() => setShowReferral(true)}
+              className="block mx-auto text-sm text-gray-500 hover:text-gold transition-colors"
+            >
+              Have an invite code?
+            </button>
+          ) : (
+            <Input
+              label="Invite Code"
+              name="referralCode"
+              value={form.referralCode}
+              onChange={handleChange}
+              placeholder="MOTION-XXXXXX"
+            />
+          )}
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">

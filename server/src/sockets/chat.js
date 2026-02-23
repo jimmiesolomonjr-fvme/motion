@@ -71,7 +71,7 @@ export function setupSocketHandlers(io) {
     // Send message via socket
     socket.on('send-message', async (data) => {
       try {
-        const { conversationId, content, contentType = 'TEXT' } = data;
+        const { conversationId, content, contentType = 'TEXT', replyToId } = data;
 
         const conversation = await prisma.conversation.findUnique({
           where: { id: conversationId },
@@ -103,7 +103,8 @@ export function setupSocketHandlers(io) {
         }
 
         const message = await prisma.message.create({
-          data: { conversationId, senderId: socket.userId, content, contentType },
+          data: { conversationId, senderId: socket.userId, content, contentType, replyToId: replyToId || null },
+          include: { replyTo: { select: { id: true, content: true, contentType: true, senderId: true } } },
         });
 
         await prisma.conversation.update({

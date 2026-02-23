@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap } from 'lucide-react';
+import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap, X, Play, Loader } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
@@ -25,10 +25,16 @@ export default function ChatView({ conversationId, otherUser }) {
   const [showUnmatchModal, setShowUnmatchModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [icebreakers, setIcebreakers] = useState([]);
+  const [activePickerMsgId, setActivePickerMsgId] = useState(null);
+  const [sendingImage, setSendingImage] = useState(null); // { file, preview, progress }
+  const [voicePreview, setVoicePreview] = useState(null); // { blob, url, duration }
+  const [voiceSending, setVoiceSending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
   const menuRef = useRef(null);
   const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
+  const recordingStartRef = useRef(null);
 
   const needsPremium = user?.role === 'STEPPER' && !user?.isPremium && !freeMessaging;
 
@@ -141,8 +147,9 @@ export default function ChatView({ conversationId, otherUser }) {
     }
 
     pendingMessageRef.current = input.trim();
-    socket.emit('send-message', { conversationId, content: input.trim() });
+    socket.emit('send-message', { conversationId, content: input.trim(), replyToId: replyingTo?.id || undefined });
     setInput('');
+    setReplyingTo(null);
     setIcebreakers([]);
     socket.emit('stop-typing', { conversationId });
   };
@@ -189,21 +196,14 @@ export default function ChatView({ conversationId, otherUser }) {
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
+      recordingStartRef.current = Date.now();
 
       mediaRecorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-      mediaRecorder.onstop = async () => {
+      mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const formData = new FormData();
-        formData.append('voice', blob, 'voice.webm');
-
-        try {
-          await api.post(`/messages/${conversationId}/voice`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
-        } catch {
-          // Handle error silently
-        }
-
+        const url = URL.createObjectURL(blob);
+        const duration = Math.round((Date.now() - recordingStartRef.current) / 1000);
+        setVoicePreview({ blob, url, duration });
         stream.getTracks().forEach((t) => t.stop());
       };
 
@@ -221,19 +221,58 @@ export default function ChatView({ conversationId, otherUser }) {
     }
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const sendVoiceNote = async () => {
+    if (!voicePreview) return;
+    setVoiceSending(true);
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('voice', voicePreview.blob, 'voice.webm');
     try {
-      await api.post(`/messages/${conversationId}/image`, formData, {
+      await api.post(`/messages/${conversationId}/voice`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
     } catch {
       // Handle silently
     }
+    URL.revokeObjectURL(voicePreview.url);
+    setVoicePreview(null);
+    setVoiceSending(false);
+  };
+
+  const discardVoiceNote = () => {
+    if (voicePreview) URL.revokeObjectURL(voicePreview.url);
+    setVoicePreview(null);
+  };
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     e.target.value = '';
+
+    const preview = URL.createObjectURL(file);
+    setSendingImage({ file, preview, progress: 0 });
+
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      await api.post(`/messages/${conversationId}/image`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (e) => {
+          const pct = Math.round((e.loaded * 100) / (e.total || 1));
+          setSendingImage((prev) => prev ? { ...prev, progress: pct } : null);
+        },
+      });
+    } catch {
+      setSendingImage((prev) => prev ? { ...prev, error: true } : null);
+      setTimeout(() => setSendingImage(null), 3000);
+      return;
+    }
+    URL.revokeObjectURL(preview);
+    setSendingImage(null);
+  };
+
+  const cancelImageUpload = () => {
+    if (sendingImage?.preview) URL.revokeObjectURL(sendingImage.preview);
+    setSendingImage(null);
   };
 
   const handleUnmatch = async () => {
@@ -299,7 +338,7 @@ export default function ChatView({ conversationId, otherUser }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      <div className="flex-1 overflow-y-auto p-4 space-y-1" onClick={() => setActivePickerMsgId(null)}>
         {messages.length === 0 && icebreakers.length > 0 && (
           <div className="flex flex-col items-center justify-center py-8 gap-3">
             <Zap className="text-gold" size={24} />
@@ -318,7 +357,7 @@ export default function ChatView({ conversationId, otherUser }) {
           </div>
         )}
         {messages.map((msg) => (
-          <ChatBubble key={msg.id} message={msg} isOwn={msg.senderId === user.id} onReact={handleReact} currentUserId={user.id} />
+          <ChatBubble key={msg.id} message={msg} isOwn={msg.senderId === user.id} onReact={handleReact} currentUserId={user.id} showPicker={activePickerMsgId === msg.id} onTogglePicker={(id) => setActivePickerMsgId((prev) => prev === id ? null : id)} onReply={(msg) => setReplyingTo(msg)} />
         ))}
         <div ref={bottomRef} />
       </div>
@@ -340,30 +379,83 @@ export default function ChatView({ conversationId, otherUser }) {
         ) : (
           <>
             {socketError && <p className="text-xs text-red-400 mb-2 text-center">{socketError}</p>}
-            <div className="flex items-center gap-2">
-              <label className="p-2.5 rounded-xl bg-dark-50 text-gray-400 hover:text-white transition-colors cursor-pointer">
-                <ImagePlus size={18} />
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-              </label>
-              <button
-                onClick={recording ? stopRecording : startRecording}
-                className={`p-2.5 rounded-xl transition-colors ${
-                  recording ? 'bg-red-500 text-white animate-pulse' : 'bg-dark-50 text-gray-400 hover:text-white'
-                }`}
-              >
-                {recording ? <Square size={18} /> : <Mic size={18} />}
-              </button>
-              <input
-                value={input}
-                onChange={handleInput}
-                onKeyDown={handleKeyDown}
-                placeholder="Type a message..."
-                className="flex-1 input-field py-2.5"
-              />
-              <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 bg-gold rounded-xl text-dark disabled:opacity-30">
-                <Send size={18} />
-              </button>
-            </div>
+
+            {/* Reply preview */}
+            {replyingTo && (
+              <div className="flex items-center gap-2 mb-2 p-2 bg-dark-50 rounded-xl border-l-2 border-gold">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] text-gold font-medium">
+                    Replying to {replyingTo.senderId === user.id ? 'yourself' : otherUser?.profile?.displayName}
+                  </p>
+                  <p className="text-xs text-gray-400 truncate">
+                    {replyingTo.contentType === 'IMAGE' ? 'Photo' : replyingTo.contentType === 'VOICE' ? 'Voice note' : replyingTo.content}
+                  </p>
+                </div>
+                <button onClick={() => setReplyingTo(null)} className="p-1 text-gray-400 hover:text-white">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {/* Image upload preview */}
+            {sendingImage && (
+              <div className="flex items-center gap-3 mb-2 p-2 bg-dark-50 rounded-xl">
+                <img src={sendingImage.preview} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                <div className="flex-1 min-w-0">
+                  {sendingImage.error ? (
+                    <p className="text-xs text-red-400">Upload failed</p>
+                  ) : (
+                    <>
+                      <div className="w-full h-1.5 bg-dark-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-gold rounded-full transition-all" style={{ width: `${sendingImage.progress}%` }} />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">{sendingImage.progress}%</p>
+                    </>
+                  )}
+                </div>
+                <button onClick={cancelImageUpload} className="p-1 text-gray-400 hover:text-white">
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {voicePreview ? (
+              <div className="flex items-center gap-2">
+                <audio controls src={voicePreview.url} className="h-8 flex-1" style={{ filter: 'invert(0.8)' }} />
+                <span className="text-xs text-gray-500 tabular-nums">{voicePreview.duration}s</span>
+                <button onClick={discardVoiceNote} className="p-2.5 rounded-xl bg-dark-50 text-red-400 hover:text-red-300 transition-colors">
+                  <Trash2 size={18} />
+                </button>
+                <button onClick={sendVoiceNote} disabled={voiceSending} className="p-2.5 bg-gold rounded-xl text-dark disabled:opacity-50">
+                  {voiceSending ? <Loader size={18} className="animate-spin" /> : <Send size={18} />}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <label className="p-2.5 rounded-xl bg-dark-50 text-gray-400 hover:text-white transition-colors cursor-pointer">
+                  <ImagePlus size={18} />
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                </label>
+                <button
+                  onClick={recording ? stopRecording : startRecording}
+                  className={`p-2.5 rounded-xl transition-colors ${
+                    recording ? 'bg-red-500 text-white animate-pulse' : 'bg-dark-50 text-gray-400 hover:text-white'
+                  }`}
+                >
+                  {recording ? <Square size={18} /> : <Mic size={18} />}
+                </button>
+                <input
+                  value={input}
+                  onChange={handleInput}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type a message..."
+                  className="flex-1 input-field py-2.5"
+                />
+                <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 bg-gold rounded-xl text-dark disabled:opacity-30">
+                  <Send size={18} />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
