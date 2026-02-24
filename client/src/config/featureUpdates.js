@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2 } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -158,6 +158,18 @@ const FEATURE_UPDATES = {
         bg: 'bg-gold/10',
         title: 'Email Campaigns',
         description: 'Admins can now send branded emails to users directly from the admin panel.',
+      },
+    ],
+  },
+  '2.7.0': {
+    subtitle: 'Profiles now have a soundtrack.',
+    features: [
+      {
+        icon: Volume2,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Autoplay Profile Songs',
+        description: 'Songs now play automatically when you visit a profile. Toggle it off in Settings.',
       },
     ],
   },

@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check, Sparkles, Moon } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check, Sparkles, Moon, Music } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
@@ -27,6 +27,7 @@ export default function Settings() {
   // Vibe preferences state
   const [showVibeInFeed, setShowVibeInFeed] = useState(true);
   const [afterDarkEnabled, setAfterDarkEnabled] = useState(false);
+  const [autoplayMusic, setAutoplayMusic] = useState(true);
 
   // Referral state
   const [showReferral, setShowReferral] = useState(false);
@@ -46,6 +47,7 @@ export default function Settings() {
     api.get('/users/preferences').then(({ data }) => {
       setShowVibeInFeed(data.showVibeInFeed);
       setAfterDarkEnabled(data.afterDarkEnabled);
+      setAutoplayMusic(data.autoplayMusic ?? true);
     }).catch(() => {});
     api.get('/users/referral').then(({ data }) => {
       setReferralCode(data.referralCode || '');
@@ -117,6 +119,16 @@ export default function Settings() {
       await api.put('/users/preferences', { afterDarkEnabled: newVal });
     } catch {
       setAfterDarkEnabled(!newVal);
+    }
+  };
+
+  const handleToggleAutoplay = async () => {
+    const newVal = !autoplayMusic;
+    setAutoplayMusic(newVal);
+    try {
+      await api.put('/users/preferences', { autoplayMusic: newVal });
+    } catch {
+      setAutoplayMusic(!newVal);
     }
   };
 
@@ -325,6 +337,29 @@ export default function Settings() {
             <span
               className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
                 afterDarkEnabled ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Music */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2 px-4">
+          <Music size={16} /> Music
+        </h2>
+        <div className="flex items-center justify-between p-4 rounded-xl">
+          <div className="flex-1 mr-3">
+            <span className="text-white font-medium">Autoplay Profile Songs</span>
+            <p className="text-xs text-gray-500 mt-0.5">Automatically play profile songs when browsing</p>
+          </div>
+          <button
+            onClick={handleToggleAutoplay}
+            className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${autoplayMusic ? 'bg-gold' : 'bg-gray-600'}`}
+          >
+            <span
+              className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                autoplayMusic ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
               }`}
             />
           </button>

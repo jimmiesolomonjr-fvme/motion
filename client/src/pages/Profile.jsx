@@ -49,6 +49,7 @@ export default function Profile() {
   const [songPlaying, setSongPlaying] = useState(false);
   const audioRef = useRef(null);
   const [songModalOpen, setSongModalOpen] = useState(false);
+  const [autoplayMusic, setAutoplayMusic] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -86,6 +87,23 @@ export default function Profile() {
     };
     fetchProfile();
   }, [userId]);
+
+  // Fetch autoplay preference and autoplay song on other profiles
+  useEffect(() => {
+    if (isOwnProfile || !profile?.songPreviewUrl) return;
+    let cancelled = false;
+    api.get('/users/preferences').then(({ data }) => {
+      if (cancelled) return;
+      const enabled = data.autoplayMusic ?? true;
+      setAutoplayMusic(enabled);
+      if (enabled && audioRef.current) {
+        audioRef.current.play().then(() => {
+          if (!cancelled) setSongPlaying(true);
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isOwnProfile, profile?.songPreviewUrl]);
 
   // Fetch available prompts when entering edit mode
   useEffect(() => {
@@ -703,7 +721,7 @@ export default function Profile() {
                   </button>
                 )}
                 {profile.songPreviewUrl && (
-                  <audio ref={audioRef} src={profile.songPreviewUrl} preload="none" onEnded={() => setSongPlaying(false)} />
+                  <audio ref={audioRef} src={profile.songPreviewUrl} preload={!isOwnProfile && autoplayMusic ? 'auto' : 'none'} onEnded={() => setSongPlaying(false)} />
                 )}
               </div>
             )}

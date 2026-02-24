@@ -552,9 +552,9 @@ router.get('/preferences', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { showVibeInFeed: true, afterDarkEnabled: true },
+      select: { showVibeInFeed: true, afterDarkEnabled: true, autoplayMusic: true },
     });
-    res.json({ showVibeInFeed: user?.showVibeInFeed ?? true, afterDarkEnabled: user?.afterDarkEnabled ?? false });
+    res.json({ showVibeInFeed: user?.showVibeInFeed ?? true, afterDarkEnabled: user?.afterDarkEnabled ?? false, autoplayMusic: user?.autoplayMusic ?? true });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -566,6 +566,7 @@ router.put('/preferences', authenticate, async (req, res) => {
     const data = {};
     if (typeof req.body.showVibeInFeed === 'boolean') data.showVibeInFeed = req.body.showVibeInFeed;
     if (typeof req.body.afterDarkEnabled === 'boolean') data.afterDarkEnabled = req.body.afterDarkEnabled;
+    if (typeof req.body.autoplayMusic === 'boolean') data.autoplayMusic = req.body.autoplayMusic;
 
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: 'No valid fields provided' });
@@ -574,7 +575,7 @@ router.put('/preferences', authenticate, async (req, res) => {
     const user = await prisma.user.update({
       where: { id: req.userId },
       data,
-      select: { showVibeInFeed: true, afterDarkEnabled: true },
+      select: { showVibeInFeed: true, afterDarkEnabled: true, autoplayMusic: true },
     });
     res.json(user);
   } catch (error) {
