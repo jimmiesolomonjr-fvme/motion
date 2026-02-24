@@ -226,6 +226,9 @@ router.get('/mine', authenticate, async (req, res) => {
           orderBy: { createdAt: 'desc' },
         },
         selectedBaddie: { include: { profile: true } },
+        participants: {
+          include: { baddie: { include: { profile: true } } },
+        },
       },
       orderBy: { date: 'asc' },
     });
@@ -677,11 +680,123 @@ router.put('/:moveId/select/:baddieId', authenticate, async (req, res) => {
   }
 });
 
+// Select multiple Baddies for a GROUP Move (Stepper only)
+router.put('/:moveId/select-group', authenticate, async (req, res) => {
+  try {
+    const { baddieIds } = req.body;
+
+    if (!Array.isArray(baddieIds) || baddieIds.length === 0) {
+      return res.status(400).json({ error: 'At least one Baddie must be selected' });
+    }
+
+    const move = await prisma.move.findUnique({
+      where: { id: req.params.moveId },
+      include: {
+        interests: { select: { baddieId: true } },
+      },
+    });
+
+    if (!move || move.stepperId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    if (move.status !== 'OPEN') {
+      return res.status(400).json({ error: 'Move is not open for selection' });
+    }
+
+    if (move.category !== 'GROUP') {
+      return res.status(400).json({ error: 'This endpoint is only for GROUP moves' });
+    }
+
+    // Validate all baddieIds have expressed interest
+    const interestedIds = new Set(move.interests.map((i) => i.baddieId));
+    const invalidIds = baddieIds.filter((id) => !interestedIds.has(id));
+    if (invalidIds.length > 0) {
+      return res.status(400).json({ error: 'Some selected Baddies have not expressed interest' });
+    }
+
+    // Transaction: create participants + confirm move
+    const updated = await prisma.$transaction(async (tx) => {
+      // Create participant records
+      await tx.moveParticipant.createMany({
+        data: baddieIds.map((baddieId) => ({
+          moveId: move.id,
+          baddieId,
+        })),
+        skipDuplicates: true,
+      });
+
+      // Confirm the move (no selectedBaddieId for group)
+      return tx.move.update({
+        where: { id: move.id },
+        data: { status: 'CONFIRMED' },
+        include: {
+          stepper: { include: { profile: true } },
+          interests: {
+            include: { baddie: { include: { profile: true } } },
+          },
+          participants: {
+            include: { baddie: { include: { profile: true } } },
+          },
+        },
+      });
+    });
+
+    // Notify selected Baddies
+    await prisma.notification.createMany({
+      data: baddieIds.map((baddieId) => ({
+        userId: baddieId,
+        type: 'move_selected',
+        title: 'You\'ve been chosen!',
+        body: `You've been chosen for the group move "${move.title}"!`,
+        data: { moveId: move.id },
+      })),
+    });
+
+    // Notify non-selected Baddies
+    const selectedSet = new Set(baddieIds);
+    const otherBaddies = move.interests
+      .filter((i) => !selectedSet.has(i.baddieId))
+      .map((i) => i.baddieId);
+
+    if (otherBaddies.length > 0) {
+      await prisma.notification.createMany({
+        data: otherBaddies.map((baddieId) => ({
+          userId: baddieId,
+          type: 'move_closed',
+          title: 'Move Confirmed',
+          body: `"${move.title}" has been confirmed with others`,
+          data: { moveId: move.id },
+        })),
+      });
+    }
+
+    // Emit socket events
+    try {
+      const { io } = await import('../../server.js');
+      if (io) {
+        baddieIds.forEach((baddieId) => {
+          io.to(baddieId).emit('notification', { type: 'move_selected', moveId: move.id });
+        });
+        otherBaddies.forEach((baddieId) => {
+          io.to(baddieId).emit('notification', { type: 'move_closed', moveId: move.id });
+        });
+      }
+    } catch {}
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Select group error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Update planning details for a confirmed Move
 router.put('/:moveId/planning', authenticate, async (req, res) => {
   try {
     const move = await prisma.move.findUnique({
       where: { id: req.params.moveId },
+      include: { participants: true },
     });
 
     if (!move || move.status !== 'CONFIRMED') {
@@ -690,8 +805,9 @@ router.put('/:moveId/planning', authenticate, async (req, res) => {
 
     const isStepper = move.stepperId === req.userId;
     const isBaddie = move.selectedBaddieId === req.userId;
+    const isGroupParticipant = move.category === 'GROUP' && move.participants.some((p) => p.baddieId === req.userId);
 
-    if (!isStepper && !isBaddie) {
+    if (!isStepper && !isBaddie && !isGroupParticipant) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -700,9 +816,19 @@ router.put('/:moveId/planning', authenticate, async (req, res) => {
 
     if (dressCode !== undefined) updateData.dressCode = dressCode;
     if (playlistLink !== undefined) updateData.playlistLink = playlistLink;
+
     if (onMyWay !== undefined) {
-      if (isStepper) updateData.stepperOnMyWay = onMyWay;
-      if (isBaddie) updateData.baddieOnMyWay = onMyWay;
+      if (isStepper) {
+        updateData.stepperOnMyWay = onMyWay;
+      } else if (isGroupParticipant) {
+        // For GROUP moves, update the participant record instead
+        await prisma.moveParticipant.updateMany({
+          where: { moveId: move.id, baddieId: req.userId },
+          data: { onMyWay },
+        });
+      } else if (isBaddie) {
+        updateData.baddieOnMyWay = onMyWay;
+      }
     }
 
     const updated = await prisma.move.update({
@@ -711,18 +837,26 @@ router.put('/:moveId/planning', authenticate, async (req, res) => {
       include: {
         stepper: { include: { profile: true } },
         selectedBaddie: { include: { profile: true } },
+        participants: {
+          include: { baddie: { include: { profile: true } } },
+        },
       },
     });
 
-    // Emit planning update to the other party
+    // Emit planning update to all relevant parties
     try {
       const { io } = await import('../../server.js');
       if (io) {
-        const targetId = isStepper ? move.selectedBaddieId : move.stepperId;
-        io.to(targetId).emit('move-planning-update', {
-          moveId: move.id,
-          ...updateData,
-        });
+        if (move.category === 'GROUP' && move.participants.length > 0) {
+          // Notify stepper and all participants
+          const targetIds = [move.stepperId, ...move.participants.map((p) => p.baddieId)].filter((id) => id !== req.userId);
+          targetIds.forEach((id) => {
+            io.to(id).emit('move-planning-update', { moveId: move.id, ...updateData });
+          });
+        } else {
+          const targetId = isStepper ? move.selectedBaddieId : move.stepperId;
+          io.to(targetId).emit('move-planning-update', { moveId: move.id, ...updateData });
+        }
       }
     } catch {}
 

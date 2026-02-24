@@ -83,6 +83,7 @@ model User {
   moves             Move[]         @relation("StepperMoves")
   selectedForMoves  Move[]         @relation("SelectedBaddieMoves")
   moveInterests     MoveInterest[]
+  moveParticipations MoveParticipant[]
   savedMoves        SavedMove[]
   hiddenFrom    HiddenPair[] @relation("HiddenUser1")
   hiddenTo      HiddenPair[] @relation("HiddenUser2")
@@ -265,6 +266,7 @@ model Move {
   stepper        User           @relation("StepperMoves", fields: [stepperId], references: [id])
   selectedBaddie User?          @relation("SelectedBaddieMoves", fields: [selectedBaddieId], references: [id])
   interests      MoveInterest[]
+  participants   MoveParticipant[]
   savedBy        SavedMove[]
 
   @@index([status, date])
@@ -284,6 +286,20 @@ model MoveInterest {
   baddie User @relation(fields: [baddieId], references: [id])
 
   @@unique([moveId, baddieId])
+}
+
+model MoveParticipant {
+  id        String   @id @default(uuid())
+  moveId    String
+  baddieId  String
+  onMyWay   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  move   Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  baddie User @relation(fields: [baddieId], references: [id])
+
+  @@unique([moveId, baddieId])
+  @@index([moveId])
 }
 
 model SavedMove {

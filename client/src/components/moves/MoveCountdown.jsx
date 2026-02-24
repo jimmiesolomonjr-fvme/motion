@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Shirt, Music, Navigation, Check } from 'lucide-react';
+import { Clock, Shirt, Music, Navigation, Check, Users } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import api from '../../services/api';
@@ -20,9 +20,16 @@ export default function MoveCountdown({ move, currentUserId, onUpdate }) {
   const [saving, setSaving] = useState(false);
 
   const isStepper = move.stepperId === currentUserId;
+  const isGroup = move.category === 'GROUP' && move.participants?.length > 0;
+
+  // For non-group moves
   const otherPerson = isStepper ? move.selectedBaddie : move.stepper;
   const myOnMyWay = isStepper ? move.stepperOnMyWay : move.baddieOnMyWay;
   const theirOnMyWay = isStepper ? move.baddieOnMyWay : move.stepperOnMyWay;
+
+  // For group moves — find current user's participant record
+  const myParticipant = isGroup ? move.participants.find((p) => p.baddieId === currentUserId) : null;
+  const myGroupOnMyWay = isStepper ? move.stepperOnMyWay : (myParticipant?.onMyWay || false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -66,19 +73,43 @@ export default function MoveCountdown({ move, currentUserId, onUpdate }) {
       <h3 className="text-lg font-bold text-white mb-1">{move.title}</h3>
       <p className="text-gray-400 text-sm mb-4">{move.location}</p>
 
-      {/* Other person */}
-      <div className="flex items-center gap-3 p-3 bg-dark-100 rounded-xl mb-4">
-        <Avatar src={otherPerson?.profile?.photos} name={otherPerson?.profile?.displayName} size="sm" />
-        <div className="flex-1">
-          <p className="text-white font-semibold text-sm">{otherPerson?.profile?.displayName}</p>
-          <p className="text-gray-500 text-xs">{isStepper ? 'Your date' : 'The Stepper'}</p>
+      {/* Other person(s) */}
+      {isGroup ? (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Users size={14} className="text-gold" />
+            <span className="text-sm font-semibold text-gray-300">Group ({move.participants.length})</span>
+          </div>
+          <div className="space-y-2">
+            {move.participants.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 p-3 bg-dark-100 rounded-xl">
+                <Avatar src={p.baddie?.profile?.photos} name={p.baddie?.profile?.displayName} size="sm" />
+                <div className="flex-1">
+                  <p className="text-white font-semibold text-sm">{p.baddie?.profile?.displayName}</p>
+                </div>
+                {p.onMyWay && (
+                  <span className="flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
+                    <Navigation size={12} /> On the way
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        {theirOnMyWay && (
-          <span className="flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
-            <Navigation size={12} /> On the way
-          </span>
-        )}
-      </div>
+      ) : (
+        <div className="flex items-center gap-3 p-3 bg-dark-100 rounded-xl mb-4">
+          <Avatar src={otherPerson?.profile?.photos} name={otherPerson?.profile?.displayName} size="sm" />
+          <div className="flex-1">
+            <p className="text-white font-semibold text-sm">{otherPerson?.profile?.displayName}</p>
+            <p className="text-gray-500 text-xs">{isStepper ? 'Your date' : 'The Stepper'}</p>
+          </div>
+          {theirOnMyWay && (
+            <span className="flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
+              <Navigation size={12} /> On the way
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Planning Fields */}
       <div className="space-y-3 mb-4">
@@ -112,7 +143,7 @@ export default function MoveCountdown({ move, currentUserId, onUpdate }) {
       </div>
 
       {/* On My Way */}
-      {!myOnMyWay ? (
+      {!(isGroup ? myGroupOnMyWay : myOnMyWay) ? (
         <Button variant="gold" className="w-full" onClick={handleOnMyWay}>
           <Navigation size={16} className="inline mr-2" /> I&apos;m On My Way
         </Button>

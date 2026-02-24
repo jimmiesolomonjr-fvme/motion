@@ -10,7 +10,7 @@ import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
 import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
-import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_OPTIONS, LOOKING_FOR_TAGS } from '../utils/constants';
+import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_OPTIONS, LOOKING_FOR_TAGS, MAX_LOOKING_FOR_TAGS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
@@ -441,12 +441,17 @@ export default function Profile() {
             <Input label="Display Name" value={editForm.displayName} onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })} />
             <Textarea label="Bio" value={editForm.bio} onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })} />
             <LocationAutocomplete label="City" name="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} />
+
+            <div className="border-t border-dark-50 pt-1" />
+
             <Input label="Looking For" value={editForm.lookingFor} onChange={(e) => setEditForm({ ...editForm, lookingFor: e.target.value })} />
+
+            <div className="border-t border-dark-50 pt-1" />
 
             {/* Height & Weight */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Height</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Height</label>
                 <div className="flex gap-1.5">
                   <select
                     value={editForm.height?.match(/^(\d)/)?.[1] || ''}
@@ -477,7 +482,7 @@ export default function Profile() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">Weight</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Weight</label>
                 <select
                   value={editForm.weight?.replace(' lbs', '') || ''}
                   onChange={(e) => setEditForm({ ...editForm, weight: e.target.value ? `${e.target.value} lbs` : '' })}
@@ -491,7 +496,7 @@ export default function Profile() {
 
             {/* Occupation */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Occupation</label>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Occupation</label>
               <select
                 value={editForm.occupation && !OCCUPATION_OPTIONS.includes(editForm.occupation) ? 'Other' : (editForm.occupation || '')}
                 onChange={(e) => setEditForm({ ...editForm, occupation: e.target.value === 'Other' ? '' : e.target.value })}
@@ -511,25 +516,39 @@ export default function Profile() {
               ) : null}
             </div>
 
+            <div className="border-t border-dark-50 pt-1" />
+
             {/* Looking For Tags */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-1.5">Looking For Tags</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-300">Looking For Tags</label>
+                <span className={`text-sm font-medium ${(editForm.lookingForTags || []).length >= MAX_LOOKING_FOR_TAGS ? 'text-gold' : 'text-gray-400'}`}>
+                  {(editForm.lookingForTags || []).length}/{MAX_LOOKING_FOR_TAGS} selected
+                </span>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {LOOKING_FOR_TAGS.map((tag) => {
-                  const isActive = (editForm.lookingForTags || []).includes(tag);
+                  const currentTags = editForm.lookingForTags || [];
+                  const isActive = currentTags.includes(tag);
+                  const atCapacity = currentTags.length >= MAX_LOOKING_FOR_TAGS;
+                  const isDisabled = !isActive && atCapacity;
                   return (
                     <button
                       key={tag}
                       type="button"
+                      disabled={isDisabled}
                       onClick={() => {
-                        const tags = editForm.lookingForTags || [];
                         setEditForm({
                           ...editForm,
-                          lookingForTags: isActive ? tags.filter((t) => t !== tag) : [...tags, tag],
+                          lookingForTags: isActive ? currentTags.filter((t) => t !== tag) : [...currentTags, tag],
                         });
                       }}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
-                        isActive ? 'bg-gold text-dark' : 'bg-dark-100 text-gray-400 border border-dark-50 hover:border-gold/40'
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                        isActive
+                          ? 'bg-gold text-dark'
+                          : isDisabled
+                            ? 'bg-dark-100 text-gray-600 border border-dark-50 opacity-50 cursor-not-allowed'
+                            : 'bg-dark-100 text-gray-400 border border-dark-50 hover:border-gold/40'
                       }`}
                     >
                       {tag}
@@ -538,6 +557,8 @@ export default function Profile() {
                 })}
               </div>
             </div>
+
+            <div className="border-t border-dark-50 pt-1" />
 
             {/* Song Edit */}
             <div>
@@ -563,6 +584,8 @@ export default function Profile() {
                 </button>
               )}
             </div>
+
+            <div className="border-t border-dark-50 pt-1" />
 
             {/* Profile Prompts Edit */}
             <div className={editPrompts.length === 0 ? 'ring-2 ring-gold/50 rounded-xl p-1' : ''}>

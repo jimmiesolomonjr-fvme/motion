@@ -69,4 +69,6 @@ export const LOOKING_FOR_TAGS = [
   'Down to Earth',
 ];
 
-export const APP_VERSION = '2.0.0';
+export const MAX_LOOKING_FOR_TAGS = 5;
+
+export const APP_VERSION = '2.1.0';

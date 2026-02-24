@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -56,19 +56,32 @@ const FEATURE_UPDATES = {
     ],
   },
 
-  // ── Example for next release ──
-  // '2.1.0': {
-  //   subtitle: 'Fresh drop just landed.',
-  //   features: [
-  //     {
-  //       icon: Zap,
-  //       color: 'text-amber-400',
-  //       bg: 'bg-amber-400/10',
-  //       title: 'Super Likes',
-  //       description: 'Stand out with a super like that notifies them instantly.',
-  //     },
-  //   ],
-  // },
+  '2.1.0': {
+    subtitle: 'New updates just dropped.',
+    features: [
+      {
+        icon: Shield,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Tag Limits',
+        description: 'Looking-for tags are now capped at 5 with a live counter.',
+      },
+      {
+        icon: Sparkles,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Improved Onboarding',
+        description: 'Step 3 is cleaner — describe what you want, then pick your tags.',
+      },
+      {
+        icon: Users,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'Group Moves',
+        description: 'Steppers can now select multiple Baddies for GROUP category moves.',
+      },
+    ],
+  },
 };
 
 export default FEATURE_UPDATES;

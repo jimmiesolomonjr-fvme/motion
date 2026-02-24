@@ -227,6 +227,16 @@ export default function Moves() {
     }
   };
 
+  const handleSelectGroup = async (moveId, baddieIds) => {
+    try {
+      await api.put(`/moves/${moveId}/select-group`, { baddieIds });
+      const { data: mine } = await api.get('/moves/mine');
+      setMyMoves(mine);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to confirm group');
+    }
+  };
+
   const handleMoveUpdate = (updatedMove) => {
     setMyMoves((prev) => prev.map((m) => m.id === updatedMove.id ? { ...m, ...updatedMove } : m));
   };
@@ -312,7 +322,7 @@ export default function Moves() {
           ) : (
             myMoves.map((move) => (
               <div key={move.id}>
-                {move.status === 'CONFIRMED' && move.selectedBaddie ? (
+                {move.status === 'CONFIRMED' && (move.selectedBaddie || (move.category === 'GROUP' && move.participants?.length > 0)) ? (
                   <MoveCountdown move={move} currentUserId={user.id} onUpdate={handleMoveUpdate} />
                 ) : (
                   <div className="card-elevated">
@@ -350,8 +360,10 @@ export default function Moves() {
                           interests={move.interests}
                           onStartConversation={startConversation}
                           onSelect={(baddieId, baddieName) => handleSelect(baddieId, baddieName, move.id)}
+                          onSelectGroup={(baddieIds) => handleSelectGroup(move.id, baddieIds)}
                           moveStatus={move.status}
                           selectedBaddieId={move.selectedBaddieId}
+                          moveCategory={move.category}
                         />
                       </>
                     )}

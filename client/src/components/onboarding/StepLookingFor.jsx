@@ -1,52 +1,74 @@
-import { LOOKING_FOR_TAGS } from '../../utils/constants';
+import { LOOKING_FOR_TAGS, MAX_LOOKING_FOR_TAGS } from '../../utils/constants';
 
 export default function StepLookingFor({ profile, setProfile, onNext, onBack }) {
+  const tags = profile.lookingForTags || [];
+  const atCapacity = tags.length >= MAX_LOOKING_FOR_TAGS;
+
   const toggleTag = (tag) => {
-    const tags = profile.lookingForTags || [];
     if (tags.includes(tag)) {
       setProfile({ ...profile, lookingForTags: tags.filter((t) => t !== tag) });
-    } else {
+    } else if (!atCapacity) {
       setProfile({ ...profile, lookingForTags: [...tags, tag] });
     }
   };
 
-  const isValid = (profile.lookingForTags || []).length >= 1;
+  const hasText = (profile.lookingFor || '').trim().length > 0;
+  const hasTags = tags.length >= 1;
+  const isValid = hasText && hasTags;
 
   return (
     <div className="space-y-6">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">What Are You Looking For?</h2>
-        <p className="text-gray-400">Select at least 1 tag that describes what you want</p>
-      </div>
-
+      {/* Section 1: Text input (required) */}
       <div>
+        <div className="text-center mb-4">
+          <h2 className="text-2xl font-bold mb-2">What Are You Looking For?</h2>
+          <p className="text-gray-400">Describe what you want in your own words</p>
+        </div>
         <input
           value={profile.lookingFor || ''}
           onChange={(e) => setProfile({ ...profile, lookingFor: e.target.value })}
-          placeholder="Describe in your own words (optional)"
+          placeholder="e.g. Someone who loves adventure and good conversation"
           className="w-full input-field py-2.5 text-sm"
           maxLength={100}
         />
+        {!hasText && (
+          <p className="text-xs text-gray-500 mt-1.5">Required — tell people what you're looking for</p>
+        )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {LOOKING_FOR_TAGS.map((tag) => {
-          const isActive = (profile.lookingForTags || []).includes(tag);
-          return (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => toggleTag(tag)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-gold text-dark'
-                  : 'bg-dark-100 text-gray-400 border border-dark-50 hover:border-gold/40 hover:text-white'
-              }`}
-            >
-              {tag}
-            </button>
-          );
-        })}
+      <div className="border-t border-dark-50" />
+
+      {/* Section 2: Tags */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-white">Select Your Tags</h3>
+          <span className={`text-sm font-medium ${atCapacity ? 'text-gold' : 'text-gray-400'}`}>
+            {tags.length}/{MAX_LOOKING_FOR_TAGS} selected
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {LOOKING_FOR_TAGS.map((tag) => {
+            const isActive = tags.includes(tag);
+            const isDisabled = !isActive && atCapacity;
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                disabled={isDisabled}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  isActive
+                    ? 'bg-gold text-dark'
+                    : isDisabled
+                      ? 'bg-dark-100 text-gray-600 border border-dark-50 opacity-50 cursor-not-allowed'
+                      : 'bg-dark-100 text-gray-400 border border-dark-50 hover:border-gold/40 hover:text-white'
+                }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex gap-3">
