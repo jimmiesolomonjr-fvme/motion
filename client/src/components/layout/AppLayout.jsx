@@ -6,6 +6,8 @@ import { useNotifications } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Heart, X, Sparkles, Eye } from 'lucide-react';
+import UpdateBanner from '../ui/UpdateBanner';
+import InstallBanner from '../ui/InstallBanner';
 
 export default function AppLayout({ children }) {
   const { toasts, dismissToast } = useNotifications();
@@ -50,6 +52,7 @@ export default function AppLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-dark">
+      <UpdateBanner />
       <Header />
 
       {/* Vibe questions renewal banner */}
@@ -75,6 +78,9 @@ export default function AppLayout({ children }) {
           </div>
         </div>
       )}
+
+      {/* PWA install prompt banner — yields to vibe banner */}
+      <InstallBanner vibeShowing={vibeBanner} />
 
       <main className="max-w-lg mx-auto px-4 pb-20 pt-4">
         {children}

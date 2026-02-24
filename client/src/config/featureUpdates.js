@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -105,6 +105,26 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Add Songs with Apple Music',
         description: 'Search and add songs to your profile with album art and 30-second previews.',
+      },
+    ],
+  },
+
+  '2.4.0': {
+    subtitle: 'Motion now feels like a real app.',
+    features: [
+      {
+        icon: Download,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Install to Home Screen',
+        description: 'Get a prompt to add Motion to your home screen for the full app experience.',
+      },
+      {
+        icon: RefreshCw,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'Auto Update Checker',
+        description: 'A banner appears when a new version drops so you never miss an update.',
       },
     ],
   },
