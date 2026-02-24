@@ -82,6 +82,19 @@ const FEATURE_UPDATES = {
       },
     ],
   },
+
+  '2.2.0': {
+    subtitle: 'The vibes just got moodier.',
+    features: [
+      {
+        icon: Moon,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'AfterDark Card Glow-Up',
+        description: 'AfterDark vibe questions now have a purple gradient, glow border, and moon icon.',
+      },
+    ],
+  },
 };
 
 export default FEATURE_UPDATES;

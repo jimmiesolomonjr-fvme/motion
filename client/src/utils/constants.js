@@ -71,4 +71,4 @@ export const LOOKING_FOR_TAGS = [
 
 export const MAX_LOOKING_FOR_TAGS = 5;
 
-export const APP_VERSION = '2.1.0';
+export const APP_VERSION = '2.2.0';
