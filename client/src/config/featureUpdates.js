@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -125,6 +125,26 @@ const FEATURE_UPDATES = {
         bg: 'bg-blue-400/10',
         title: 'Auto Update Checker',
         description: 'A banner appears when a new version drops so you never miss an update.',
+      },
+    ],
+  },
+
+  '2.5.0': {
+    subtitle: 'Never miss a thing.',
+    features: [
+      {
+        icon: Bell,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Unified Notifications',
+        description: 'Vibe questions, install prompts, and new features now show in your notification center.',
+      },
+      {
+        icon: Sparkles,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Smart Notification Cleanup',
+        description: 'Actionable notifications auto-clear when you complete the action.',
       },
     ],
   },

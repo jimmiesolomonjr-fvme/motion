@@ -119,8 +119,8 @@ router.post('/login', async (req, res) => {
       ...tokens,
     });
 
-    // Fire-and-forget: generate profile completion notifications
-    generateCompletionNotifications(user.id).catch(() => {});
+    // Fire-and-forget: generate login notifications
+    generateLoginNotifications(user.id, !!user.profile && user.profile?.photos?.length > 0).catch(() => {});
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -241,63 +241,164 @@ async function sendWelcomeMessage(userId, role) {
   });
 }
 
-async function generateCompletionNotifications(userId) {
+async function generateLoginNotifications(userId, hasProfile) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: { profile: true, profilePrompts: true },
   });
-  if (!user?.profile) return;
 
-  const items = [];
-  if ((user.profile.photos || []).length < 2) {
-    items.push({
-      action: 'add_photo',
-      title: 'Add a Second Photo',
-      body: 'Profiles with 2+ photos get more attention',
-    });
-  }
-  if (!user.profilePrompts || user.profilePrompts.length === 0) {
-    items.push({
-      action: 'add_prompts',
-      title: 'Answer Profile Prompts',
-      body: 'Show your personality — pick and answer prompts',
-    });
-  }
-  if (!user.profile.height || !user.profile.weight) {
-    items.push({
-      action: 'add_height_weight',
-      title: 'Add Height & Weight',
-      body: 'Help others get the full picture — add your height and weight',
-    });
-  }
-  if (!user.profile.occupation) {
-    items.push({
-      action: 'add_occupation',
-      title: 'Add Your Occupation',
-      body: 'Let people know what you do — add your occupation',
-    });
-  }
-
-  for (const item of items) {
-    const existing = await prisma.notification.findFirst({
-      where: {
-        userId,
-        type: 'profile_incomplete',
-        readAt: null,
-        data: { path: ['action'], equals: item.action },
-      },
-    });
-    if (!existing) {
-      await prisma.notification.create({
-        data: {
-          userId,
-          type: 'profile_incomplete',
-          title: item.title,
-          body: item.body,
-          data: { action: item.action },
-        },
+  // --- Profile completion notifications ---
+  if (user?.profile) {
+    const items = [];
+    if ((user.profile.photos || []).length < 2) {
+      items.push({
+        action: 'add_photo',
+        title: 'Add a Second Photo',
+        body: 'Profiles with 2+ photos get more attention',
       });
     }
+    if (!user.profilePrompts || user.profilePrompts.length === 0) {
+      items.push({
+        action: 'add_prompts',
+        title: 'Answer Profile Prompts',
+        body: 'Show your personality — pick and answer prompts',
+      });
+    }
+    if (!user.profile.height || !user.profile.weight) {
+      items.push({
+        action: 'add_height_weight',
+        title: 'Add Height & Weight',
+        body: 'Help others get the full picture — add your height and weight',
+      });
+    }
+    if (!user.profile.occupation) {
+      items.push({
+        action: 'add_occupation',
+        title: 'Add Your Occupation',
+        body: 'Let people know what you do — add your occupation',
+      });
+    }
+
+    for (const item of items) {
+      const existing = await prisma.notification.findFirst({
+        where: {
+          userId,
+          type: 'profile_incomplete',
+          readAt: null,
+          data: { path: ['action'], equals: item.action },
+        },
+      });
+      if (!existing) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            type: 'profile_incomplete',
+            title: item.title,
+            body: item.body,
+            data: { action: item.action },
+          },
+        });
+      }
+    }
+  }
+
+  // --- Vibe available notification ---
+  try {
+    const windowStart = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    const answeredInWindow = await prisma.vibeAnswer.count({
+      where: { userId, answeredAt: { gte: windowStart } },
+    });
+
+    if (answeredInWindow < 25) {
+      const answeredIds = (
+        await prisma.vibeAnswer.findMany({
+          where: { userId },
+          select: { questionId: true },
+        })
+      ).map((a) => a.questionId);
+
+      const unansweredCount = await prisma.vibeQuestion.count({
+        where: {
+          isActive: true,
+          ...(answeredIds.length > 0 && { id: { notIn: answeredIds } }),
+        },
+      });
+
+      if (unansweredCount > 0) {
+        const existingVibe = await prisma.notification.findFirst({
+          where: {
+            userId,
+            type: 'vibe_available',
+            readAt: null,
+          },
+        });
+        if (!existingVibe) {
+          await prisma.notification.create({
+            data: {
+              userId,
+              type: 'vibe_available',
+              title: 'Vibe Questions Available',
+              body: 'Answer new questions to boost your vibe scores',
+              data: { action: 'vibe_available' },
+            },
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Vibe notification error:', err);
+  }
+
+  // --- Install app notification (once ever) ---
+  if (hasProfile) {
+    try {
+      const existingInstall = await prisma.notification.findFirst({
+        where: {
+          userId,
+          type: 'install_app',
+        },
+      });
+      if (!existingInstall) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            type: 'install_app',
+            title: 'Install Motion',
+            body: 'Add Motion to your home screen for the best experience',
+            data: { action: 'install_app' },
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Install notification error:', err);
+    }
+  }
+
+  // --- New version notification ---
+  try {
+    const appVersion = config.appVersion;
+    if (appVersion && appVersion !== '0.0.0') {
+      const existingVersion = await prisma.notification.findFirst({
+        where: {
+          userId,
+          type: 'new_version',
+          data: { path: ['version'], equals: appVersion },
+        },
+      });
+      if (!existingVersion) {
+        await prisma.notification.create({
+          data: {
+            userId,
+            type: 'new_version',
+            title: "What's New in Motion",
+            body: 'Check out the latest features and improvements',
+            data: { action: 'new_version', version: appVersion },
+          },
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Version notification error:', err);
   }
 }
 

@@ -139,6 +139,36 @@ router.post('/answer', authenticate, async (req, res) => {
       }
     }
 
+    // Auto-cleanup vibe_available notifications if no more unanswered questions
+    try {
+      const allAnsweredIds = (
+        await prisma.vibeAnswer.findMany({
+          where: { userId: req.userId },
+          select: { questionId: true },
+        })
+      ).map((a) => a.questionId);
+
+      const remainingQuestions = await prisma.vibeQuestion.count({
+        where: {
+          isActive: true,
+          ...(allAnsweredIds.length > 0 && { id: { notIn: allAnsweredIds } }),
+        },
+      });
+
+      const newAnsweredInWindow = answeredInWindow + 1;
+      if (remainingQuestions === 0 || newAnsweredInWindow >= 25) {
+        await prisma.notification.deleteMany({
+          where: {
+            userId: req.userId,
+            type: 'vibe_available',
+            readAt: null,
+          },
+        });
+      }
+    } catch (err) {
+      console.error('Vibe notification cleanup error:', err);
+    }
+
     res.json({ ...vibeAnswer, vibeStreak: newStreak, vibeMatch: vibeMatchResult });
   } catch (error) {
     console.error('Vibe answer error:', error);

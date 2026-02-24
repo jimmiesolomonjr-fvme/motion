@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useNotifications } from '../context/SocketContext';
 import api from '../services/api';
-import { Eye, Heart, Sparkles, CheckCheck, UserCircle } from 'lucide-react';
+import { Eye, Heart, Sparkles, CheckCheck, UserCircle, Download, Gift, MapPin } from 'lucide-react';
+
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState([]);
@@ -13,7 +16,11 @@ export default function Notifications() {
 
   useEffect(() => {
     api.get('/notifications').then(({ data }) => {
-      setNotifications(data);
+      // Filter out install_app notifications in standalone mode
+      const filtered = isStandalone
+        ? data.filter((n) => n.type !== 'install_app')
+        : data;
+      setNotifications(filtered);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -38,6 +45,14 @@ export default function Notifications() {
       navigate('/messages');
     } else if (notif.type === 'profile_incomplete') {
       navigate('/profile');
+    } else if (notif.type === 'vibe_available') {
+      navigate('/vibe');
+    } else if (notif.type === 'move_interest' || notif.type === 'move_selected') {
+      navigate('/moves');
+    } else if (notif.type === 'story_reply' && notif.data?.conversationId) {
+      navigate(`/chat/${notif.data.conversationId}`);
+    } else if (notif.type === 'new_version') {
+      navigate('/');
     }
   };
 
@@ -46,6 +61,11 @@ export default function Notifications() {
       case 'profile_view': return <Eye className="text-purple-glow" size={18} />;
       case 'match': return <Heart className="text-gold" size={18} fill="currentColor" />;
       case 'profile_incomplete': return <UserCircle className="text-gold" size={18} />;
+      case 'vibe_available': return <Sparkles className="text-purple-400" size={18} />;
+      case 'install_app': return <Download className="text-gold" size={18} />;
+      case 'new_version': return <Gift className="text-gold" size={18} />;
+      case 'move_interest': return <MapPin className="text-green-400" size={18} />;
+      case 'move_selected': return <MapPin className="text-gold" size={18} />;
       default: return <Sparkles className="text-gold" size={18} />;
     }
   };

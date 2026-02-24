@@ -72,6 +72,7 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
 
     res.status(201).json(move);
   } catch (error) {
+    if (error.code === 'NSFW_DETECTED') return res.status(400).json({ error: error.message });
     console.error('Create move error:', error);
     res.status(500).json({ error: 'Server error' });
   }

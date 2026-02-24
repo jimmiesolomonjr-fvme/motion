@@ -152,6 +152,7 @@ router.post('/photos', authenticate, uploadMedia.array('photos', 6), async (req,
 
     res.json(updated);
   } catch (error) {
+    if (error.code === 'NSFW_DETECTED') return res.status(400).json({ error: error.message });
     console.error('Photo upload error:', error);
     res.status(500).json({ error: 'Server error' });
   }

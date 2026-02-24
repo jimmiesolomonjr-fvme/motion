@@ -139,10 +139,32 @@ export async function uploadToCloud(fileOrDataUrl, folder = 'motion/uploads') {
 
   const b64 = file.buffer.toString('base64');
   const dataUri = `data:${file.mimetype};base64,${b64}`;
-  const result = await cloudinary.uploader.upload(dataUri, {
-    folder,
-    resource_type: 'auto',
-  });
+  const isImage = file.mimetype.startsWith('image/');
+
+  // Attempt upload with NSFW moderation for images (requires Rekognition add-on)
+  const options = { folder, resource_type: 'auto' };
+  if (isImage) options.moderation = 'aws_rek';
+
+  let result;
+  try {
+    result = await cloudinary.uploader.upload(dataUri, options);
+  } catch (err) {
+    // If Rekognition add-on isn't enabled, fall back to upload without moderation
+    if (isImage && err.message?.includes('moderation')) {
+      result = await cloudinary.uploader.upload(dataUri, { folder, resource_type: 'auto' });
+    } else {
+      throw err;
+    }
+  }
+
+  // If Rekognition flagged explicit content, delete and reject
+  if (result.moderation?.[0]?.status === 'rejected') {
+    await cloudinary.uploader.destroy(result.public_id).catch(() => {});
+    const error = new Error('This image was flagged as inappropriate and cannot be uploaded');
+    error.code = 'NSFW_DETECTED';
+    throw error;
+  }
+
   return result.secure_url;
 }
 
