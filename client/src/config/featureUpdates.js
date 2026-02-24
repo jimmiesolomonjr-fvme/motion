@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -145,6 +145,19 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Smart Notification Cleanup',
         description: 'Actionable notifications auto-clear when you complete the action.',
+      },
+    ],
+  },
+
+  '2.6.0': {
+    subtitle: 'Reaching out just got official.',
+    features: [
+      {
+        icon: Mail,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Email Campaigns',
+        description: 'Admins can now send branded emails to users directly from the admin panel.',
       },
     ],
   },

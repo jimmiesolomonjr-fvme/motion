@@ -28,6 +28,10 @@ export default {
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY,
+    from: process.env.RESEND_FROM || 'Motion <onboarding@resend.dev>',
+  },
   appVersion: process.env.APP_VERSION || '0.0.0',
   vapid: {
     publicKey: process.env.VAPID_PUBLIC_KEY,

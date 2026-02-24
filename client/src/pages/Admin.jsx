@@ -8,8 +8,9 @@ import VibeQuestions from '../components/admin/VibeQuestions';
 import HiddenPairs from '../components/admin/HiddenPairs';
 import AdminSettings from '../components/admin/AdminSettings';
 import Broadcast from '../components/admin/Broadcast';
+import EmailCampaign from '../components/admin/EmailCampaign';
 import { useAuth } from '../context/AuthContext';
-import { BarChart3, AlertTriangle, Users, Sparkles, EyeOff, Settings, Megaphone } from 'lucide-react';
+import { BarChart3, AlertTriangle, Users, Sparkles, EyeOff, Settings, Megaphone, Mail } from 'lucide-react';
 
 export default function Admin() {
   const { user } = useAuth();
@@ -24,6 +25,7 @@ export default function Admin() {
     { id: 'vibe', label: 'Vibe', icon: Sparkles },
     { id: 'hidden', label: 'Hidden', icon: EyeOff },
     { id: 'broadcast', label: 'Broadcast', icon: Megaphone },
+    { id: 'email', label: 'Email', icon: Mail },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -52,6 +54,7 @@ export default function Admin() {
       {tab === 'vibe' && <VibeQuestions />}
       {tab === 'hidden' && <HiddenPairs />}
       {tab === 'broadcast' && <Broadcast />}
+      {tab === 'email' && <EmailCampaign />}
       {tab === 'settings' && <AdminSettings />}
     </AppLayout>
   );

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
+import { sendEmail, sendBulkEmails, brandedTemplate } from '../services/email.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -506,6 +507,84 @@ router.put('/users/:userId/hide', authenticate, requireAdmin, async (req, res) =
     });
     res.json({ id: user.id, isHidden: user.isHidden });
   } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== Email Campaigns =====
+
+function buildEmailTargetWhere(targetRole, targetFilter) {
+  const where = { isBanned: false, isAdmin: false, isDummy: false };
+  if (targetRole && ['STEPPER', 'BADDIE'].includes(targetRole)) {
+    where.role = targetRole;
+  }
+  if (targetFilter === 'incomplete_profile') {
+    where.OR = [
+      { profile: null },
+      { profile: { photos: { equals: [] } } },
+    ];
+  }
+  return where;
+}
+
+// Preview: get count of matching recipients
+router.post('/email/preview', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { targetRole, targetFilter } = req.body;
+    const where = buildEmailTargetWhere(targetRole, targetFilter);
+    const count = await prisma.user.count({ where });
+    res.json({ count });
+  } catch (error) {
+    console.error('Email preview error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Send test email to the admin's own email
+router.post('/email/test', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { subject, bodyHtml } = req.body;
+    if (!subject?.trim() || !bodyHtml?.trim()) {
+      return res.status(400).json({ error: 'Subject and body are required' });
+    }
+
+    const testEmail = process.env.ADMIN_TEST_EMAIL || 'jimmiesolomonjr@gmail.com';
+    const html = brandedTemplate(bodyHtml);
+    const result = await sendEmail({ to: testEmail, subject: `[TEST] ${subject}`, html });
+
+    if (result.success) {
+      res.json({ success: true, email: testEmail });
+    } else {
+      res.status(500).json({ error: result.error || 'Failed to send test email' });
+    }
+  } catch (error) {
+    console.error('Email test error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Send email campaign
+router.post('/email/send', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { subject, bodyHtml, targetRole, targetFilter } = req.body;
+    if (!subject?.trim() || !bodyHtml?.trim()) {
+      return res.status(400).json({ error: 'Subject and body are required' });
+    }
+
+    const where = buildEmailTargetWhere(targetRole, targetFilter);
+    const users = await prisma.user.findMany({
+      where,
+      select: { id: true, email: true },
+    });
+
+    if (users.length === 0) {
+      return res.json({ sent: 0, failed: 0, errors: [] });
+    }
+
+    const result = await sendBulkEmails({ users, subject, bodyHtml });
+    res.json(result);
+  } catch (error) {
+    console.error('Email send error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
