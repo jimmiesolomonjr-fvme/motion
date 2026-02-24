@@ -1,7 +1,26 @@
 // Service worker for PWA standalone mode
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
-self.addEventListener('fetch', () => {});
+self.addEventListener('activate', (e) => {
+  // Clear old caches on activate so new deploys start fresh
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  );
+});
+
+// Network-first for navigation (HTML), so PWA launches always get the latest.
+// All other requests (JS, CSS, images) pass through to browser defaults —
+// Vite hashes asset filenames so they're already cache-safe.
+self.addEventListener('fetch', (e) => {
+  if (e.request.mode !== 'navigate') return;
+
+  e.respondWith(
+    fetch(e.request).catch(() =>
+      caches.match(e.request).then((cached) => cached || caches.match('/'))
+    )
+  );
+});
 
 // Push notification handler
 self.addEventListener('push', (e) => {
