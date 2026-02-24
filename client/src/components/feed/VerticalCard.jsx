@@ -123,7 +123,11 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
           {/* Song Player */}
           {profile.songTitle && (
             <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit">
-              <Music size={14} className="text-purple-400 flex-shrink-0" />
+              {profile.songArtworkUrl ? (
+                <img src={profile.songArtworkUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+              ) : (
+                <Music size={14} className="text-purple-400 flex-shrink-0" />
+              )}
               <span className="text-sm text-white font-medium truncate max-w-[160px]">{profile.songTitle}</span>
               {profile.songArtist && <span className="text-xs text-gray-500 truncate max-w-[100px]">&middot; {profile.songArtist}</span>}
               {profile.songPreviewUrl && (

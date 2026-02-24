@@ -25,6 +25,13 @@ export default function StepPhotos({ onComplete }) {
       return;
     }
 
+    // First slot must be an image, not a video
+    if (photos.length === 0 && files[0]?.type.startsWith('video/')) {
+      setError('Your first photo must be an image, not a video');
+      e.target.value = '';
+      return;
+    }
+
     // First media must contain a face (only check images)
     if (photos.length === 0 && files.length > 0 && !files[0].type.startsWith('video/')) {
       const hasFace = await detectFace(files[0]);

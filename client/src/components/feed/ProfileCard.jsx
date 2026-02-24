@@ -1,9 +1,18 @@
 import { Link } from 'react-router-dom';
 import { Heart, MapPin, BadgeCheck, Sparkles, Zap, Play } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
+import { isVideoUrl } from '../../utils/mediaUtils';
+
+function getVideoThumbnail(url) {
+  if (url && url.includes('/video/upload/')) {
+    return url.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
+  }
+  return null;
+}
 
 export default function ProfileCard({ user, onLike, onUnlike }) {
-  const photo = user.profile?.photos?.[0];
+  const rawPhoto = user.profile?.photos?.[0];
+  const photo = rawPhoto && isVideoUrl(rawPhoto) ? (getVideoThumbnail(rawPhoto) || null) : rawPhoto;
 
   return (
     <div className="card-elevated overflow-hidden group">

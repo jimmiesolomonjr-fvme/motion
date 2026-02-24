@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -92,6 +92,19 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'AfterDark Card Glow-Up',
         description: 'AfterDark vibe questions now have a purple gradient, glow border, and moon icon.',
+      },
+    ],
+  },
+
+  '2.3.0': {
+    subtitle: 'Your profile just got a soundtrack.',
+    features: [
+      {
+        icon: Music,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Add Songs with Apple Music',
+        description: 'Search and add songs to your profile with album art and 30-second previews.',
       },
     ],
   },

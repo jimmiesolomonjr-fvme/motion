@@ -121,6 +121,7 @@ model Profile {
   songTitle      String?
   songArtist     String?
   songPreviewUrl String?
+  songArtworkUrl String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

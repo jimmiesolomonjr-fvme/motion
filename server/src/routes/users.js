@@ -40,7 +40,7 @@ router.get('/referral', authenticate, async (req, res) => {
 // Create/update profile (onboarding)
 router.post('/profile', authenticate, async (req, res) => {
   try {
-    const { displayName, bio, age, city, lookingFor, height, weight, occupation, lookingForTags, songTitle, songArtist, songPreviewUrl } = req.body;
+    const { displayName, bio, age, city, lookingFor, height, weight, occupation, lookingForTags, songTitle, songArtist, songPreviewUrl, songArtworkUrl } = req.body;
 
     if (!displayName || !age || !city) {
       return res.status(400).json({ error: 'Display name, age, and city are required' });
@@ -59,6 +59,7 @@ router.post('/profile', authenticate, async (req, res) => {
     if (songTitle !== undefined) profileData.songTitle = songTitle || null;
     if (songArtist !== undefined) profileData.songArtist = songArtist || null;
     if (songPreviewUrl !== undefined) profileData.songPreviewUrl = songPreviewUrl || null;
+    if (songArtworkUrl !== undefined) profileData.songArtworkUrl = songArtworkUrl || null;
 
     const profile = await prisma.profile.upsert({
       where: { userId: req.userId },
@@ -120,7 +121,17 @@ router.post('/photos', authenticate, uploadMedia.array('photos', 6), async (req,
           : uploadToCloud(f, 'motion/profiles')
       )
     );
-    const allPhotos = [...existingPhotos, ...newPhotos].slice(0, 6);
+    let allPhotos = [...existingPhotos, ...newPhotos].slice(0, 6);
+
+    // Ensure first slot is an image, not a video
+    if (allPhotos.length > 0 && isVideoUrl(allPhotos[0])) {
+      const firstImageIdx = allPhotos.findIndex(p => !isVideoUrl(p));
+      if (firstImageIdx === -1) {
+        return res.status(400).json({ error: 'At least one photo must be an image (not a video)' });
+      }
+      const [img] = allPhotos.splice(firstImageIdx, 1);
+      allPhotos.unshift(img);
+    }
 
     const updated = await prisma.profile.update({
       where: { userId: req.userId },
@@ -160,6 +171,16 @@ router.delete('/photos/:index', authenticate, async (req, res) => {
 
     await deleteFromCloud(photos[index]);
     photos.splice(index, 1);
+
+    // Ensure first slot is an image after deletion
+    if (photos.length > 0 && isVideoUrl(photos[0])) {
+      const firstImageIdx = photos.findIndex(p => !isVideoUrl(p));
+      if (firstImageIdx > 0) {
+        const [img] = photos.splice(firstImageIdx, 1);
+        photos.unshift(img);
+      }
+    }
+
     const updated = await prisma.profile.update({
       where: { userId: req.userId },
       data: { photos },
@@ -566,7 +587,7 @@ router.delete('/profile-song', authenticate, async (req, res) => {
   try {
     const updated = await prisma.profile.update({
       where: { userId: req.userId },
-      data: { songTitle: null, songArtist: null, songPreviewUrl: null },
+      data: { songTitle: null, songArtist: null, songPreviewUrl: null, songArtworkUrl: null },
     });
     res.json(updated);
   } catch (error) {

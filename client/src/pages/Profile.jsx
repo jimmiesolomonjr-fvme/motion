@@ -14,6 +14,7 @@ import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_
 import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
+import SongSearchModal from '../components/profile/SongSearchModal';
 
 export default function Profile() {
   const { userId } = useParams();
@@ -48,7 +49,6 @@ export default function Profile() {
   const [songPlaying, setSongPlaying] = useState(false);
   const audioRef = useRef(null);
   const [songModalOpen, setSongModalOpen] = useState(false);
-  const [songForm, setSongForm] = useState({ songTitle: '', songArtist: '', songPreviewUrl: '' });
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -167,6 +167,13 @@ export default function Profile() {
       return;
     }
 
+    // First slot must be an image, not a video
+    if (photos.length === 0 && files[0]?.type.startsWith('video/')) {
+      setPhotoError('Your first photo must be an image, not a video');
+      e.target.value = '';
+      return;
+    }
+
     // First photo must contain a face (only check images)
     if (photos.length === 0 && files.length > 0 && !files[0].type.startsWith('video/')) {
       const hasFace = await detectFace(files[0]);
@@ -211,21 +218,23 @@ export default function Profile() {
     setSongPlaying(!songPlaying);
   };
 
-  const handleSongSave = async () => {
+  const handleSongSelect = async (song) => {
     try {
       await api.post('/users/profile', {
         displayName: profile.displayName,
         age: profile.age,
         city: profile.city,
-        songTitle: songForm.songTitle,
-        songArtist: songForm.songArtist,
-        songPreviewUrl: songForm.songPreviewUrl,
+        songTitle: song.songTitle,
+        songArtist: song.songArtist,
+        songPreviewUrl: song.songPreviewUrl,
+        songArtworkUrl: song.songArtworkUrl,
       });
       setProfile({
         ...profile,
-        songTitle: songForm.songTitle || null,
-        songArtist: songForm.songArtist || null,
-        songPreviewUrl: songForm.songPreviewUrl || null,
+        songTitle: song.songTitle || null,
+        songArtist: song.songArtist || null,
+        songPreviewUrl: song.songPreviewUrl || null,
+        songArtworkUrl: song.songArtworkUrl || null,
       });
       setSongModalOpen(false);
     } catch (err) {
@@ -236,7 +245,7 @@ export default function Profile() {
   const handleSongDelete = async () => {
     try {
       await api.delete('/users/profile-song');
-      setProfile({ ...profile, songTitle: null, songArtist: null, songPreviewUrl: null });
+      setProfile({ ...profile, songTitle: null, songArtist: null, songPreviewUrl: null, songArtworkUrl: null });
       if (audioRef.current) audioRef.current.pause();
       setSongPlaying(false);
     } catch (err) {
@@ -565,7 +574,11 @@ export default function Profile() {
               <label className="block text-sm font-medium text-gray-300 mb-2">Profile Song</label>
               {profile.songTitle ? (
                 <div className="flex items-center gap-2 bg-dark-100 rounded-xl p-3">
-                  <Music size={16} className="text-purple-400 flex-shrink-0" />
+                  {profile.songArtworkUrl ? (
+                    <img src={profile.songArtworkUrl} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                  ) : (
+                    <Music size={16} className="text-purple-400 flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">{profile.songTitle}</p>
                     {profile.songArtist && <p className="text-gray-500 text-xs truncate">{profile.songArtist}</p>}
@@ -577,7 +590,7 @@ export default function Profile() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => { setSongForm({ songTitle: '', songArtist: '', songPreviewUrl: '' }); setSongModalOpen(true); }}
+                  onClick={() => setSongModalOpen(true)}
                   className="w-full py-2 border border-dashed border-dark-50 rounded-xl text-sm text-gray-500 hover:text-purple-400 hover:border-purple-accent/30 flex items-center justify-center gap-1 transition-colors"
                 >
                   <Music size={14} /> Add Song
@@ -670,7 +683,11 @@ export default function Profile() {
             {/* Song Player Pill */}
             {profile.songTitle && (
               <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 w-fit">
-                <Music size={14} className="text-purple-400 flex-shrink-0" />
+                {profile.songArtworkUrl ? (
+                  <img src={profile.songArtworkUrl} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
+                ) : (
+                  <Music size={14} className="text-purple-400 flex-shrink-0" />
+                )}
                 <div className="flex-1 min-w-0">
                   <span className="text-sm text-white font-medium truncate block max-w-[180px]">{profile.songTitle}</span>
                   {profile.songArtist && <span className="text-xs text-gray-500 truncate block max-w-[180px]">{profile.songArtist}</span>}
@@ -694,7 +711,7 @@ export default function Profile() {
             {/* Add Song button (own profile, no song) */}
             {isOwnProfile && !profile.songTitle && !editing && (
               <button
-                onClick={() => { setSongForm({ songTitle: '', songArtist: '', songPreviewUrl: '' }); setSongModalOpen(true); }}
+                onClick={() => setSongModalOpen(true)}
                 className="flex items-center gap-2 px-3 py-2 bg-dark-50 border border-dashed border-dark-50 hover:border-purple-accent/40 rounded-full text-sm text-gray-500 hover:text-purple-400 transition-colors"
               >
                 <Music size={14} /> Add Song
@@ -896,32 +913,11 @@ export default function Profile() {
       </Modal>
 
       {/* Song Modal */}
-      <Modal isOpen={songModalOpen} onClose={() => setSongModalOpen(false)} title="Add Profile Song">
-        <div className="space-y-3">
-          <Input
-            label="Song Title"
-            value={songForm.songTitle}
-            onChange={(e) => setSongForm({ ...songForm, songTitle: e.target.value })}
-            placeholder="e.g. Snooze"
-          />
-          <Input
-            label="Artist"
-            value={songForm.songArtist}
-            onChange={(e) => setSongForm({ ...songForm, songArtist: e.target.value })}
-            placeholder="e.g. SZA"
-          />
-          <Input
-            label="Preview URL (optional)"
-            value={songForm.songPreviewUrl}
-            onChange={(e) => setSongForm({ ...songForm, songPreviewUrl: e.target.value })}
-            placeholder="Audio URL for playback"
-          />
-          <p className="text-xs text-gray-500">Paste a direct audio link (Spotify preview URL, etc.)</p>
-          <Button variant="gold" className="w-full" onClick={handleSongSave} disabled={!songForm.songTitle?.trim()}>
-            Save Song
-          </Button>
-        </div>
-      </Modal>
+      <SongSearchModal
+        isOpen={songModalOpen}
+        onClose={() => setSongModalOpen(false)}
+        onSelect={handleSongSelect}
+      />
 
       {isOwnProfile && (
         <CreateStory
