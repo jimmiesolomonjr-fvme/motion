@@ -10,7 +10,7 @@ import Button from '../components/ui/Button';
 import { Textarea } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users } from 'lucide-react';
+import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import Input from '../components/ui/Input';
 import { formatDate } from '../utils/formatters';
 
@@ -44,7 +44,6 @@ export default function Moves() {
   const { user } = useAuth();
   const [moves, setMoves] = useState([]);
   const [myMoves, setMyMoves] = useState([]);
-  const [savedMoves, setSavedMoves] = useState([]);
   const [expiredMoves, setExpiredMoves] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -52,46 +51,36 @@ export default function Moves() {
   const [interestMessage, setInterestMessage] = useState('');
   const [counterProposal, setCounterProposal] = useState('');
   const [deleteModal, setDeleteModal] = useState(null);
-  const [selectModal, setSelectModal] = useState(null); // { moveId, baddieId, baddieName }
-  const [repostModal, setRepostModal] = useState(null); // expired move object
+  const [selectModal, setSelectModal] = useState(null);
+  const [repostModal, setRepostModal] = useState(null);
   const [repostDate, setRepostDate] = useState('');
   const [repostAnytime, setRepostAnytime] = useState(false);
   const [clearModal, setClearModal] = useState(false);
-  const [tab, setTab] = useState(user?.role === 'STEPPER' ? 'mine' : 'browse');
+  const [tab, setTab] = useState('browse');
   const [filters, setFilters] = useState({ time: null, category: null, sort: 'soonest' });
+  const [showExpired, setShowExpired] = useState(false);
 
   useEffect(() => { fetchMoves(); }, []);
 
   useEffect(() => {
-    if (tab === 'browse' || (tab === 'saved' && user?.role === 'BADDIE')) {
+    if (tab === 'browse') {
       fetchBrowseData();
-    }
-    if (tab === 'expired' && user?.role === 'STEPPER') {
-      fetchExpired();
     }
   }, [filters, tab]);
 
   const fetchMoves = async () => {
     setLoading(true);
     try {
-      const promises = [fetchBrowseData()];
-
-      if (user?.role === 'STEPPER') {
-        promises.push(api.get('/moves/mine'), api.get('/moves/expired'));
-      }
-      if (user?.role === 'BADDIE') {
-        promises.push(api.get('/moves/saved'));
-      }
+      const promises = [
+        fetchBrowseData(),
+        api.get('/moves/mine'),
+        api.get('/moves/expired'),
+      ];
 
       const results = await Promise.allSettled(promises);
 
-      if (user?.role === 'STEPPER') {
-        if (results[1]?.status === 'fulfilled') setMyMoves(results[1].value.data);
-        if (results[2]?.status === 'fulfilled') setExpiredMoves(results[2].value.data);
-      }
-      if (user?.role === 'BADDIE') {
-        if (results[1]?.status === 'fulfilled') setSavedMoves(results[1].value.data);
-      }
+      if (results[1]?.status === 'fulfilled') setMyMoves(results[1].value.data);
+      if (results[2]?.status === 'fulfilled') setExpiredMoves(results[2].value.data);
     } catch (err) {
       console.error('Moves error:', err);
     } finally {
@@ -134,9 +123,9 @@ export default function Moves() {
     }
   };
 
-  const startConversation = async (baddieId) => {
+  const startConversation = async (userId) => {
     try {
-      const { data } = await api.post(`/messages/start/${baddieId}`);
+      const { data } = await api.post(`/messages/start/${userId}`);
       window.location.href = `/chat/${data.id}`;
     } catch (err) {
       console.error('Start conversation error:', err);
@@ -155,14 +144,14 @@ export default function Moves() {
     }
   };
 
-  const handleSelect = (baddieId, baddieName, moveId) => {
-    setSelectModal({ moveId, baddieId, baddieName });
+  const handleSelect = (userId, userName, moveId) => {
+    setSelectModal({ moveId, userId, userName });
   };
 
   const confirmSelect = async () => {
     if (!selectModal) return;
     try {
-      await api.put(`/moves/${selectModal.moveId}/select/${selectModal.baddieId}`);
+      await api.put(`/moves/${selectModal.moveId}/select/${selectModal.userId}`);
       setSelectModal(null);
       const { data: mine } = await api.get('/moves/mine');
       setMyMoves(mine);
@@ -175,8 +164,6 @@ export default function Moves() {
     try {
       await api.post(`/moves/${moveId}/save`);
       setMoves((prev) => prev.map((m) => m.id === moveId ? { ...m, isSaved: true } : m));
-      const { data: saved } = await api.get('/moves/saved');
-      setSavedMoves(saved);
     } catch (err) {
       console.error('Save error:', err);
     }
@@ -186,18 +173,8 @@ export default function Moves() {
     try {
       await api.delete(`/moves/${moveId}/save`);
       setMoves((prev) => prev.map((m) => m.id === moveId ? { ...m, isSaved: false } : m));
-      setSavedMoves((prev) => prev.filter((m) => m.id !== moveId));
     } catch (err) {
       console.error('Unsave error:', err);
-    }
-  };
-
-  const fetchExpired = async () => {
-    try {
-      const { data } = await api.get('/moves/expired');
-      setExpiredMoves(data);
-    } catch (err) {
-      console.error('Expired error:', err);
     }
   };
 
@@ -227,9 +204,9 @@ export default function Moves() {
     }
   };
 
-  const handleSelectGroup = async (moveId, baddieIds) => {
+  const handleSelectGroup = async (moveId, userIds) => {
     try {
-      await api.put(`/moves/${moveId}/select-group`, { baddieIds });
+      await api.put(`/moves/${moveId}/select-group`, { baddieIds: userIds });
       const { data: mine } = await api.get('/moves/mine');
       setMyMoves(mine);
     } catch (err) {
@@ -251,8 +228,9 @@ export default function Moves() {
     );
   }
 
-  const isStepper = user?.role === 'STEPPER';
-  const isBaddie = user?.role === 'BADDIE';
+  // Separate active vs expired for "My Moves" tab
+  const activeMyMoves = myMoves.filter((m) => m.status === 'OPEN' || m.status === 'CONFIRMED');
+  const completedMyMoves = myMoves.filter((m) => m.status === 'COMPLETED');
 
   return (
     <AppLayout>
@@ -261,58 +239,32 @@ export default function Moves() {
           <Flame className="text-gold" size={20} />
           <h1 className="text-xl font-bold text-white">The Move</h1>
         </div>
-        {isStepper && (
-          <Button variant="gold" className="!px-3 !py-1.5 text-sm" onClick={() => setShowCreate(true)}>
-            <Plus size={16} className="inline mr-1" /> New Move
-          </Button>
-        )}
+        <Button variant="gold" className="!px-3 !py-1.5 text-sm" onClick={() => setShowCreate(true)}>
+          <Plus size={16} className="inline mr-1" /> New Move
+        </Button>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — same for everyone */}
       <div className="flex gap-2 mb-4">
-        {isStepper ? (
-          <>
-            <button
-              onClick={() => setTab('mine')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'mine' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-            >
-              My Moves
-            </button>
-            <button
-              onClick={() => setTab('browse')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-            >
-              All Moves
-            </button>
-            <button
-              onClick={() => setTab('expired')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'expired' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-            >
-              Expired
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => setTab('browse')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-            >
-              Browse
-            </button>
-            <button
-              onClick={() => setTab('saved')}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'saved' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-            >
-              <Bookmark size={14} className="inline mr-1" /> Saved
-            </button>
-          </>
-        )}
+        <button
+          onClick={() => setTab('browse')}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+        >
+          All Moves
+        </button>
+        <button
+          onClick={() => setTab('mine')}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'mine' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+        >
+          My Moves
+        </button>
       </div>
 
       {/* Content */}
-      {tab === 'mine' && isStepper ? (
+      {tab === 'mine' ? (
         <div className="space-y-4">
-          {myMoves.length === 0 ? (
+          {/* Active moves */}
+          {activeMyMoves.length === 0 && completedMyMoves.length === 0 && expiredMoves.length === 0 ? (
             <div className="text-center py-12">
               <Flame className="text-gray-600 mx-auto mb-3" size={40} />
               <p className="text-gray-400 mb-2">No Moves yet</p>
@@ -320,138 +272,139 @@ export default function Moves() {
               <Button variant="gold" onClick={() => setShowCreate(true)}>Create a Move</Button>
             </div>
           ) : (
-            myMoves.map((move) => (
-              <div key={move.id}>
-                {move.status === 'CONFIRMED' && (move.selectedBaddie || (move.category === 'GROUP' && move.participants?.length > 0)) ? (
-                  <MoveCountdown move={move} currentUserId={user.id} onUpdate={handleMoveUpdate} />
-                ) : (
-                  <div className="card-elevated">
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-white">{move.title}</h3>
-                        {move.status === 'COMPLETED' && (
-                          <span className="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs font-medium rounded-full">Completed</span>
-                        )}
-                        {move.category && (
-                          <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
-                            {move.category.charAt(0) + move.category.slice(1).toLowerCase()}
-                          </span>
+            <>
+              {activeMyMoves.map((move) => (
+                <div key={move.id}>
+                  {move.status === 'CONFIRMED' && (move.selectedBaddie || move.stepper || (move.category === 'GROUP' && move.participants?.length > 0)) ? (
+                    <MoveCountdown move={move} currentUserId={user.id} onUpdate={handleMoveUpdate} />
+                  ) : (
+                    <div className="card-elevated">
+                      <div className="flex items-start justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-white">{move.title}</h3>
+                          {move.category && (
+                            <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                              {move.category.charAt(0) + move.category.slice(1).toLowerCase()}
+                            </span>
+                          )}
+                        </div>
+                        {move.status === 'OPEN' && (
+                          <button
+                            onClick={() => setDeleteModal(move.id)}
+                            className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                            title="Delete move"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         )}
                       </div>
-                      {move.status === 'OPEN' && (
-                        <button
-                          onClick={() => setDeleteModal(move.id)}
-                          className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                          title="Delete move"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      {move.photo && (
+                        <img src={move.photo} alt="" className="w-full h-36 object-cover rounded-lg mb-2" />
                       )}
+                      <p className="text-gray-400 text-sm mb-2">{move.description}</p>
+                      <p className="text-xs text-gray-500 mb-3">{formatDate(move.date)} · {move.location}</p>
+                      <h4 className="text-sm font-semibold text-gray-300 mb-2">Interested ({move.interests?.length || 0})</h4>
+                      <MoveInterestList
+                        interests={move.interests || []}
+                        onStartConversation={startConversation}
+                        onSelect={(userId, userName) => handleSelect(userId, userName, move.id)}
+                        onSelectGroup={(userIds) => handleSelectGroup(move.id, userIds)}
+                        moveStatus={move.status}
+                        selectedBaddieId={move.selectedBaddieId}
+                        moveCategory={move.category}
+                      />
                     </div>
-                    {move.photo && (
-                      <img src={move.photo} alt="" className="w-full h-36 object-cover rounded-lg mb-2" />
-                    )}
-                    <p className="text-gray-400 text-sm mb-2">{move.description}</p>
-                    <p className="text-xs text-gray-500 mb-3">{formatDate(move.date)} · {move.location}</p>
-                    {move.status !== 'COMPLETED' && (
-                      <>
-                        <h4 className="text-sm font-semibold text-gray-300 mb-2">Interested ({move.interests.length})</h4>
-                        <MoveInterestList
-                          interests={move.interests}
-                          onStartConversation={startConversation}
-                          onSelect={(baddieId, baddieName) => handleSelect(baddieId, baddieName, move.id)}
-                          onSelectGroup={(baddieIds) => handleSelectGroup(move.id, baddieIds)}
-                          moveStatus={move.status}
-                          selectedBaddieId={move.selectedBaddieId}
-                          moveCategory={move.category}
-                        />
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      ) : tab === 'expired' && isStepper ? (
-        <div className="space-y-4">
-          {expiredMoves.length > 0 && (
-            <div className="flex justify-end">
-              <button
-                onClick={() => setClearModal(true)}
-                className="text-sm text-red-400 hover:text-red-300 transition-colors"
-              >
-                Clear All Expired
-              </button>
-            </div>
-          )}
-          {expiredMoves.length === 0 ? (
-            <div className="text-center py-12">
-              <RotateCcw className="text-gray-600 mx-auto mb-3" size={40} />
-              <p className="text-gray-400 mb-2">No expired Moves</p>
-              <p className="text-gray-500 text-sm">Cancelled and completed Moves will appear here</p>
-            </div>
-          ) : (
-            expiredMoves.map((move) => (
-              <div key={move.id} className="card-elevated">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-white">{move.title}</h3>
-                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                      move.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
-                    }`}>
-                      {move.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => { setRepostModal(move); setRepostDate(''); setRepostAnytime(move.isAnytime || false); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/10 text-gold text-sm font-medium rounded-full hover:bg-gold/20 transition-colors"
-                  >
-                    <RotateCcw size={14} /> Repost
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-3 text-sm text-gray-400">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={14} className="text-gold" />
-                    {move.isAnytime
-                      ? `Anytime ${new Date(move.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-                      : formatDate(move.date)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <MapPin size={14} className="text-gold" />
-                    {move.location}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Users size={14} className="text-gold" />
-                    {move.interestCount} interested
-                  </span>
-                  {move.category && (
-                    <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
-                      {move.category.charAt(0) + move.category.slice(1).toLowerCase()}
-                    </span>
                   )}
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-      ) : tab === 'saved' && isBaddie ? (
-        <div className="space-y-4">
-          {savedMoves.length === 0 ? (
-            <div className="text-center py-12">
-              <Bookmark className="text-gray-600 mx-auto mb-3" size={40} />
-              <p className="text-gray-400 mb-2">No saved Moves</p>
-              <p className="text-gray-500 text-sm">Bookmark Moves you&apos;re interested in to find them later</p>
-            </div>
-          ) : (
-            savedMoves.map((move) => (
-              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} isAdmin={user?.isAdmin} onDelete={(id) => setDeleteModal(id)} onSave={handleSave} onUnsave={handleUnsave} />
-            ))
+              ))}
+
+              {/* Completed moves shown inline */}
+              {completedMyMoves.map((move) => (
+                <div key={move.id} className="card-elevated opacity-70">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-white">{move.title}</h3>
+                    <span className="px-2 py-0.5 bg-gray-500/20 text-gray-400 text-xs font-medium rounded-full">Completed</span>
+                  </div>
+                  <p className="text-gray-400 text-sm mb-2">{move.description}</p>
+                  <p className="text-xs text-gray-500">{formatDate(move.date)} · {move.location}</p>
+                </div>
+              ))}
+
+              {/* Expired accordion */}
+              {expiredMoves.length > 0 && (
+                <div className="border border-dark-50 rounded-xl overflow-hidden">
+                  <button
+                    onClick={() => setShowExpired(!showExpired)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-dark-50 text-gray-300 hover:text-white transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RotateCcw size={16} className="text-gray-500" />
+                      <span className="text-sm font-medium">Expired</span>
+                      <span className="px-1.5 py-0.5 bg-gray-600/50 text-gray-400 text-xs font-medium rounded-full">{expiredMoves.length}</span>
+                    </div>
+                    {showExpired ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                  {showExpired && (
+                    <div className="p-4 space-y-4">
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => setClearModal(true)}
+                          className="text-sm text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      {expiredMoves.map((move) => (
+                        <div key={move.id} className="card-elevated">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-bold text-white">{move.title}</h3>
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+                                move.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+                              }`}>
+                                {move.status === 'COMPLETED' ? 'Completed' : 'Cancelled'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => { setRepostModal(move); setRepostDate(''); setRepostAnytime(move.isAnytime || false); }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/10 text-gold text-sm font-medium rounded-full hover:bg-gold/20 transition-colors"
+                            >
+                              <RotateCcw size={14} /> Repost
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-3 text-sm text-gray-400">
+                            <span className="flex items-center gap-1">
+                              <Calendar size={14} className="text-gold" />
+                              {move.isAnytime
+                                ? `Anytime ${new Date(move.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                                : formatDate(move.date)}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <MapPin size={14} className="text-gold" />
+                              {move.location}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Users size={14} className="text-gold" />
+                              {move.interestCount} interested
+                            </span>
+                            {move.category && (
+                              <span className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                                {move.category.charAt(0) + move.category.slice(1).toLowerCase()}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       ) : (
         <div className="space-y-4">
-          {isBaddie && <MoveFilters filters={filters} onFilterChange={setFilters} />}
+          <MoveFilters filters={filters} onFilterChange={setFilters} />
           {moves.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-400">No active Moves right now</p>
@@ -467,7 +420,7 @@ export default function Moves() {
 
       {/* Create Move Modal */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="Create a Move">
-        <CreateMove onCreated={() => fetchMoves()} onClose={() => setShowCreate(false)} />
+        <CreateMove onCreated={() => fetchMoves()} onClose={() => setShowCreate(false)} userRole={user?.role} />
       </Modal>
 
       {/* Interest Modal */}
@@ -497,10 +450,10 @@ export default function Moves() {
       <Modal isOpen={!!selectModal} onClose={() => setSelectModal(null)} title="Confirm Selection">
         <div className="space-y-4">
           <p className="text-gray-300 text-sm">
-            Select <span className="text-white font-semibold">{selectModal?.baddieName}</span> for this Move?
+            Select <span className="text-white font-semibold">{selectModal?.userName}</span> for this Move?
           </p>
           <p className="text-gray-500 text-xs">
-            This will confirm the Move and notify all interested Baddies.
+            This will confirm the Move and notify all interested users.
           </p>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={() => setSelectModal(null)}>Cancel</Button>

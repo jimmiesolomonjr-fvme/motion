@@ -19,17 +19,22 @@ export default function MoveCountdown({ move, currentUserId, onUpdate }) {
   const [playlistLink, setPlaylistLink] = useState(move.playlistLink || '');
   const [saving, setSaving] = useState(false);
 
+  const isCreator = move.creatorId === currentUserId;
   const isStepper = move.stepperId === currentUserId;
   const isGroup = move.category === 'GROUP' && move.participants?.length > 0;
 
-  // For non-group moves
-  const otherPerson = isStepper ? move.selectedBaddie : move.stepper;
-  const myOnMyWay = isStepper ? move.stepperOnMyWay : move.baddieOnMyWay;
-  const theirOnMyWay = isStepper ? move.baddieOnMyWay : move.stepperOnMyWay;
+  // Determine the "other person" for non-group moves
+  // Creator sees the selected person, selected person sees the creator
+  const otherPerson = isCreator
+    ? (move.selectedBaddie || move.stepper)
+    : (move.creator || move.stepper);
+
+  const myOnMyWay = (isCreator || isStepper) ? move.stepperOnMyWay : move.baddieOnMyWay;
+  const theirOnMyWay = (isCreator || isStepper) ? move.baddieOnMyWay : move.stepperOnMyWay;
 
   // For group moves — find current user's participant record
   const myParticipant = isGroup ? move.participants.find((p) => p.baddieId === currentUserId) : null;
-  const myGroupOnMyWay = isStepper ? move.stepperOnMyWay : (myParticipant?.onMyWay || false);
+  const myGroupOnMyWay = (isCreator || isStepper) ? move.stepperOnMyWay : (myParticipant?.onMyWay || false);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -96,12 +101,12 @@ export default function MoveCountdown({ move, currentUserId, onUpdate }) {
             ))}
           </div>
         </div>
-      ) : (
+      ) : otherPerson ? (
         <div className="flex items-center gap-3 p-3 bg-dark-100 rounded-xl mb-4">
           <Avatar src={otherPerson?.profile?.photos} name={otherPerson?.profile?.displayName} size="sm" />
           <div className="flex-1">
             <p className="text-white font-semibold text-sm">{otherPerson?.profile?.displayName}</p>
-            <p className="text-gray-500 text-xs">{isStepper ? 'Your date' : 'The Stepper'}</p>
+            <p className="text-gray-500 text-xs">{isCreator ? 'Your date' : 'The host'}</p>
           </div>
           {theirOnMyWay && (
             <span className="flex items-center gap-1 px-2.5 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold">
@@ -109,7 +114,7 @@ export default function MoveCountdown({ move, currentUserId, onUpdate }) {
             </span>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* Planning Fields */}
       <div className="space-y-3 mb-4">

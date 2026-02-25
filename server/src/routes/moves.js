@@ -27,13 +27,9 @@ async function autoCompletePastMoves() {
   });
 }
 
-// Create a Move (Steppers only)
+// Create a Move (both Steppers and Baddies)
 router.post('/', authenticate, upload.single('photo'), async (req, res) => {
   try {
-    if (req.userRole !== 'STEPPER') {
-      return res.status(403).json({ error: 'Only Steppers can create Moves' });
-    }
-
     const { title, description, date, location, maxInterest = 10, category, isAnytime } = req.body;
 
     if (!title || !description || !date || !location) {
@@ -57,7 +53,8 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
 
     const move = await prisma.move.create({
       data: {
-        stepperId: req.userId,
+        creatorId: req.userId,
+        stepperId: req.userRole === 'STEPPER' ? req.userId : null,
         title,
         description,
         date: moveDate,
@@ -67,7 +64,10 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
         photo,
         isAnytime: anytime,
       },
-      include: { stepper: { include: { profile: true } } },
+      include: {
+        creator: { include: { profile: true } },
+        stepper: { include: { profile: true } },
+      },
     });
 
     res.status(201).json(move);
@@ -86,7 +86,7 @@ router.get('/', authenticate, async (req, res) => {
 
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { isAdmin: true },
+      select: { isAdmin: true, role: true },
     });
 
     const hiddenIds = await getHiddenIds(req.userId);
@@ -96,17 +96,32 @@ router.get('/', authenticate, async (req, res) => {
       isActive: true,
       status: { in: ['OPEN', 'CONFIRMED'] },
       date: { gte: new Date() },
-      ...(hiddenIds.size > 0 && { stepperId: { notIn: [...hiddenIds] } }),
+      ...(hiddenIds.size > 0 && { creatorId: { notIn: [...hiddenIds] } }),
     };
 
-    // Baddies: hide moves within 2h (interest already closed)
-    if (req.userRole === 'BADDIE') {
-      whereClause.date = { gte: twoHoursFromNow };
+    // Hide moves within 2h (interest already closed) for non-creators
+    if (!currentUser?.isAdmin) {
+      whereClause.OR = [
+        { date: { gte: twoHoursFromNow } },
+        { creatorId: req.userId },
+      ];
     }
 
-    // Steppers only see their own moves (unless admin)
-    if (req.userRole === 'STEPPER' && !currentUser?.isAdmin) {
-      whereClause.stepperId = req.userId;
+    // Steppers only see their own Stepper-created moves + Baddie proposals (unless admin)
+    if (currentUser?.role === 'STEPPER' && !currentUser?.isAdmin) {
+      whereClause.OR = [
+        { creatorId: req.userId },
+        // Baddie proposals — show to Steppers
+        { creator: { role: 'BADDIE' }, date: { gte: twoHoursFromNow } },
+      ];
+    }
+
+    // Baddies see Stepper-created moves (not other Baddies' own) + their own
+    if (currentUser?.role === 'BADDIE') {
+      whereClause.OR = [
+        { creatorId: req.userId },
+        { creator: { role: 'STEPPER' }, date: { gte: twoHoursFromNow } },
+      ];
     }
 
     if (category) {
@@ -126,11 +141,12 @@ router.get('/', authenticate, async (req, res) => {
     const moves = await prisma.move.findMany({
       where: whereClause,
       include: {
+        creator: { include: { profile: true } },
         stepper: { include: { profile: true } },
         _count: { select: { interests: true } },
         interests: {
           take: 3,
-          include: { baddie: { include: { profile: { select: { photos: true, displayName: true } } } } },
+          include: { user: { include: { profile: { select: { photos: true, displayName: true } } } } },
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -139,7 +155,7 @@ router.get('/', authenticate, async (req, res) => {
 
     // Check which moves the current user has expressed interest in
     const userInterests = await prisma.moveInterest.findMany({
-      where: { baddieId: req.userId },
+      where: { userId: req.userId },
       select: { moveId: true },
     });
     const interestedMoveIds = new Set(userInterests.map((i) => i.moveId));
@@ -153,7 +169,7 @@ router.get('/', authenticate, async (req, res) => {
 
     const now = Date.now();
 
-    const isBaddie = req.userRole === 'BADDIE';
+    const isCreator = (m) => m.creatorId === req.userId;
 
     let result = moves.map((m) => {
       const hoursUntil = (new Date(m.date).getTime() - now) / (1000 * 60 * 60);
@@ -169,22 +185,30 @@ router.get('/', authenticate, async (req, res) => {
         photo: m.photo,
         isAnytime: m.isAnytime,
         selectedBaddieId: m.selectedBaddieId,
+        stepperId: m.stepperId,
+        creatorId: m.creatorId,
         interestCount: m._count.interests,
         createdAt: m.createdAt,
         hasInterest: interestedMoveIds.has(m.id),
         isSaved: savedMoveIds.has(m.id),
         interestClosingSoon: hoursUntil <= 4 && hoursUntil > 2,
         interestClosed: hoursUntil <= 2,
-        interestedBaddies: isBaddie ? [] : m.interests.map((i) => ({
-          id: i.baddie.id,
-          displayName: i.baddie.profile?.displayName,
-          photo: Array.isArray(i.baddie.profile?.photos) ? i.baddie.profile.photos[0] : null,
-        })),
-        stepper: {
+        interestedUsers: isCreator(m) ? m.interests.map((i) => ({
+          id: i.user.id,
+          displayName: i.user.profile?.displayName,
+          photo: Array.isArray(i.user.profile?.photos) ? i.user.profile.photos[0] : null,
+        })) : [],
+        creator: {
+          id: m.creator.id,
+          role: m.creator.role,
+          isVerified: m.creator.isVerified,
+          profile: m.creator.profile,
+        },
+        stepper: m.stepper ? {
           id: m.stepper.id,
           isVerified: m.stepper.isVerified,
           profile: m.stepper.profile,
-        },
+        } : null,
       };
     });
 
@@ -199,20 +223,16 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// Get Stepper's own moves with interests
+// Get user's own moves with interests
 router.get('/mine', authenticate, async (req, res) => {
   try {
-    if (req.userRole !== 'STEPPER') {
-      return res.status(403).json({ error: 'Only Steppers have Moves' });
-    }
-
     await autoCompletePastMoves();
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const moves = await prisma.move.findMany({
       where: {
-        stepperId: req.userId,
+        creatorId: req.userId,
         isActive: true,
         OR: [
           { status: 'OPEN', date: { gte: new Date() } },
@@ -221,11 +241,13 @@ router.get('/mine', authenticate, async (req, res) => {
         ],
       },
       include: {
+        creator: { include: { profile: true } },
         interests: {
-          include: { baddie: { include: { profile: true } } },
+          include: { user: { include: { profile: true } } },
           orderBy: { createdAt: 'desc' },
         },
         selectedBaddie: { include: { profile: true } },
+        stepper: { include: { profile: true } },
         participants: {
           include: { baddie: { include: { profile: true } } },
         },
@@ -247,22 +269,18 @@ router.get('/mine', authenticate, async (req, res) => {
   }
 });
 
-// Get all interests across stepper's moves (for messages page)
+// Get all interests across user's moves (for messages page)
 router.get('/interests', authenticate, async (req, res) => {
   try {
-    if (req.userRole !== 'STEPPER') {
-      return res.status(403).json({ error: 'Only Steppers have move interests' });
-    }
-
     const hiddenIds = await getHiddenIds(req.userId);
 
     const interests = await prisma.moveInterest.findMany({
       where: {
-        move: { stepperId: req.userId },
-        ...(hiddenIds.size > 0 && { baddieId: { notIn: [...hiddenIds] } }),
+        move: { creatorId: req.userId },
+        ...(hiddenIds.size > 0 && { userId: { notIn: [...hiddenIds] } }),
       },
       include: {
-        baddie: { include: { profile: true } },
+        user: { include: { profile: true } },
         move: { select: { id: true, title: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -275,10 +293,10 @@ router.get('/interests', authenticate, async (req, res) => {
       message: i.message,
       counterProposal: i.counterProposal,
       createdAt: i.createdAt,
-      baddie: {
-        id: i.baddie.id,
-        lastOnline: i.baddie.lastOnline,
-        profile: i.baddie.profile,
+      user: {
+        id: i.user.id,
+        lastOnline: i.user.lastOnline,
+        profile: i.user.profile,
       },
     })));
   } catch (error) {
@@ -297,16 +315,17 @@ router.get('/saved', authenticate, async (req, res) => {
     const saved = await prisma.savedMove.findMany({
       where: {
         userId: req.userId,
-        ...(hiddenIds.size > 0 && { move: { stepperId: { notIn: [...hiddenIds] } } }),
+        ...(hiddenIds.size > 0 && { move: { creatorId: { notIn: [...hiddenIds] } } }),
       },
       include: {
         move: {
           include: {
+            creator: { include: { profile: true } },
             stepper: { include: { profile: true } },
             _count: { select: { interests: true } },
             interests: {
               take: 3,
-              include: { baddie: { include: { profile: { select: { photos: true, displayName: true } } } } },
+              include: { user: { include: { profile: { select: { photos: true, displayName: true } } } } },
               orderBy: { createdAt: 'desc' },
             },
           },
@@ -316,14 +335,12 @@ router.get('/saved', authenticate, async (req, res) => {
     });
 
     const userInterests = await prisma.moveInterest.findMany({
-      where: { baddieId: req.userId },
+      where: { userId: req.userId },
       select: { moveId: true },
     });
     const interestedMoveIds = new Set(userInterests.map((i) => i.moveId));
 
     const now = Date.now();
-
-    const isBaddieSaved = req.userRole === 'BADDIE';
 
     const result = saved.map((s) => {
       const m = s.move;
@@ -340,22 +357,26 @@ router.get('/saved', authenticate, async (req, res) => {
         photo: m.photo,
         isAnytime: m.isAnytime,
         selectedBaddieId: m.selectedBaddieId,
+        stepperId: m.stepperId,
+        creatorId: m.creatorId,
         interestCount: m._count.interests,
         createdAt: m.createdAt,
         hasInterest: interestedMoveIds.has(m.id),
         isSaved: true,
         interestClosingSoon: hoursUntil <= 4 && hoursUntil > 2,
         interestClosed: hoursUntil <= 2,
-        interestedBaddies: isBaddieSaved ? [] : m.interests.map((i) => ({
-          id: i.baddie.id,
-          displayName: i.baddie.profile?.displayName,
-          photo: Array.isArray(i.baddie.profile?.photos) ? i.baddie.profile.photos[0] : null,
-        })),
-        stepper: {
+        interestedUsers: [],
+        creator: {
+          id: m.creator.id,
+          role: m.creator.role,
+          isVerified: m.creator.isVerified,
+          profile: m.creator.profile,
+        },
+        stepper: m.stepper ? {
           id: m.stepper.id,
           isVerified: m.stepper.isVerified,
           profile: m.stepper.profile,
-        },
+        } : null,
       };
     });
 
@@ -366,20 +387,16 @@ router.get('/saved', authenticate, async (req, res) => {
   }
 });
 
-// Get expired moves (Steppers only)
+// Get expired moves
 router.get('/expired', authenticate, async (req, res) => {
   try {
-    if (req.userRole !== 'STEPPER') {
-      return res.status(403).json({ error: 'Only Steppers can view expired Moves' });
-    }
-
     await autoCompletePastMoves();
 
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
 
     const moves = await prisma.move.findMany({
       where: {
-        stepperId: req.userId,
+        creatorId: req.userId,
         status: { in: ['CANCELLED', 'COMPLETED'] },
         date: { gte: ninetyDaysAgo },
       },
@@ -411,16 +428,12 @@ router.get('/expired', authenticate, async (req, res) => {
   }
 });
 
-// Clear all expired moves (Steppers only)
+// Clear all expired moves
 router.delete('/expired/clear', authenticate, async (req, res) => {
   try {
-    if (req.userRole !== 'STEPPER') {
-      return res.status(403).json({ error: 'Only Steppers can clear expired Moves' });
-    }
-
     await prisma.move.deleteMany({
       where: {
-        stepperId: req.userId,
+        creatorId: req.userId,
         status: { in: ['CANCELLED', 'COMPLETED'] },
       },
     });
@@ -435,25 +448,16 @@ router.delete('/expired/clear', authenticate, async (req, res) => {
 // Get move history for a user's profile
 router.get('/history/:userId', authenticate, async (req, res) => {
   try {
-    const targetUser = await prisma.user.findUnique({
-      where: { id: req.params.userId },
-      select: { role: true },
-    });
-
-    if (!targetUser || targetUser.role !== 'STEPPER') {
-      return res.json({ completedCount: 0, recentMoves: [] });
-    }
-
     if (await isHiddenFrom(req.userId, req.params.userId)) {
       return res.json({ completedCount: 0, recentMoves: [] });
     }
 
     const completedCount = await prisma.move.count({
-      where: { stepperId: req.params.userId, status: 'COMPLETED' },
+      where: { creatorId: req.params.userId, status: 'COMPLETED' },
     });
 
     const recentMoves = await prisma.move.findMany({
-      where: { stepperId: req.params.userId, status: 'COMPLETED' },
+      where: { creatorId: req.params.userId, status: 'COMPLETED' },
       select: { title: true, date: true, category: true, location: true },
       orderBy: { date: 'desc' },
       take: 5,
@@ -466,27 +470,31 @@ router.get('/history/:userId', authenticate, async (req, res) => {
   }
 });
 
-// Express interest in a Move (Baddies only)
+// Express interest in a Move (opposite role of creator)
 router.post('/:moveId/interest', authenticate, async (req, res) => {
   try {
-    if (req.userRole !== 'BADDIE') {
-      return res.status(403).json({ error: 'Only Baddies can express interest in Moves' });
-    }
-
     const move = await prisma.move.findUnique({
       where: { id: req.params.moveId },
-      include: { _count: { select: { interests: true } } },
+      include: {
+        creator: { select: { role: true } },
+        _count: { select: { interests: true } },
+      },
     });
 
     if (!move || !move.isActive) {
       return res.status(404).json({ error: 'Move not found or no longer active' });
     }
 
+    // Must be opposite role of creator
+    if (move.creator.role === req.userRole) {
+      return res.status(403).json({ error: 'You can only express interest in moves from the other role' });
+    }
+
     if (move.status !== 'OPEN') {
       return res.status(400).json({ error: 'This Move is no longer accepting interest' });
     }
 
-    if (await isHiddenFrom(req.userId, move.stepperId)) {
+    if (await isHiddenFrom(req.userId, move.creatorId)) {
       return res.status(403).json({ error: 'Cannot interact with this Move' });
     }
 
@@ -503,25 +511,25 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
     const interest = await prisma.moveInterest.create({
       data: {
         moveId: req.params.moveId,
-        baddieId: req.userId,
+        userId: req.userId,
         message: req.body.message || null,
         counterProposal: req.body.counterProposal || null,
       },
     });
 
-    // Create notification for Stepper
-    const baddieProfile = await prisma.profile.findUnique({
+    // Create notification for move creator
+    const userProfile = await prisma.profile.findUnique({
       where: { userId: req.userId },
       select: { displayName: true },
     });
 
     await prisma.notification.create({
       data: {
-        userId: move.stepperId,
+        userId: move.creatorId,
         type: 'move_interest',
         title: 'New Interest',
-        body: `${baddieProfile?.displayName || 'Someone'} is interested in "${move.title}"`,
-        data: { moveId: move.id, baddieId: req.userId },
+        body: `${userProfile?.displayName || 'Someone'} is interested in "${move.title}"`,
+        data: { moveId: move.id, userId: req.userId },
       },
     });
 
@@ -529,10 +537,10 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
     try {
       const { io } = await import('../../server.js');
       if (io) {
-        io.to(move.stepperId).emit('notification', {
+        io.to(move.creatorId).emit('notification', {
           type: 'move_interest',
           moveId: move.id,
-          baddieId: req.userId,
+          userId: req.userId,
         });
       }
     } catch {}
@@ -547,14 +555,14 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
   }
 });
 
-// Repost a Move (Stepper only - creates a new move from an expired one)
+// Repost a Move (creator only - creates a new move from an expired one)
 router.post('/:moveId/repost', authenticate, async (req, res) => {
   try {
     const original = await prisma.move.findUnique({
       where: { id: req.params.moveId },
     });
 
-    if (!original || original.stepperId !== req.userId) {
+    if (!original || original.creatorId !== req.userId) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -571,7 +579,8 @@ router.post('/:moveId/repost', authenticate, async (req, res) => {
 
     const newMove = await prisma.move.create({
       data: {
-        stepperId: req.userId,
+        creatorId: req.userId,
+        stepperId: req.userRole === 'STEPPER' ? req.userId : null,
         title: original.title,
         description: original.description,
         date: moveDate,
@@ -583,7 +592,10 @@ router.post('/:moveId/repost', authenticate, async (req, res) => {
         status: 'OPEN',
         isActive: true,
       },
-      include: { stepper: { include: { profile: true } } },
+      include: {
+        creator: { include: { profile: true } },
+        stepper: { include: { profile: true } },
+      },
     });
 
     res.status(201).json(newMove);
@@ -593,17 +605,18 @@ router.post('/:moveId/repost', authenticate, async (req, res) => {
   }
 });
 
-// Select a Baddie for a Move (Stepper only)
-router.put('/:moveId/select/:baddieId', authenticate, async (req, res) => {
+// Select a user for a Move (creator only)
+router.put('/:moveId/select/:selectedUserId', authenticate, async (req, res) => {
   try {
     const move = await prisma.move.findUnique({
       where: { id: req.params.moveId },
       include: {
-        interests: { select: { baddieId: true } },
+        creator: { select: { role: true } },
+        interests: { select: { userId: true } },
       },
     });
 
-    if (!move || move.stepperId !== req.userId) {
+    if (!move || move.creatorId !== req.userId) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -611,27 +624,37 @@ router.put('/:moveId/select/:baddieId', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Move is not open for selection' });
     }
 
-    const baddieHasInterest = move.interests.some((i) => i.baddieId === req.params.baddieId);
-    if (!baddieHasInterest) {
-      return res.status(400).json({ error: 'This Baddie has not expressed interest' });
+    const hasInterest = move.interests.some((i) => i.userId === req.params.selectedUserId);
+    if (!hasInterest) {
+      return res.status(400).json({ error: 'This user has not expressed interest' });
+    }
+
+    // For Baddie proposals selecting a Stepper: set stepperId
+    // For Stepper moves selecting a Baddie: set selectedBaddieId
+    const updateData = { status: 'CONFIRMED' };
+    if (move.creator.role === 'BADDIE') {
+      updateData.stepperId = req.params.selectedUserId;
+    } else {
+      updateData.selectedBaddieId = req.params.selectedUserId;
     }
 
     const updated = await prisma.move.update({
       where: { id: req.params.moveId },
-      data: { status: 'CONFIRMED', selectedBaddieId: req.params.baddieId },
+      data: updateData,
       include: {
+        creator: { include: { profile: true } },
         stepper: { include: { profile: true } },
         selectedBaddie: { include: { profile: true } },
         interests: {
-          include: { baddie: { include: { profile: true } } },
+          include: { user: { include: { profile: true } } },
         },
       },
     });
 
-    // Notify selected Baddie
+    // Notify selected user
     await prisma.notification.create({
       data: {
-        userId: req.params.baddieId,
+        userId: req.params.selectedUserId,
         type: 'move_selected',
         title: 'You\'ve been chosen!',
         body: `You've been chosen for "${move.title}"!`,
@@ -639,15 +662,15 @@ router.put('/:moveId/select/:baddieId', authenticate, async (req, res) => {
       },
     });
 
-    // Notify non-selected Baddies
-    const otherBaddies = move.interests
-      .filter((i) => i.baddieId !== req.params.baddieId)
-      .map((i) => i.baddieId);
+    // Notify non-selected users
+    const otherUsers = move.interests
+      .filter((i) => i.userId !== req.params.selectedUserId)
+      .map((i) => i.userId);
 
-    if (otherBaddies.length > 0) {
+    if (otherUsers.length > 0) {
       await prisma.notification.createMany({
-        data: otherBaddies.map((baddieId) => ({
-          userId: baddieId,
+        data: otherUsers.map((userId) => ({
+          userId,
           type: 'move_closed',
           title: 'Move Confirmed',
           body: `"${move.title}" has been confirmed with someone else`,
@@ -660,12 +683,12 @@ router.put('/:moveId/select/:baddieId', authenticate, async (req, res) => {
     try {
       const { io } = await import('../../server.js');
       if (io) {
-        io.to(req.params.baddieId).emit('notification', {
+        io.to(req.params.selectedUserId).emit('notification', {
           type: 'move_selected',
           moveId: move.id,
         });
-        otherBaddies.forEach((baddieId) => {
-          io.to(baddieId).emit('notification', {
+        otherUsers.forEach((userId) => {
+          io.to(userId).emit('notification', {
             type: 'move_closed',
             moveId: move.id,
           });
@@ -675,7 +698,7 @@ router.put('/:moveId/select/:baddieId', authenticate, async (req, res) => {
 
     res.json(updated);
   } catch (error) {
-    console.error('Select baddie error:', error);
+    console.error('Select user error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -686,17 +709,17 @@ router.put('/:moveId/select-group', authenticate, async (req, res) => {
     const { baddieIds } = req.body;
 
     if (!Array.isArray(baddieIds) || baddieIds.length === 0) {
-      return res.status(400).json({ error: 'At least one Baddie must be selected' });
+      return res.status(400).json({ error: 'At least one user must be selected' });
     }
 
     const move = await prisma.move.findUnique({
       where: { id: req.params.moveId },
       include: {
-        interests: { select: { baddieId: true } },
+        interests: { select: { userId: true } },
       },
     });
 
-    if (!move || move.stepperId !== req.userId) {
+    if (!move || move.creatorId !== req.userId) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -708,11 +731,11 @@ router.put('/:moveId/select-group', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'This endpoint is only for GROUP moves' });
     }
 
-    // Validate all baddieIds have expressed interest
-    const interestedIds = new Set(move.interests.map((i) => i.baddieId));
+    // Validate all selected users have expressed interest
+    const interestedIds = new Set(move.interests.map((i) => i.userId));
     const invalidIds = baddieIds.filter((id) => !interestedIds.has(id));
     if (invalidIds.length > 0) {
-      return res.status(400).json({ error: 'Some selected Baddies have not expressed interest' });
+      return res.status(400).json({ error: 'Some selected users have not expressed interest' });
     }
 
     // Transaction: create participants + confirm move
@@ -731,9 +754,10 @@ router.put('/:moveId/select-group', authenticate, async (req, res) => {
         where: { id: move.id },
         data: { status: 'CONFIRMED' },
         include: {
+          creator: { include: { profile: true } },
           stepper: { include: { profile: true } },
           interests: {
-            include: { baddie: { include: { profile: true } } },
+            include: { user: { include: { profile: true } } },
           },
           participants: {
             include: { baddie: { include: { profile: true } } },
@@ -742,7 +766,7 @@ router.put('/:moveId/select-group', authenticate, async (req, res) => {
       });
     });
 
-    // Notify selected Baddies
+    // Notify selected users
     await prisma.notification.createMany({
       data: baddieIds.map((baddieId) => ({
         userId: baddieId,
@@ -753,16 +777,16 @@ router.put('/:moveId/select-group', authenticate, async (req, res) => {
       })),
     });
 
-    // Notify non-selected Baddies
+    // Notify non-selected users
     const selectedSet = new Set(baddieIds);
-    const otherBaddies = move.interests
-      .filter((i) => !selectedSet.has(i.baddieId))
-      .map((i) => i.baddieId);
+    const otherUsers = move.interests
+      .filter((i) => !selectedSet.has(i.userId))
+      .map((i) => i.userId);
 
-    if (otherBaddies.length > 0) {
+    if (otherUsers.length > 0) {
       await prisma.notification.createMany({
-        data: otherBaddies.map((baddieId) => ({
-          userId: baddieId,
+        data: otherUsers.map((userId) => ({
+          userId,
           type: 'move_closed',
           title: 'Move Confirmed',
           body: `"${move.title}" has been confirmed with others`,
@@ -778,8 +802,8 @@ router.put('/:moveId/select-group', authenticate, async (req, res) => {
         baddieIds.forEach((baddieId) => {
           io.to(baddieId).emit('notification', { type: 'move_selected', moveId: move.id });
         });
-        otherBaddies.forEach((baddieId) => {
-          io.to(baddieId).emit('notification', { type: 'move_closed', moveId: move.id });
+        otherUsers.forEach((userId) => {
+          io.to(userId).emit('notification', { type: 'move_closed', moveId: move.id });
         });
       }
     } catch {}
@@ -803,11 +827,12 @@ router.put('/:moveId/planning', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Move is not confirmed' });
     }
 
+    const isCreator = move.creatorId === req.userId;
     const isStepper = move.stepperId === req.userId;
     const isBaddie = move.selectedBaddieId === req.userId;
     const isGroupParticipant = move.category === 'GROUP' && move.participants.some((p) => p.baddieId === req.userId);
 
-    if (!isStepper && !isBaddie && !isGroupParticipant) {
+    if (!isCreator && !isStepper && !isBaddie && !isGroupParticipant) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
@@ -818,10 +843,9 @@ router.put('/:moveId/planning', authenticate, async (req, res) => {
     if (playlistLink !== undefined) updateData.playlistLink = playlistLink;
 
     if (onMyWay !== undefined) {
-      if (isStepper) {
+      if (isCreator || isStepper) {
         updateData.stepperOnMyWay = onMyWay;
       } else if (isGroupParticipant) {
-        // For GROUP moves, update the participant record instead
         await prisma.moveParticipant.updateMany({
           where: { moveId: move.id, baddieId: req.userId },
           data: { onMyWay },
@@ -835,6 +859,7 @@ router.put('/:moveId/planning', authenticate, async (req, res) => {
       where: { id: req.params.moveId },
       data: updateData,
       include: {
+        creator: { include: { profile: true } },
         stepper: { include: { profile: true } },
         selectedBaddie: { include: { profile: true } },
         participants: {
@@ -843,19 +868,20 @@ router.put('/:moveId/planning', authenticate, async (req, res) => {
       },
     });
 
-    // Emit planning update to all relevant parties
+    // Emit planning update
     try {
       const { io } = await import('../../server.js');
       if (io) {
         if (move.category === 'GROUP' && move.participants.length > 0) {
-          // Notify stepper and all participants
-          const targetIds = [move.stepperId, ...move.participants.map((p) => p.baddieId)].filter((id) => id !== req.userId);
+          const targetIds = [move.creatorId, move.stepperId, ...move.participants.map((p) => p.baddieId)].filter((id) => id && id !== req.userId);
           targetIds.forEach((id) => {
             io.to(id).emit('move-planning-update', { moveId: move.id, ...updateData });
           });
         } else {
-          const targetId = isStepper ? move.selectedBaddieId : move.stepperId;
-          io.to(targetId).emit('move-planning-update', { moveId: move.id, ...updateData });
+          const otherIds = [move.creatorId, move.stepperId, move.selectedBaddieId].filter((id) => id && id !== req.userId);
+          otherIds.forEach((id) => {
+            io.to(id).emit('move-planning-update', { moveId: move.id, ...updateData });
+          });
         }
       }
     } catch {}
@@ -896,15 +922,15 @@ router.delete('/:moveId/save', authenticate, async (req, res) => {
   }
 });
 
-// Delete a move interest (Stepper only - for their own moves)
+// Delete a move interest (creator only - for their own moves)
 router.delete('/interests/:interestId', authenticate, async (req, res) => {
   try {
     const interest = await prisma.moveInterest.findUnique({
       where: { id: req.params.interestId },
-      include: { move: { select: { stepperId: true } } },
+      include: { move: { select: { creatorId: true } } },
     });
 
-    if (!interest || interest.move.stepperId !== req.userId) {
+    if (!interest || interest.move.creatorId !== req.userId) {
       return res.status(404).json({ error: 'Interest not found' });
     }
 
@@ -929,7 +955,7 @@ router.delete('/:moveId', authenticate, async (req, res) => {
       select: { isAdmin: true },
     });
 
-    if (move.stepperId !== req.userId && !currentUser?.isAdmin) {
+    if (move.creatorId !== req.userId && !currentUser?.isAdmin) {
       return res.status(403).json({ error: 'Not authorized to delete this move' });
     }
 

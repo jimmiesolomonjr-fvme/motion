@@ -8,7 +8,7 @@ export default function MoveInterestList({ interests, onStartConversation, onSel
   const [expanded, setExpanded] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
 
-  if (interests.length === 0) {
+  if (!interests || interests.length === 0) {
     return <p className="text-gray-500 text-sm text-center py-4">No interest yet</p>;
   }
 
@@ -17,23 +17,29 @@ export default function MoveInterestList({ interests, onStartConversation, onSel
 
   const isGroupOpen = moveCategory === 'GROUP' && moveStatus === 'OPEN';
 
-  const toggleGroupSelect = (baddieId) => {
+  const toggleGroupSelect = (userId) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(baddieId)) {
-        next.delete(baddieId);
+      if (next.has(userId)) {
+        next.delete(userId);
       } else {
-        next.add(baddieId);
+        next.add(userId);
       }
       return next;
     });
   };
 
+  // Support both old (baddie) and new (user) field names for backwards compat
+  const getUser = (interest) => interest.user || interest.baddie;
+  const getUserId = (interest) => getUser(interest)?.id;
+
   return (
     <div className="space-y-3">
       {visible.map((interest) => {
-        const isSelected = selectedBaddieId === interest.baddie.id;
-        const isGroupChecked = selectedIds.has(interest.baddie.id);
+        const interestUser = getUser(interest);
+        const userId = getUserId(interest);
+        const isSelected = selectedBaddieId === userId;
+        const isGroupChecked = selectedIds.has(userId);
         return (
           <div
             key={interest.id}
@@ -48,7 +54,7 @@ export default function MoveInterestList({ interests, onStartConversation, onSel
             {isGroupOpen && (
               <button
                 type="button"
-                onClick={() => toggleGroupSelect(interest.baddie.id)}
+                onClick={() => toggleGroupSelect(userId)}
                 className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                   isGroupChecked
                     ? 'bg-gold border-gold'
@@ -59,7 +65,7 @@ export default function MoveInterestList({ interests, onStartConversation, onSel
               </button>
             )}
             <div className="relative">
-              <Avatar src={interest.baddie.profile?.photos} name={interest.baddie.profile?.displayName} size="sm" />
+              <Avatar src={interestUser?.profile?.photos} name={interestUser?.profile?.displayName} size="sm" />
               {isSelected && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
                   <Check size={10} className="text-white" />
@@ -68,7 +74,7 @@ export default function MoveInterestList({ interests, onStartConversation, onSel
             </div>
             <div className="flex-1 min-w-0">
               <h4 className="font-semibold text-white text-sm">
-                {interest.baddie.profile?.displayName}
+                {interestUser?.profile?.displayName}
                 {isSelected && <span className="text-green-400 text-xs ml-1.5">Selected</span>}
               </h4>
               {interest.message && <p className="text-gray-400 text-xs truncate">{interest.message}</p>}
@@ -84,12 +90,12 @@ export default function MoveInterestList({ interests, onStartConversation, onSel
                 <Button
                   variant="outline"
                   className="text-xs !px-2.5 !py-1.5 border-gold/30 text-gold hover:bg-gold hover:text-dark"
-                  onClick={() => onSelect(interest.baddie.id, interest.baddie.profile?.displayName)}
+                  onClick={() => onSelect(userId, interestUser?.profile?.displayName)}
                 >
                   <UserCheck size={14} className="mr-1" /> Select
                 </Button>
               )}
-              <Button variant="gold" className="text-xs !px-3 !py-1.5" onClick={() => onStartConversation(interest.baddie.id)}>
+              <Button variant="gold" className="text-xs !px-3 !py-1.5" onClick={() => onStartConversation(userId)}>
                 Chat
               </Button>
             </div>

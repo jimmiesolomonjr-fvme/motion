@@ -27,7 +27,7 @@ router.get('/questions', authenticate, async (req, res) => {
       })
     ).map((a) => a.questionId);
 
-    const [questions, user] = await Promise.all([
+    const [questions, user, totalAnswered] = await Promise.all([
       prisma.vibeQuestion.findMany({
         where: {
           isActive: true,
@@ -39,6 +39,7 @@ router.get('/questions', authenticate, async (req, res) => {
         where: { id: req.userId },
         select: { vibeStreak: true, afterDarkEnabled: true },
       }),
+      prisma.vibeAnswer.count({ where: { userId: req.userId } }),
     ]);
 
     // Filter out AfterDark questions if user hasn't opted in
@@ -46,7 +47,7 @@ router.get('/questions', authenticate, async (req, res) => {
       ? questions
       : questions.filter(q => q.category !== 'AfterDark');
 
-    res.json({ questions: filtered, remaining: 25 - answeredInWindow, vibeStreak: user?.vibeStreak || 0 });
+    res.json({ questions: filtered, remaining: 25 - answeredInWindow, vibeStreak: user?.vibeStreak || 0, totalAnswered, afterDarkEnabled: user?.afterDarkEnabled || false });
   } catch (error) {
     console.error('Vibe questions error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -169,7 +170,8 @@ router.post('/answer', authenticate, async (req, res) => {
       console.error('Vibe notification cleanup error:', err);
     }
 
-    res.json({ ...vibeAnswer, vibeStreak: newStreak, vibeMatch: vibeMatchResult });
+    const totalAnswered = await prisma.vibeAnswer.count({ where: { userId: req.userId } });
+    res.json({ ...vibeAnswer, vibeStreak: newStreak, vibeMatch: vibeMatchResult, totalAnswered });
   } catch (error) {
     console.error('Vibe answer error:', error);
     res.status(500).json({ error: 'Server error' });

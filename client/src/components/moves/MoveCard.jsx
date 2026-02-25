@@ -13,7 +13,10 @@ const CATEGORY_LABELS = {
 };
 
 export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete, onSave, onUnsave }) {
-  const baddies = move.interestedBaddies || [];
+  const interestedUsers = move.interestedUsers || [];
+  const creator = move.creator || move.stepper;
+  const isCreatorBaddie = creator?.role === 'BADDIE';
+  const canExpress = (isCreatorBaddie && userRole === 'STEPPER') || (!isCreatorBaddie && userRole === 'BADDIE');
 
   return (
     <div className="card-elevated">
@@ -37,19 +40,23 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
       )}
 
       <div className="flex items-start gap-3 mb-4">
-        <Avatar src={move.stepper.profile?.photos} name={move.stepper.profile?.displayName} size="sm" />
+        <Avatar src={creator?.profile?.photos} name={creator?.profile?.displayName} size="sm" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-white text-sm truncate">
-              {move.stepper.profile?.displayName}
+              {creator?.profile?.displayName}
             </span>
-            {move.stepper.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
-            <span className="badge-stepper ml-1">Stepper</span>
+            {creator?.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
+            <span className={`ml-1 ${isCreatorBaddie ? 'badge-baddie' : 'badge-stepper'}`}>
+              {isCreatorBaddie ? 'Baddie' : 'Stepper'}
+            </span>
           </div>
+          {isCreatorBaddie && (
+            <p className="text-xs text-gray-500 mt-0.5">Looking for a Stepper to take her out</p>
+          )}
         </div>
         <div className="flex items-center gap-1">
-          {/* Bookmark for Baddies */}
-          {userRole === 'BADDIE' && (onSave || onUnsave) && (
+          {(onSave || onUnsave) && (
             <button
               onClick={() => move.isSaved ? onUnsave?.(move.id) : onSave?.(move.id)}
               className="p-1.5 text-gray-500 hover:text-gold transition-colors"
@@ -109,27 +116,27 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
         </div>
       )}
 
-      {/* Interested baddies */}
-      {baddies.length === 1 && (
+      {/* Interested users (visible to creator) */}
+      {interestedUsers.length === 1 && (
         <div className="flex items-center gap-2 mb-4">
           <img
-            src={baddies[0].photo}
-            alt={baddies[0].displayName}
+            src={interestedUsers[0].photo}
+            alt={interestedUsers[0].displayName}
             className="w-7 h-7 rounded-full object-cover border-2 border-dark"
           />
           <span className="text-xs text-gray-300">
-            <span className="text-white font-medium">{baddies[0].displayName}</span> is interested
+            <span className="text-white font-medium">{interestedUsers[0].displayName}</span> is interested
           </span>
         </div>
       )}
-      {baddies.length >= 2 && (
+      {interestedUsers.length >= 2 && (
         <div className="flex items-center gap-2 mb-4">
           <div className="flex -space-x-2">
-            {baddies.map((b) => (
+            {interestedUsers.map((u) => (
               <img
-                key={b.id}
-                src={b.photo}
-                alt={b.displayName}
+                key={u.id}
+                src={u.photo}
+                alt={u.displayName}
                 className="w-7 h-7 rounded-full object-cover border-2 border-dark ring-0"
               />
             ))}
@@ -140,7 +147,7 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
         </div>
       )}
 
-      {userRole === 'BADDIE' && (
+      {canExpress && (
         move.hasInterest ? (
           <Button variant="outline" className="w-full opacity-70 cursor-default" disabled>
             <Check size={16} className="inline mr-2 text-green-400" /> Interested
@@ -151,7 +158,7 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
           </Button>
         ) : (
           <Button variant="gold" className="w-full" onClick={() => onInterest(move.id)}>
-            I&apos;m Interested
+            {isCreatorBaddie ? "I'll Take You" : "I'm Interested"}
           </Button>
         )
       )}

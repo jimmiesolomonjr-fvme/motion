@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm install --prefix client && npm install --prefix server && npm run build --prefix client && cd server && npx prisma generate && npx prisma db push --accept-data-loss && node prisma/seed.js",
+    "build": "npm install --prefix client && npm install --prefix server && npm run build --prefix client && cd server && node prisma/pre-migrate.js && npx prisma generate && npx prisma db push --accept-data-loss && node prisma/seed.js",
     "start": "npm start --prefix server"
   }
 }

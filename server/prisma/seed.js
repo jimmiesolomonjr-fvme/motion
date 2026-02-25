@@ -227,10 +227,10 @@ async function main() {
       await tx.match.deleteMany({ where: { OR: [{ user1Id: { in: ids } }, { user2Id: { in: ids } }] } });
       await tx.block.deleteMany({ where: { OR: [{ blockerId: { in: ids } }, { blockedId: { in: ids } }] } });
       await tx.report.deleteMany({ where: { OR: [{ reporterId: { in: ids } }, { reportedId: { in: ids } }] } });
-      const moves = await tx.move.findMany({ where: { stepperId: { in: ids } }, select: { id: true } });
+      const moves = await tx.move.findMany({ where: { creatorId: { in: ids } }, select: { id: true } });
       if (moves.length) await tx.moveInterest.deleteMany({ where: { moveId: { in: moves.map(m => m.id) } } });
-      await tx.move.deleteMany({ where: { stepperId: { in: ids } } });
-      await tx.moveInterest.deleteMany({ where: { baddieId: { in: ids } } });
+      await tx.move.deleteMany({ where: { creatorId: { in: ids } } });
+      await tx.moveInterest.deleteMany({ where: { userId: { in: ids } } });
       await tx.hiddenPair.deleteMany({ where: { OR: [{ user1Id: { in: ids } }, { user2Id: { in: ids } }] } });
       await tx.user.deleteMany({ where: { id: { in: ids } } });
     });

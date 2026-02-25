@@ -255,7 +255,7 @@ router.put('/location', authenticate, async (req, res) => {
 // Browse feed
 router.get('/feed', authenticate, async (req, res) => {
   try {
-    const { sort = 'newest', maxDistance, onlineOnly, minAge, maxAge, page: pageStr = '0', limit: limitStr = '12' } = req.query;
+    const { sort = 'active', maxDistance, minAge, maxAge, tags, page: pageStr = '0', limit: limitStr = '12' } = req.query;
     const page = Math.max(0, parseInt(pageStr) || 0);
     const limit = Math.min(50, Math.max(1, parseInt(limitStr) || 12));
     const currentUser = await prisma.user.findUnique({
@@ -308,14 +308,14 @@ router.get('/feed', authenticate, async (req, res) => {
         isHidden: false,
         ...(hideDummies && { isDummy: false }),
         profile: profileWhere,
-        ...(onlineOnly === 'true' && {
-          lastOnline: { gte: new Date(Date.now() - 5 * 60 * 1000) },
-        }),
       },
       include: { profile: true },
       orderBy: sort === 'newest' ? { createdAt: 'desc' } : { lastOnline: 'desc' },
       take: 50,
     });
+
+    // Filter by lookingForTags if requested
+    const parsedTags = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
 
     // Batch referral counts for isPlug
     const referralCodes = users.map((u) => u.referralCode).filter(Boolean);
@@ -378,18 +378,27 @@ router.get('/feed', authenticate, async (req, res) => {
       };
     });
 
+    // Filter by tags
+    if (parsedTags.length > 0) {
+      results = results.filter((u) => {
+        const userTags = Array.isArray(u.profile?.lookingForTags) ? u.profile.lookingForTags : [];
+        return parsedTags.some(tag => userTags.includes(tag));
+      });
+    }
+
     // Filter by distance
     if (maxDistance && currentUser.locationLat) {
       const maxDist = parseInt(maxDistance);
       results = results.filter((u) => u.distance !== null && u.distance <= maxDist);
     }
 
-    // Sort by distance if requested
+    // Sort
     if (sort === 'distance') {
       results.sort((a, b) => (a.distance ?? 9999) - (b.distance ?? 9999));
     } else if (sort === 'vibe') {
       results.sort((a, b) => (b.vibeScore ?? 0) - (a.vibeScore ?? 0));
     }
+    // 'active' and 'newest' are handled by the DB orderBy
 
     // Paginate results
     const start = page * limit;
@@ -600,7 +609,7 @@ router.delete('/profile-song', authenticate, async (req, res) => {
 // Vertical discovery feed (richer data, smaller pages)
 router.get('/feed/vertical', authenticate, async (req, res) => {
   try {
-    const { sort = 'newest', maxDistance, onlineOnly, minAge, maxAge, page: pageStr = '0', limit: limitStr = '5' } = req.query;
+    const { sort = 'active', maxDistance, minAge, maxAge, tags, page: pageStr = '0', limit: limitStr = '5' } = req.query;
     const page = Math.max(0, parseInt(pageStr) || 0);
     const limit = Math.min(20, Math.max(1, parseInt(limitStr) || 5));
     const currentUser = await prisma.user.findUnique({
@@ -647,9 +656,6 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
         isHidden: false,
         ...(hideDummies && { isDummy: false }),
         profile: profileWhere,
-        ...(onlineOnly === 'true' && {
-          lastOnline: { gte: new Date(Date.now() - 5 * 60 * 1000) },
-        }),
       },
       include: {
         profile: true,
@@ -732,6 +738,15 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       };
     });
 
+    // Filter by tags
+    const parsedVerticalTags = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+    if (parsedVerticalTags.length > 0) {
+      results = results.filter((u) => {
+        const userTags = Array.isArray(u.profile?.lookingForTags) ? u.profile.lookingForTags : [];
+        return parsedVerticalTags.some(tag => userTags.includes(tag));
+      });
+    }
+
     if (maxDistance && currentUser.locationLat) {
       const maxDist = parseInt(maxDistance);
       results = results.filter((u) => u.distance !== null && u.distance <= maxDist);
@@ -782,13 +797,13 @@ router.delete('/account', authenticate, async (req, res) => {
       // Delete reports
       await tx.report.deleteMany({ where: { OR: [{ reporterId: userId }, { reportedId: userId }] } });
       // Delete move interests for user's moves, then user's moves
-      const userMoves = await tx.move.findMany({ where: { stepperId: userId }, select: { id: true } });
+      const userMoves = await tx.move.findMany({ where: { creatorId: userId }, select: { id: true } });
       if (userMoves.length) {
         await tx.moveInterest.deleteMany({ where: { moveId: { in: userMoves.map((m) => m.id) } } });
       }
-      await tx.move.deleteMany({ where: { stepperId: userId } });
-      // Delete move interests where user is the baddie
-      await tx.moveInterest.deleteMany({ where: { baddieId: userId } });
+      await tx.move.deleteMany({ where: { creatorId: userId } });
+      // Delete move interests where user expressed interest
+      await tx.moveInterest.deleteMany({ where: { userId } });
       // Delete hidden pairs
       await tx.hiddenPair.deleteMany({ where: { OR: [{ user1Id: userId }, { user2Id: userId }] } });
       // Delete user (Profile, VibeAnswer, Subscription cascade automatically)

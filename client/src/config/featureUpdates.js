@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2 } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -170,6 +170,39 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Autoplay Profile Songs',
         description: 'Songs now play automatically when you visit a profile. Toggle it off in Settings.',
+      },
+    ],
+  },
+  '2.8.0': {
+    subtitle: 'Big moves, better vibes.',
+    features: [
+      {
+        icon: Activity,
+        color: 'text-green-400',
+        bg: 'bg-green-400/10',
+        title: 'Recently Active Feed',
+        description: 'See who\'s active now, right at the top of your feed.',
+      },
+      {
+        icon: SlidersHorizontal,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Advanced Filters',
+        description: 'Filter by tags, distance, and age in one place.',
+      },
+      {
+        icon: Flame,
+        color: 'text-pink-400',
+        bg: 'bg-pink-400/10',
+        title: 'Baddie Move Proposals',
+        description: 'Baddies can now propose dates for Steppers to compete for.',
+      },
+      {
+        icon: Moon,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'AfterDark Unlock',
+        description: 'Unlock spicy questions after 50 vibes.',
       },
     ],
   },

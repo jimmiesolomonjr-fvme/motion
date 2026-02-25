@@ -58,12 +58,12 @@ function SwipeableInterest({ interest, onStartConversation, onDismiss }) {
         className="relative bg-dark z-10"
       >
         <button
-          onClick={() => { if (!swiped) onStartConversation(interest.baddie.id); }}
+          onClick={() => { if (!swiped) onStartConversation(interest.user.id); }}
           className="w-full flex items-center gap-3 p-3 rounded-xl bg-dark-50 hover:bg-dark-100 transition-colors text-left"
         >
-          <Avatar src={interest.baddie.profile?.photos} size="sm" />
+          <Avatar src={interest.user.profile?.photos} size="sm" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{interest.baddie.profile?.displayName}</p>
+            <p className="text-sm font-medium text-white truncate">{interest.user.profile?.displayName}</p>
             <p className="text-xs text-gray-500 truncate">{interest.moveTitle}</p>
           </div>
           <span className="text-xs text-gold">Chat</span>
@@ -90,9 +90,7 @@ export default function Messages() {
           api.get('/messages/conversations'),
           api.get('/likes/matches'),
         ];
-        if (user?.role === 'STEPPER') {
-          promises.push(api.get('/moves/interests'));
-        }
+        promises.push(api.get('/moves/interests'));
         const results = await Promise.all(promises);
         setConversations(results[0].data);
         setMatches(results[1].data);

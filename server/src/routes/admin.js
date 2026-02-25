@@ -167,8 +167,8 @@ router.delete('/users/:userId', authenticate, requireAdmin, async (req, res) => 
     await prisma.$transaction([
       prisma.messageReaction.deleteMany({ where: { userId: req.params.userId } }),
       prisma.pushSubscription.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.moveInterest.deleteMany({ where: { baddieId: req.params.userId } }),
-      prisma.move.deleteMany({ where: { stepperId: req.params.userId } }),
+      prisma.moveInterest.deleteMany({ where: { userId: req.params.userId } }),
+      prisma.move.deleteMany({ where: { creatorId: req.params.userId } }),
       prisma.message.deleteMany({ where: { senderId: req.params.userId } }),
       prisma.conversation.deleteMany({ where: { OR: [{ user1Id: req.params.userId }, { user2Id: req.params.userId }] } }),
       prisma.like.deleteMany({ where: { OR: [{ likerId: req.params.userId }, { likedId: req.params.userId }] } }),

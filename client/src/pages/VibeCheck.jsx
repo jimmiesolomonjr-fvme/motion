@@ -5,7 +5,7 @@ import AppLayout from '../components/layout/AppLayout';
 import QuestionCard from '../components/vibe-check/QuestionCard';
 import StreakCelebration from '../components/vibe-check/StreakCelebration';
 import api from '../services/api';
-import { Sparkles, Flame } from 'lucide-react';
+import { Sparkles, Flame, Moon } from 'lucide-react';
 
 function useCountdown(resetsAt) {
   const [timeLeft, setTimeLeft] = useState('');
@@ -45,6 +45,7 @@ export default function VibeCheck() {
   const [topMatches, setTopMatches] = useState([]);
   const [vibeMatch, setVibeMatch] = useState(null);
   const [streakMilestone, setStreakMilestone] = useState(null);
+  const [showAfterDarkPrompt, setShowAfterDarkPrompt] = useState(false);
 
   const countdown = useCountdown(resetsAt);
 
@@ -60,6 +61,10 @@ export default function VibeCheck() {
     fetchTopMatches();
   }, []);
 
+  const shouldShowAfterDark = (totalAnswered, afterDarkEnabled) => {
+    return totalAnswered >= 50 && !afterDarkEnabled && !localStorage.getItem('motion_afterdark_dismissed');
+  };
+
   const fetchQuestions = async () => {
     setLoading(true);
     try {
@@ -68,6 +73,9 @@ export default function VibeCheck() {
       setRemaining(data.remaining);
       if (data.vibeStreak !== undefined) setVibeStreak(data.vibeStreak);
       if (data.resetsAt) setResetsAt(data.resetsAt);
+      if (shouldShowAfterDark(data.totalAnswered, data.afterDarkEnabled)) {
+        setShowAfterDarkPrompt(true);
+      }
     } catch (err) {
       console.error('Vibe error:', err);
     } finally {
@@ -89,10 +97,28 @@ export default function VibeCheck() {
         }
       }
       if (data.vibeMatch) setVibeMatch(data.vibeMatch);
+      // Check if just crossed 50
+      if (data.totalAnswered >= 50 && shouldShowAfterDark(data.totalAnswered, false)) {
+        setShowAfterDarkPrompt(true);
+      }
       fetchTopMatches();
     } catch (err) {
       console.error('Answer error:', err);
     }
+  };
+
+  const handleEnableAfterDark = async () => {
+    try {
+      await api.put('/users/preferences', { afterDarkEnabled: true });
+      setShowAfterDarkPrompt(false);
+    } catch (err) {
+      console.error('Enable AfterDark error:', err);
+    }
+  };
+
+  const handleDismissAfterDark = () => {
+    localStorage.setItem('motion_afterdark_dismissed', 'true');
+    setShowAfterDarkPrompt(false);
   };
 
   const handleSayHey = async (userId) => {
@@ -243,6 +269,51 @@ export default function VibeCheck() {
                 >
                   Say Hey
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* AfterDark Prompt Overlay */}
+      <AnimatePresence>
+        {showAfterDarkPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+            onClick={handleDismissAfterDark}
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="bg-dark-50 rounded-3xl p-8 text-center max-w-sm w-full border border-purple-accent/30"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-20 h-20 rounded-full bg-purple-accent/20 flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(147,51,234,0.3)]">
+                <Moon className="text-purple-400" size={36} />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Unlock AfterDark Questions</h3>
+              <p className="text-gray-400 text-sm mb-6">
+                You've answered 50+ vibe questions! Ready for spicier, more intimate questions?
+              </p>
+              <div className="space-y-3">
+                <button
+                  onClick={handleEnableAfterDark}
+                  className="w-full py-3 rounded-xl bg-gold text-dark font-bold"
+                >
+                  Enable AfterDark
+                </button>
+                <button
+                  onClick={handleDismissAfterDark}
+                  className="w-full py-3 rounded-xl bg-dark-100 border border-gray-600 text-gray-300 font-bold"
+                >
+                  Not Now
+                </button>
+                <p className="text-xs text-gray-500">You can turn this on anytime in Settings</p>
               </div>
             </motion.div>
           </motion.div>

@@ -14,13 +14,15 @@ const CATEGORIES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
-export default function CreateMove({ onCreated, onClose }) {
+export default function CreateMove({ onCreated, onClose, userRole }) {
   const [form, setForm] = useState({ title: '', description: '', date: '', location: '', maxInterest: 10, category: '', isAnytime: false });
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const fileRef = useRef();
+
+  const isBaddie = userRole === 'BADDIE';
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -90,8 +92,22 @@ export default function CreateMove({ onCreated, onClose }) {
         )}
       </div>
 
-      <Input label="Title" name="title" value={form.title} onChange={handleChange} placeholder='e.g. "Dinner at Nobu Saturday"' required />
-      <Textarea label="Description" name="description" value={form.description} onChange={handleChange} placeholder="Set the vibe — what's the plan?" required />
+      <Input
+        label="Title"
+        name="title"
+        value={form.title}
+        onChange={handleChange}
+        placeholder={isBaddie ? 'e.g. "Take me to dinner Saturday"' : 'e.g. "Dinner at Nobu Saturday"'}
+        required
+      />
+      <Textarea
+        label="Description"
+        name="description"
+        value={form.description}
+        onChange={handleChange}
+        placeholder={isBaddie ? "Describe your ideal date..." : "Set the vibe — what's the plan?"}
+        required
+      />
 
       {/* Category Chips */}
       <div>

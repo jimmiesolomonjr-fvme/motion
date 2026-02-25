@@ -164,8 +164,8 @@ router.post('/start/:userId', authenticate, async (req, res) => {
         const moveInterest = await prisma.moveInterest.findFirst({
           where: {
             OR: [
-              { baddieId: otherUserId, move: { stepperId: req.userId } },
-              { baddieId: req.userId, move: { stepperId: otherUserId } },
+              { userId: otherUserId, move: { creatorId: req.userId } },
+              { userId: req.userId, move: { creatorId: otherUserId } },
             ],
           },
         });

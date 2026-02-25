@@ -11,10 +11,10 @@ import StoryBar from '../components/stories/StoryBar';
 
 export default function Feed() {
   const [users, setUsers] = useState([]);
-  const [sort, setSort] = useState('newest');
-  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [sort, setSort] = useState('active');
   const [ageRange, setAgeRange] = useState([18, 99]);
   const [maxDistance, setMaxDistance] = useState(100);
+  const [selectedTags, setSelectedTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [matchModal, setMatchModal] = useState(null);
   const [page, setPage] = useState(0);
@@ -36,10 +36,11 @@ export default function Feed() {
     if (pageNum === 0) setLoading(true);
     else setLoadingMore(true);
     try {
-      const params = { sort, onlineOnly: onlineOnly.toString(), page: pageNum };
+      const params = { sort, page: pageNum };
       if (ageRange[0] !== 18) params.minAge = ageRange[0];
       if (ageRange[1] !== 99) params.maxAge = ageRange[1];
       if (maxDistance < 100) params.maxDistance = maxDistance;
+      if (selectedTags.length > 0) params.tags = selectedTags.join(',');
 
       const { data } = await api.get('/users/feed', { params });
       if (pageNum === 0) {
@@ -54,16 +55,17 @@ export default function Feed() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [sort, onlineOnly, ageRange, maxDistance]);
+  }, [sort, ageRange, maxDistance, selectedTags]);
 
   const fetchVerticalFeed = useCallback(async (pageNum) => {
     if (pageNum === 0) setVerticalLoading(true);
     else setVerticalLoadingMore(true);
     try {
-      const params = { sort, onlineOnly: onlineOnly.toString(), page: pageNum, limit: 5 };
+      const params = { sort, page: pageNum, limit: 5 };
       if (ageRange[0] !== 18) params.minAge = ageRange[0];
       if (ageRange[1] !== 99) params.maxAge = ageRange[1];
       if (maxDistance < 100) params.maxDistance = maxDistance;
+      if (selectedTags.length > 0) params.tags = selectedTags.join(',');
 
       const { data } = await api.get('/users/feed/vertical', { params });
       if (pageNum === 0) {
@@ -78,7 +80,7 @@ export default function Feed() {
       setVerticalLoading(false);
       setVerticalLoadingMore(false);
     }
-  }, [sort, onlineOnly, ageRange, maxDistance]);
+  }, [sort, ageRange, maxDistance, selectedTags]);
 
   // Reset to page 0 when filters change
   useEffect(() => {
@@ -89,7 +91,7 @@ export default function Feed() {
     } else {
       fetchVerticalFeed(0);
     }
-  }, [sort, onlineOnly, ageRange[0], ageRange[1], maxDistance]);
+  }, [sort, ageRange[0], ageRange[1], maxDistance, selectedTags]);
 
   // Fetch when switching view modes
   useEffect(() => {
@@ -128,9 +130,10 @@ export default function Feed() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loading, viewMode]);
 
-  const handleApplyFilters = ({ ageRange: newAge, maxDistance: newDist }) => {
+  const handleApplyFilters = ({ ageRange: newAge, maxDistance: newDist, tags: newTags }) => {
     setAgeRange(newAge);
     setMaxDistance(newDist);
+    if (newTags !== undefined) setSelectedTags(newTags);
   };
 
   const handleUnlike = async (userId) => {
@@ -171,8 +174,8 @@ export default function Feed() {
       <StoryBar />
       <FeedFilters
         sort={sort} setSort={setSort}
-        onlineOnly={onlineOnly} setOnlineOnly={setOnlineOnly}
         ageRange={ageRange} maxDistance={maxDistance}
+        selectedTags={selectedTags}
         onApply={handleApplyFilters}
       />
 

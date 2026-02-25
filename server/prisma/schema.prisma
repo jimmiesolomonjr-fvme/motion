@@ -82,6 +82,7 @@ model User {
   blockedBy     Block[]   @relation("Blocked")
   vibeAnswers   VibeAnswer[]
   moves             Move[]         @relation("StepperMoves")
+  createdMoves      Move[]         @relation("CreatorMoves")
   selectedForMoves  Move[]         @relation("SelectedBaddieMoves")
   moveInterests     MoveInterest[]
   moveParticipations MoveParticipant[]
@@ -247,7 +248,8 @@ model Subscription {
 
 model Move {
   id               String        @id @default(uuid())
-  stepperId        String
+  stepperId        String?
+  creatorId        String
   title            String
   description      String
   date             DateTime
@@ -265,7 +267,8 @@ model Move {
   baddieOnMyWay    Boolean       @default(false)
   createdAt        DateTime      @default(now())
 
-  stepper        User           @relation("StepperMoves", fields: [stepperId], references: [id])
+  stepper        User?          @relation("StepperMoves", fields: [stepperId], references: [id])
+  creator        User           @relation("CreatorMoves", fields: [creatorId], references: [id])
   selectedBaddie User?          @relation("SelectedBaddieMoves", fields: [selectedBaddieId], references: [id])
   interests      MoveInterest[]
   participants   MoveParticipant[]
@@ -273,21 +276,22 @@ model Move {
 
   @@index([status, date])
   @@index([stepperId])
+  @@index([creatorId])
   @@index([selectedBaddieId])
 }
 
 model MoveInterest {
   id              String   @id @default(uuid())
   moveId          String
-  baddieId        String
+  userId          String
   message         String?
   counterProposal String?
   createdAt       DateTime @default(now())
 
-  move   Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
-  baddie User @relation(fields: [baddieId], references: [id])
+  move Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
-  @@unique([moveId, baddieId])
+  @@unique([moveId, userId])
 }
 
 model MoveParticipant {
