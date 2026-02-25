@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import AppLayout from '../components/layout/AppLayout';
@@ -46,6 +46,8 @@ export default function VibeCheck() {
   const [vibeMatch, setVibeMatch] = useState(null);
   const [streakMilestone, setStreakMilestone] = useState(null);
   const [showAfterDarkPrompt, setShowAfterDarkPrompt] = useState(false);
+  const [afterDarkEnabled, setAfterDarkEnabled] = useState(true); // assume enabled until server says otherwise
+  const afterDarkPromptShown = useRef(false);
 
   const countdown = useCountdown(resetsAt);
 
@@ -61,8 +63,12 @@ export default function VibeCheck() {
     fetchTopMatches();
   }, []);
 
-  const shouldShowAfterDark = (totalAnswered, afterDarkEnabled) => {
-    return totalAnswered >= 50 && !afterDarkEnabled && !localStorage.getItem('motion_afterdark_dismissed');
+  const tryShowAfterDark = (totalAnswered, enabled) => {
+    if (afterDarkPromptShown.current) return;
+    if (totalAnswered >= 50 && !enabled && !localStorage.getItem('motion_afterdark_dismissed')) {
+      afterDarkPromptShown.current = true;
+      setShowAfterDarkPrompt(true);
+    }
   };
 
   const fetchQuestions = async () => {
@@ -73,9 +79,8 @@ export default function VibeCheck() {
       setRemaining(data.remaining);
       if (data.vibeStreak !== undefined) setVibeStreak(data.vibeStreak);
       if (data.resetsAt) setResetsAt(data.resetsAt);
-      if (shouldShowAfterDark(data.totalAnswered, data.afterDarkEnabled)) {
-        setShowAfterDarkPrompt(true);
-      }
+      setAfterDarkEnabled(!!data.afterDarkEnabled);
+      tryShowAfterDark(data.totalAnswered, !!data.afterDarkEnabled);
     } catch (err) {
       console.error('Vibe error:', err);
     } finally {
@@ -97,10 +102,7 @@ export default function VibeCheck() {
         }
       }
       if (data.vibeMatch) setVibeMatch(data.vibeMatch);
-      // Check if just crossed 50
-      if (data.totalAnswered >= 50 && shouldShowAfterDark(data.totalAnswered, false)) {
-        setShowAfterDarkPrompt(true);
-      }
+      tryShowAfterDark(data.totalAnswered, afterDarkEnabled);
       fetchTopMatches();
     } catch (err) {
       console.error('Answer error:', err);
@@ -110,6 +112,7 @@ export default function VibeCheck() {
   const handleEnableAfterDark = async () => {
     try {
       await api.put('/users/preferences', { afterDarkEnabled: true });
+      setAfterDarkEnabled(true);
       setShowAfterDarkPrompt(false);
     } catch (err) {
       console.error('Enable AfterDark error:', err);
