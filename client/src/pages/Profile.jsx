@@ -15,6 +15,7 @@ import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
 import SongSearchModal from '../components/profile/SongSearchModal';
+import ImageCropper from '../components/ui/ImageCropper';
 
 export default function Profile() {
   const { userId } = useParams();
@@ -50,6 +51,12 @@ export default function Profile() {
   const audioRef = useRef(null);
   const [songModalOpen, setSongModalOpen] = useState(false);
   const [autoplayMusic, setAutoplayMusic] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const unlockListenersRef = useRef(null);
+  const [cropQueue, setCropQueue] = useState([]); // images waiting to be cropped
+  const [croppedFiles, setCroppedFiles] = useState([]); // cropped blobs ready to upload
+  const [videoFiles, setVideoFiles] = useState([]); // videos skip cropping
+  const [cropPreview, setCropPreview] = useState(null); // current image being cropped
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -98,11 +105,44 @@ export default function Profile() {
       setAutoplayMusic(enabled);
       if (enabled && audioRef.current) {
         audioRef.current.play().then(() => {
-          if (!cancelled) setSongPlaying(true);
-        }).catch(() => {});
+          if (!cancelled) {
+            setSongPlaying(true);
+            setAutoplayBlocked(false);
+          }
+        }).catch(() => {
+          if (cancelled) return;
+          // Browser blocked autoplay — wait for user interaction
+          setAutoplayBlocked(true);
+          const unlock = () => {
+            if (audioRef.current) {
+              audioRef.current.play().then(() => {
+                setSongPlaying(true);
+                setAutoplayBlocked(false);
+              }).catch(() => {});
+            }
+            ['click', 'touchstart', 'scroll', 'keydown'].forEach((evt) =>
+              document.removeEventListener(evt, unlock, { capture: true })
+            );
+            unlockListenersRef.current = null;
+          };
+          ['click', 'touchstart', 'scroll', 'keydown'].forEach((evt) =>
+            document.addEventListener(evt, unlock, { once: true, capture: true })
+          );
+          unlockListenersRef.current = unlock;
+        });
       }
     }).catch(() => {});
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Clean up interaction listeners on unmount
+      if (unlockListenersRef.current) {
+        const fn = unlockListenersRef.current;
+        ['click', 'touchstart', 'scroll', 'keydown'].forEach((evt) =>
+          document.removeEventListener(evt, fn, { capture: true })
+        );
+        unlockListenersRef.current = null;
+      }
+    };
   }, [isOwnProfile, profile?.songPreviewUrl]);
 
   // Fetch available prompts when entering edit mode
@@ -173,6 +213,7 @@ export default function Profile() {
   const handlePhotoUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
+    e.target.value = '';
     setPhotoError('');
     setTrimNotice('');
 
@@ -181,40 +222,90 @@ export default function Profile() {
     const newVideoCount = files.filter(f => f.type.startsWith('video/')).length;
     if (existingVideoCount + newVideoCount > 3) {
       setPhotoError('Maximum 3 videos allowed');
-      e.target.value = '';
       return;
     }
 
     // First slot must be an image, not a video
     if (photos.length === 0 && files[0]?.type.startsWith('video/')) {
       setPhotoError('Your first photo must be an image, not a video');
-      e.target.value = '';
       return;
     }
 
-    // First photo must contain a face (only check images)
-    if (photos.length === 0 && files.length > 0 && !files[0].type.startsWith('video/')) {
-      const hasFace = await detectFace(files[0]);
+    // Check video durations — show trim notice for >15s
+    const vids = files.filter(f => f.type.startsWith('video/'));
+    for (const f of vids) {
+      const duration = await getVideoDuration(f);
+      if (duration > 15) {
+        setTrimNotice('Video will be trimmed to 15 seconds');
+        break;
+      }
+    }
+
+    // Separate images and videos
+    const imageFiles = files.filter(f => !f.type.startsWith('video/'));
+    const vidFiles = files.filter(f => f.type.startsWith('video/'));
+
+    if (imageFiles.length === 0) {
+      // Only videos — upload directly
+      await uploadPhotos([], vidFiles);
+      return;
+    }
+
+    // Start crop queue for images
+    setVideoFiles(vidFiles);
+    setCroppedFiles([]);
+    const urls = imageFiles.map(f => URL.createObjectURL(f));
+    setCropQueue(urls.slice(1));
+    setCropPreview(urls[0]);
+  };
+
+  const handlePhotoCropComplete = async (blob) => {
+    if (cropPreview) URL.revokeObjectURL(cropPreview);
+
+    const isFirstPhoto = photos.length === 0 && croppedFiles.length === 0;
+    if (isFirstPhoto) {
+      const hasFace = await detectFace(blob);
       if (!hasFace) {
         setPhotoError('Your first photo must clearly show your face');
-        e.target.value = '';
+        // Clean up remaining queue
+        cropQueue.forEach(u => URL.revokeObjectURL(u));
+        setCropQueue([]);
+        setCropPreview(null);
+        setCroppedFiles([]);
+        setVideoFiles([]);
         return;
       }
     }
 
-    // Check video durations — show trim notice for >15s
-    for (const f of files) {
-      if (f.type.startsWith('video/')) {
-        const duration = await getVideoDuration(f);
-        if (duration > 15) {
-          setTrimNotice('Video will be trimmed to 15 seconds');
-          break;
-        }
-      }
-    }
+    const newCropped = [...croppedFiles, new File([blob], `photo-${croppedFiles.length}.jpg`, { type: 'image/jpeg' })];
 
+    if (cropQueue.length > 0) {
+      // More images to crop
+      setCroppedFiles(newCropped);
+      setCropPreview(cropQueue[0]);
+      setCropQueue(cropQueue.slice(1));
+    } else {
+      // All done — upload
+      setCropPreview(null);
+      setCroppedFiles([]);
+      await uploadPhotos(newCropped, videoFiles);
+      setVideoFiles([]);
+    }
+  };
+
+  const handlePhotoCropCancel = () => {
+    if (cropPreview) URL.revokeObjectURL(cropPreview);
+    cropQueue.forEach(u => URL.revokeObjectURL(u));
+    setCropPreview(null);
+    setCropQueue([]);
+    setCroppedFiles([]);
+    setVideoFiles([]);
+  };
+
+  const uploadPhotos = async (imageFiles, vidFiles) => {
     const formData = new FormData();
-    files.forEach((f) => formData.append('photos', f));
+    imageFiles.forEach((f) => formData.append('photos', f));
+    vidFiles.forEach((f) => formData.append('photos', f));
     try {
       const { data } = await api.post('/users/photos', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -230,10 +321,13 @@ export default function Profile() {
     if (!audioRef.current) return;
     if (songPlaying) {
       audioRef.current.pause();
+      setSongPlaying(false);
     } else {
-      audioRef.current.play();
+      audioRef.current.play().then(() => {
+        setSongPlaying(true);
+        setAutoplayBlocked(false);
+      }).catch(() => {});
     }
-    setSongPlaying(!songPlaying);
   };
 
   const handleSongSelect = async (song) => {
@@ -711,7 +805,7 @@ export default function Profile() {
                   {profile.songArtist && <span className="text-xs text-gray-500 truncate block max-w-[180px]">{profile.songArtist}</span>}
                 </div>
                 {profile.songPreviewUrl && (
-                  <button onClick={toggleSongPlay} className="w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
+                  <button onClick={toggleSongPlay} className={`w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0${autoplayBlocked && !songPlaying ? ' animate-pulse ring-2 ring-purple-400/50' : ''}`}>
                     {songPlaying ? <Pause size={12} className="text-purple-400" /> : <Play size={12} className="text-purple-400 ml-0.5" />}
                   </button>
                 )}
@@ -724,6 +818,9 @@ export default function Profile() {
                   <audio ref={audioRef} src={profile.songPreviewUrl} preload={!isOwnProfile && autoplayMusic ? 'auto' : 'none'} onEnded={() => setSongPlaying(false)} />
                 )}
               </div>
+            )}
+            {autoplayBlocked && !songPlaying && profile.songTitle && (
+              <p className="text-xs text-purple-400/70 -mt-3 ml-1">Tap anywhere to hear their song</p>
             )}
 
             {/* Add Song button (own profile, no song) */}
@@ -928,6 +1025,18 @@ export default function Profile() {
             Add Prompt
           </Button>
         </div>
+      </Modal>
+
+      {/* Photo Crop Modal */}
+      <Modal isOpen={!!cropPreview} onClose={handlePhotoCropCancel} title={`Crop Photo${croppedFiles.length > 0 ? ` (${croppedFiles.length + 1})` : ''}`}>
+        {cropPreview && (
+          <ImageCropper
+            imageSrc={cropPreview}
+            aspect={1}
+            onCropComplete={handlePhotoCropComplete}
+            onCancel={handlePhotoCropCancel}
+          />
+        )}
       </Modal>
 
       {/* Song Modal */}

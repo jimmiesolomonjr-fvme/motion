@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
-import { upload, uploadToCloud } from '../middleware/upload.js';
+import { upload, uploadToCloud, deleteFromCloud } from '../middleware/upload.js';
 import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
@@ -73,6 +73,71 @@ router.post('/', authenticate, upload.single('photo'), async (req, res) => {
     res.status(201).json(move);
   } catch (error) {
     console.error('Create move error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Edit a Move (creator only, OPEN only, within 10 minutes)
+router.put('/:moveId', authenticate, upload.single('photo'), async (req, res) => {
+  try {
+    const move = await prisma.move.findUnique({ where: { id: req.params.moveId } });
+
+    if (!move) {
+      return res.status(404).json({ error: 'Move not found' });
+    }
+    if (move.creatorId !== req.userId) {
+      return res.status(403).json({ error: 'Not authorized to edit this move' });
+    }
+    if (move.status !== 'OPEN') {
+      return res.status(400).json({ error: 'Only OPEN moves can be edited' });
+    }
+    if ((Date.now() - new Date(move.createdAt).getTime()) / 60000 > 10) {
+      return res.status(400).json({ error: 'Editing window has expired (10 minutes)' });
+    }
+
+    const { title, description, date, location, maxInterest, category, isAnytime } = req.body;
+
+    if (containsOffensiveWords(title) || containsOffensiveWords(description)) {
+      return res.status(400).json({ error: 'Move contains inappropriate language' });
+    }
+
+    const updateData = {};
+    if (title) updateData.title = title;
+    if (description) updateData.description = description;
+    if (location) updateData.location = location;
+    if (maxInterest) updateData.maxInterest = parseInt(maxInterest) || move.maxInterest;
+    if (category !== undefined) updateData.category = category || null;
+
+    if (date) {
+      const anytime = isAnytime === 'true' || isAnytime === true;
+      let moveDate = new Date(date);
+      if (anytime) {
+        moveDate.setHours(23, 59, 0, 0);
+      }
+      updateData.date = moveDate;
+      updateData.isAnytime = anytime;
+    }
+
+    if (req.file) {
+      // Delete old photo from cloud if it exists
+      if (move.photo) {
+        await deleteFromCloud(move.photo);
+      }
+      updateData.photo = await uploadToCloud(req.file, 'motion/moves');
+    }
+
+    const updated = await prisma.move.update({
+      where: { id: req.params.moveId },
+      data: updateData,
+      include: {
+        creator: { include: { profile: true } },
+        stepper: { include: { profile: true } },
+      },
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('Edit move error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

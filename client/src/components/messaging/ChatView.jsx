@@ -6,6 +6,7 @@ import Avatar from '../ui/Avatar';
 import Modal from '../ui/Modal';
 import { useSocket } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
+import ImageCropper from '../ui/ImageCropper';
 import api from '../../services/api';
 import { isOnline } from '../../utils/formatters';
 
@@ -28,6 +29,7 @@ export default function ChatView({ conversationId, otherUser }) {
   const [activePickerMsgId, setActivePickerMsgId] = useState(null);
   const [sendingImage, setSendingImage] = useState(null); // { file, preview, progress }
   const imageAbortRef = useRef(null);
+  const [cropImage, setCropImage] = useState(null); // raw preview URL for cropping
   const [voicePreview, setVoicePreview] = useState(null); // { blob, url, duration }
   const [voiceSending, setVoiceSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
@@ -244,12 +246,20 @@ export default function ChatView({ conversationId, otherUser }) {
     setVoicePreview(null);
   };
 
-  const handleImageUpload = async (e) => {
+  const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
+    const url = URL.createObjectURL(file);
+    setCropImage(url);
+  };
 
-    const preview = URL.createObjectURL(file);
+  const uploadCroppedImage = async (blob) => {
+    if (cropImage) URL.revokeObjectURL(cropImage);
+    setCropImage(null);
+
+    const file = new File([blob], 'chat-image.jpg', { type: 'image/jpeg' });
+    const preview = URL.createObjectURL(blob);
     setSendingImage({ file, preview, progress: 0 });
 
     const abortController = new AbortController();
@@ -446,7 +456,7 @@ export default function ChatView({ conversationId, otherUser }) {
               <div className="flex items-center gap-2">
                 <label className="p-2.5 rounded-xl bg-dark-50 text-gray-400 hover:text-white transition-colors cursor-pointer">
                   <ImagePlus size={18} />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
                 </label>
                 <button
                   onClick={recording ? stopRecording : startRecording}
@@ -471,6 +481,18 @@ export default function ChatView({ conversationId, otherUser }) {
           </>
         )}
       </div>
+
+      {/* Crop Image Modal */}
+      <Modal isOpen={!!cropImage} onClose={() => { if (cropImage) URL.revokeObjectURL(cropImage); setCropImage(null); }} title="Crop Image">
+        {cropImage && (
+          <ImageCropper
+            imageSrc={cropImage}
+            aspect={1}
+            onCropComplete={uploadCroppedImage}
+            onCancel={() => { if (cropImage) URL.revokeObjectURL(cropImage); setCropImage(null); }}
+          />
+        )}
+      </Modal>
 
       {/* Unmatch Modal */}
       <Modal isOpen={showUnmatchModal} onClose={() => setShowUnmatchModal(false)} title="Unmatch">

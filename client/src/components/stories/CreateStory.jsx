@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { X, Camera } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
+import ImageCropper from '../ui/ImageCropper';
 import api from '../../services/api';
 import { getVideoDuration } from '../../utils/mediaUtils';
 
@@ -12,23 +13,48 @@ export default function CreateStory({ isOpen, onClose, onCreated }) {
   const [caption, setCaption] = useState('');
   const [uploading, setUploading] = useState(false);
   const [trimNotice, setTrimNotice] = useState('');
+  const [cropping, setCropping] = useState(false);
+  const [rawPreview, setRawPreview] = useState(null);
   const inputRef = useRef(null);
 
   const handleFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     const video = f.type.startsWith('video/');
-    setFile(f);
-    setIsVideo(video);
-    setPreview(URL.createObjectURL(f));
-    setTrimNotice('');
 
     if (video) {
+      // Skip cropping for videos
+      setFile(f);
+      setIsVideo(true);
+      setPreview(URL.createObjectURL(f));
+      setTrimNotice('');
       const duration = await getVideoDuration(f);
       if (duration > 15) {
         setTrimNotice('Video will be trimmed to 15 seconds');
       }
+    } else {
+      // Show cropper for images
+      const url = URL.createObjectURL(f);
+      setRawPreview(url);
+      setCropping(true);
     }
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleCropComplete = (blob) => {
+    if (rawPreview) URL.revokeObjectURL(rawPreview);
+    setRawPreview(null);
+    setCropping(false);
+    const croppedFile = new File([blob], 'story.jpg', { type: 'image/jpeg' });
+    setFile(croppedFile);
+    setIsVideo(false);
+    setPreview(URL.createObjectURL(blob));
+  };
+
+  const handleCropCancel = () => {
+    if (rawPreview) URL.revokeObjectURL(rawPreview);
+    setRawPreview(null);
+    setCropping(false);
   };
 
   const handleSubmit = async () => {
@@ -52,11 +78,14 @@ export default function CreateStory({ isOpen, onClose, onCreated }) {
 
   const handleClose = () => {
     if (preview) URL.revokeObjectURL(preview);
+    if (rawPreview) URL.revokeObjectURL(rawPreview);
     setPreview(null);
+    setRawPreview(null);
     setFile(null);
     setIsVideo(false);
     setCaption('');
     setTrimNotice('');
+    setCropping(false);
     onClose();
   };
 
@@ -77,6 +106,13 @@ export default function CreateStory({ isOpen, onClose, onCreated }) {
               <X className="text-white" size={16} />
             </button>
           </div>
+        ) : cropping && rawPreview ? (
+          <ImageCropper
+            imageSrc={rawPreview}
+            aspect={3 / 4}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+          />
         ) : (
           <label className="flex flex-col items-center justify-center w-full aspect-[3/4] bg-dark-100 border-2 border-dashed border-dark-50 hover:border-gold/40 rounded-xl cursor-pointer transition-colors">
             <Camera className="text-gray-500 mb-2" size={32} />

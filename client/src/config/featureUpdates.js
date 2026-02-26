@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -203,6 +203,32 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'AfterDark Unlock',
         description: 'Unlock spicy questions after 50 vibes.',
+      },
+    ],
+  },
+  '2.9.0': {
+    subtitle: 'Polish pass — edit, crop, play.',
+    features: [
+      {
+        icon: Edit3,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Edit Your Moves',
+        description: 'Update your Move within 10 minutes of posting.',
+      },
+      {
+        icon: Crop,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'Photo Cropping',
+        description: 'Crop photos perfectly before uploading anywhere.',
+      },
+      {
+        icon: Music,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Smoother Song Autoplay',
+        description: 'Profile songs play reliably with a visual cue.',
       },
     ],
   },

@@ -10,7 +10,7 @@ import Button from '../components/ui/Button';
 import { Textarea } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users, ChevronDown, ChevronUp, Edit3 } from 'lucide-react';
 import Input from '../components/ui/Input';
 import { formatDate } from '../utils/formatters';
 
@@ -56,6 +56,7 @@ export default function Moves() {
   const [repostDate, setRepostDate] = useState('');
   const [repostAnytime, setRepostAnytime] = useState(false);
   const [clearModal, setClearModal] = useState(false);
+  const [editModal, setEditModal] = useState(null);
   const [tab, setTab] = useState('browse');
   const [filters, setFilters] = useState({ time: null, category: null, sort: 'soonest' });
   const [showExpired, setShowExpired] = useState(false);
@@ -289,13 +290,24 @@ export default function Moves() {
                           )}
                         </div>
                         {move.status === 'OPEN' && (
-                          <button
-                            onClick={() => setDeleteModal(move.id)}
-                            className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
-                            title="Delete move"
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            {(Date.now() - new Date(move.createdAt).getTime()) / 60000 <= 10 && (
+                              <button
+                                onClick={() => setEditModal(move)}
+                                className="p-1.5 text-gray-500 hover:text-gold transition-colors"
+                                title="Edit move"
+                              >
+                                <Edit3 size={16} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setDeleteModal(move.id)}
+                              className="p-1.5 text-gray-500 hover:text-red-400 transition-colors"
+                              title="Delete move"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         )}
                       </div>
                       {move.photo && (
@@ -412,7 +424,7 @@ export default function Moves() {
             </div>
           ) : (
             moves.map((move) => (
-              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} isAdmin={user?.isAdmin} onDelete={(id) => setDeleteModal(id)} onSave={handleSave} onUnsave={handleUnsave} />
+              <MoveCard key={move.id} move={move} onInterest={handleInterest} userRole={user?.role} isAdmin={user?.isAdmin} onDelete={(id) => setDeleteModal(id)} onSave={handleSave} onUnsave={handleUnsave} currentUserId={user?.id} onEdit={(m) => setEditModal(m)} />
             ))
           )}
         </div>
@@ -518,6 +530,22 @@ export default function Moves() {
             Clear All
           </button>
         </div>
+      </Modal>
+
+      {/* Edit Move Modal */}
+      <Modal isOpen={!!editModal} onClose={() => setEditModal(null)} title="Edit Move">
+        {editModal && (
+          <CreateMove
+            editMove={editModal}
+            onCreated={(updated) => {
+              setMyMoves((prev) => prev.map((m) => m.id === updated.id ? { ...m, ...updated } : m));
+              setMoves((prev) => prev.map((m) => m.id === updated.id ? { ...m, ...updated } : m));
+              setEditModal(null);
+            }}
+            onClose={() => setEditModal(null)}
+            userRole={user?.role}
+          />
+        )}
       </Modal>
 
       {/* Delete Move Modal */}

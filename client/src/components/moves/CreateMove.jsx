@@ -1,8 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Camera, X } from 'lucide-react';
 import Input, { Textarea } from '../ui/Input';
 import LocationAutocomplete from '../ui/LocationAutocomplete';
 import Button from '../ui/Button';
+import Modal from '../ui/Modal';
+import ImageCropper from '../ui/ImageCropper';
 import api from '../../services/api';
 
 const CATEGORIES = [
@@ -14,12 +16,33 @@ const CATEGORIES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
-export default function CreateMove({ onCreated, onClose, userRole }) {
-  const [form, setForm] = useState({ title: '', description: '', date: '', location: '', maxInterest: 10, category: '', isAnytime: false });
+export default function CreateMove({ onCreated, onClose, userRole, editMove }) {
+  const isEdit = !!editMove;
+
+  const [form, setForm] = useState(() => {
+    if (editMove) {
+      return {
+        title: editMove.title || '',
+        description: editMove.description || '',
+        date: editMove.isAnytime
+          ? new Date(editMove.date).toISOString().split('T')[0]
+          : new Date(editMove.date).toISOString().slice(0, 16),
+        location: editMove.location || '',
+        maxInterest: editMove.maxInterest || 10,
+        category: editMove.category || '',
+        isAnytime: editMove.isAnytime || false,
+      };
+    }
+    return { title: '', description: '', date: '', location: '', maxInterest: 10, category: '', isAnytime: false };
+  });
+
   const [photo, setPhoto] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(editMove?.photo || null);
+  const [photoChanged, setPhotoChanged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [cropping, setCropping] = useState(false);
+  const [rawPreview, setRawPreview] = useState(null);
   const fileRef = useRef();
 
   const isBaddie = userRole === 'BADDIE';
@@ -29,13 +52,34 @@ export default function CreateMove({ onCreated, onClose, userRole }) {
   const handlePhotoSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhoto(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    setRawPreview(url);
+    setCropping(true);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const handleCropComplete = (blob) => {
+    if (rawPreview) URL.revokeObjectURL(rawPreview);
+    setRawPreview(null);
+    setCropping(false);
+    if (photoPreview && photoChanged) URL.revokeObjectURL(photoPreview);
+    const croppedFile = new File([blob], 'venue.jpg', { type: 'image/jpeg' });
+    setPhoto(croppedFile);
+    setPhotoPreview(URL.createObjectURL(blob));
+    setPhotoChanged(true);
+  };
+
+  const handleCropCancel = () => {
+    if (rawPreview) URL.revokeObjectURL(rawPreview);
+    setRawPreview(null);
+    setCropping(false);
   };
 
   const removePhoto = () => {
+    if (photoPreview && photoChanged) URL.revokeObjectURL(photoPreview);
     setPhoto(null);
     setPhotoPreview(null);
+    setPhotoChanged(true);
     if (fileRef.current) fileRef.current.value = '';
   };
 
@@ -53,19 +97,34 @@ export default function CreateMove({ onCreated, onClose, userRole }) {
       formData.append('maxInterest', form.maxInterest);
       if (form.isAnytime) formData.append('isAnytime', 'true');
       if (form.category) formData.append('category', form.category);
-      if (photo) formData.append('photo', photo);
+      if (photoChanged && photo) formData.append('photo', photo);
 
-      const { data } = await api.post('/moves', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      onCreated(data);
+      if (isEdit) {
+        const { data } = await api.put(`/moves/${editMove.id}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        onCreated(data);
+      } else {
+        if (photo) formData.set('photo', photo);
+        const { data } = await api.post('/moves', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        onCreated(data);
+      }
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to create Move');
+      setError(err.response?.data?.error || (isEdit ? 'Failed to update Move' : 'Failed to create Move'));
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (photoPreview && photoChanged) URL.revokeObjectURL(photoPreview);
+      if (rawPreview) URL.revokeObjectURL(rawPreview);
+    };
+  }, []);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -170,8 +229,19 @@ export default function CreateMove({ onCreated, onClose, userRole }) {
 
       <div className="flex gap-3">
         <Button variant="outline" type="button" className="flex-1" onClick={onClose}>Cancel</Button>
-        <Button variant="gold" type="submit" className="flex-1" loading={loading}>Post Move</Button>
+        <Button variant="gold" type="submit" className="flex-1" loading={loading}>{isEdit ? 'Save Changes' : 'Post Move'}</Button>
       </div>
+
+      <Modal isOpen={cropping} onClose={handleCropCancel} title="Crop Photo">
+        {rawPreview && (
+          <ImageCropper
+            imageSrc={rawPreview}
+            aspect={16 / 9}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+          />
+        )}
+      </Modal>
     </form>
   );
 }

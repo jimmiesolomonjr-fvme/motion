@@ -1,4 +1,4 @@
-import { MapPin, Calendar, Users, BadgeCheck, Check, Trash2, Bookmark, Clock, AlertTriangle } from 'lucide-react';
+import { MapPin, Calendar, Users, BadgeCheck, Check, Trash2, Bookmark, Clock, AlertTriangle, Edit3 } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import { formatDate } from '../../utils/formatters';
@@ -12,7 +12,7 @@ const CATEGORY_LABELS = {
   OTHER: 'Other',
 };
 
-export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete, onSave, onUnsave }) {
+export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete, onSave, onUnsave, currentUserId, onEdit }) {
   const interestedUsers = move.interestedUsers || [];
   const creator = move.creator || move.stepper;
   const isCreatorBaddie = creator?.role === 'BADDIE';
@@ -56,6 +56,15 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
           )}
         </div>
         <div className="flex items-center gap-1">
+          {currentUserId && onEdit && move.creatorId === currentUserId && move.status === 'OPEN' && (Date.now() - new Date(move.createdAt).getTime()) / 60000 <= 10 && (
+            <button
+              onClick={() => onEdit(move)}
+              className="p-1.5 text-gray-500 hover:text-gold transition-colors"
+              title="Edit move"
+            >
+              <Edit3 size={16} />
+            </button>
+          )}
           {(onSave || onUnsave) && (
             <button
               onClick={() => move.isSaved ? onUnsave?.(move.id) : onSave?.(move.id)}

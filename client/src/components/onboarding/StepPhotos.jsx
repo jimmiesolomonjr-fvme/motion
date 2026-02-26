@@ -1,17 +1,24 @@
 import { useState } from 'react';
-import { Plus, X, Image } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import api from '../../services/api';
 import { detectFace } from '../../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../../utils/mediaUtils';
+import Modal from '../ui/Modal';
+import ImageCropper from '../ui/ImageCropper';
 
 export default function StepPhotos({ onComplete }) {
   const [photos, setPhotos] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [trimNotice, setTrimNotice] = useState('');
+  const [cropQueue, setCropQueue] = useState([]);
+  const [croppedFiles, setCroppedFiles] = useState([]);
+  const [videoFiles, setVideoFiles] = useState([]);
+  const [cropPreview, setCropPreview] = useState(null);
 
   const handleFileSelect = async (e) => {
     const files = Array.from(e.target.files);
+    e.target.value = '';
     if (photos.length + files.length > 6) {
       setError('Maximum 6 media items allowed');
       return;
@@ -28,38 +35,85 @@ export default function StepPhotos({ onComplete }) {
     // First slot must be an image, not a video
     if (photos.length === 0 && files[0]?.type.startsWith('video/')) {
       setError('Your first photo must be an image, not a video');
-      e.target.value = '';
       return;
-    }
-
-    // First media must contain a face (only check images)
-    if (photos.length === 0 && files.length > 0 && !files[0].type.startsWith('video/')) {
-      const hasFace = await detectFace(files[0]);
-      if (!hasFace) {
-        setError('Your first photo must clearly show your face');
-        e.target.value = '';
-        return;
-      }
     }
 
     // Check video durations — show trim notice for >15s
     setTrimNotice('');
-    for (const f of files) {
-      if (f.type.startsWith('video/')) {
-        const duration = await getVideoDuration(f);
-        if (duration > 15) {
-          setTrimNotice('Video will be trimmed to 15 seconds');
-          break;
-        }
+    const vids = files.filter(f => f.type.startsWith('video/'));
+    for (const f of vids) {
+      const duration = await getVideoDuration(f);
+      if (duration > 15) {
+        setTrimNotice('Video will be trimmed to 15 seconds');
+        break;
       }
     }
 
+    const imageFiles = files.filter(f => !f.type.startsWith('video/'));
+    const vidFiles = files.filter(f => f.type.startsWith('video/'));
+
+    if (imageFiles.length === 0) {
+      // Only videos — upload directly
+      await uploadPhotos([], vidFiles);
+      return;
+    }
+
+    // Start crop queue
+    setVideoFiles(vidFiles);
+    setCroppedFiles([]);
+    const urls = imageFiles.map(f => URL.createObjectURL(f));
+    setCropQueue(urls.slice(1));
+    setCropPreview(urls[0]);
+  };
+
+  const handleCropComplete = async (blob) => {
+    if (cropPreview) URL.revokeObjectURL(cropPreview);
+
+    // Face detection on first photo
+    const isFirstPhoto = photos.length === 0 && croppedFiles.length === 0;
+    if (isFirstPhoto) {
+      const hasFace = await detectFace(blob);
+      if (!hasFace) {
+        setError('Your first photo must clearly show your face');
+        cropQueue.forEach(u => URL.revokeObjectURL(u));
+        setCropQueue([]);
+        setCropPreview(null);
+        setCroppedFiles([]);
+        setVideoFiles([]);
+        return;
+      }
+    }
+
+    const newCropped = [...croppedFiles, new File([blob], `photo-${croppedFiles.length}.jpg`, { type: 'image/jpeg' })];
+
+    if (cropQueue.length > 0) {
+      setCroppedFiles(newCropped);
+      setCropPreview(cropQueue[0]);
+      setCropQueue(cropQueue.slice(1));
+    } else {
+      setCropPreview(null);
+      setCroppedFiles([]);
+      await uploadPhotos(newCropped, videoFiles);
+      setVideoFiles([]);
+    }
+  };
+
+  const handleCropCancel = () => {
+    if (cropPreview) URL.revokeObjectURL(cropPreview);
+    cropQueue.forEach(u => URL.revokeObjectURL(u));
+    setCropPreview(null);
+    setCropQueue([]);
+    setCroppedFiles([]);
+    setVideoFiles([]);
+  };
+
+  const uploadPhotos = async (imageFiles, vidFiles) => {
     setUploading(true);
     setError('');
-
     try {
       const formData = new FormData();
-      files.forEach((f) => formData.append('photos', f));
+      imageFiles.forEach((f) => formData.append('photos', f));
+      vidFiles.forEach((f) => formData.append('photos', f));
 
       const { data } = await api.post('/users/photos', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -124,6 +178,17 @@ export default function StepPhotos({ onComplete }) {
 
       {trimNotice && <p className="text-gold text-sm text-center">{trimNotice}</p>}
       {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+
+      <Modal isOpen={!!cropPreview} onClose={handleCropCancel} title={`Crop Photo${croppedFiles.length > 0 ? ` (${croppedFiles.length + 1})` : ''}`}>
+        {cropPreview && (
+          <ImageCropper
+            imageSrc={cropPreview}
+            aspect={1}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+          />
+        )}
+      </Modal>
 
       <div className="space-y-3">
         <button
