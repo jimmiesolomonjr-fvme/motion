@@ -492,6 +492,13 @@ router.post('/profile/:userId/view', authenticate, async (req, res) => {
     // Skip own profile
     if (viewedId === req.userId) return res.json({ success: true });
 
+    // Admin views are silent — no record, no notification
+    const viewer = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { isAdmin: true },
+    });
+    if (viewer?.isAdmin) return res.json({ success: true });
+
     // Throttle: 1 view per viewer per viewed per 24h
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const existing = await prisma.profileView.findFirst({

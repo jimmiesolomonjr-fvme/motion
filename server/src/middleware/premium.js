@@ -6,7 +6,7 @@ export async function requirePremium(req, res, next) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { isPremium: true, role: true, isMuted: true },
+      select: { isPremium: true, role: true, isMuted: true, isAdmin: true },
     });
 
     if (!user) {
@@ -15,6 +15,11 @@ export async function requirePremium(req, res, next) {
 
     if (user.isMuted) {
       return res.status(403).json({ error: 'Your messaging privileges have been suspended' });
+    }
+
+    // Admins bypass premium check
+    if (user.isAdmin) {
+      return next();
     }
 
     // Baddies message freely

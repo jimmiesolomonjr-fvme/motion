@@ -83,7 +83,7 @@ export function setupSocketHandlers(io) {
         // Muted check
         const senderUser = await prisma.user.findUnique({
           where: { id: socket.userId },
-          select: { isPremium: true, isMuted: true },
+          select: { isPremium: true, isMuted: true, isAdmin: true },
         });
 
         if (senderUser?.isMuted) {
@@ -91,8 +91,8 @@ export function setupSocketHandlers(io) {
           return;
         }
 
-        // Premium check for Steppers (unless free messaging is on)
-        if (socket.userRole === 'STEPPER') {
+        // Premium check for Steppers (unless free messaging is on or user is admin)
+        if (socket.userRole === 'STEPPER' && !senderUser?.isAdmin) {
           const freeMessaging = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } }).catch(() => null);
           if (freeMessaging?.value !== 'true') {
             if (!senderUser?.isPremium) {

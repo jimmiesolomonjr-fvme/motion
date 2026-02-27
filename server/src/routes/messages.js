@@ -130,48 +130,56 @@ router.post('/start/:userId', authenticate, async (req, res) => {
   try {
     const otherUserId = req.params.userId;
 
-    // Check hidden pairs
-    if (await isHiddenFrom(req.userId, otherUserId)) {
-      return res.status(403).json({ error: 'Cannot message this user' });
-    }
-
-    // Check match exists
-    const [u1, u2] = [req.userId, otherUserId].sort();
-    const match = await prisma.match.findUnique({
-      where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
+    // Admin can message anyone — skip all restrictions
+    const currentUserForAdmin = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { isAdmin: true },
     });
 
-    if (!match) {
-      // Check if freeMessaging is enabled
-      const freeMessagingSetting = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } });
-      const freeMessaging = freeMessagingSetting?.value === 'true';
+    if (!currentUserForAdmin?.isAdmin) {
+      // Check hidden pairs
+      if (await isHiddenFrom(req.userId, otherUserId)) {
+        return res.status(403).json({ error: 'Cannot message this user' });
+      }
 
-      // Allow Baddies to message Steppers directly (no match required)
-      const currentUserData = await prisma.user.findUnique({
-        where: { id: req.userId },
-        select: { role: true, isPremium: true },
-      });
-      const otherUserData = await prisma.user.findUnique({
-        where: { id: otherUserId },
-        select: { role: true },
+      // Check match exists
+      const [u1, u2] = [req.userId, otherUserId].sort();
+      const match = await prisma.match.findUnique({
+        where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
       });
 
-      const baddieToStepper = currentUserData?.role === 'BADDIE' && otherUserData?.role === 'STEPPER';
-      const canFreeMessage = freeMessaging || currentUserData?.isPremium;
+      if (!match) {
+        // Check if freeMessaging is enabled
+        const freeMessagingSetting = await prisma.appSetting.findUnique({ where: { key: 'freeMessaging' } });
+        const freeMessaging = freeMessagingSetting?.value === 'true';
 
-      if (!baddieToStepper && !canFreeMessage) {
-        // Check for MoveInterest as fallback
-        const moveInterest = await prisma.moveInterest.findFirst({
-          where: {
-            OR: [
-              { userId: otherUserId, move: { creatorId: req.userId } },
-              { userId: req.userId, move: { creatorId: otherUserId } },
-            ],
-          },
+        // Allow Baddies to message Steppers directly (no match required)
+        const currentUserData = await prisma.user.findUnique({
+          where: { id: req.userId },
+          select: { role: true, isPremium: true },
+        });
+        const otherUserData = await prisma.user.findUnique({
+          where: { id: otherUserId },
+          select: { role: true },
         });
 
-        if (!moveInterest) {
-          return res.status(400).json({ error: 'You must match with a user or have a move interest before messaging' });
+        const baddieToStepper = currentUserData?.role === 'BADDIE' && otherUserData?.role === 'STEPPER';
+        const canFreeMessage = freeMessaging || currentUserData?.isPremium;
+
+        if (!baddieToStepper && !canFreeMessage) {
+          // Check for MoveInterest as fallback
+          const moveInterest = await prisma.moveInterest.findFirst({
+            where: {
+              OR: [
+                { userId: otherUserId, move: { creatorId: req.userId } },
+                { userId: req.userId, move: { creatorId: otherUserId } },
+              ],
+            },
+          });
+
+          if (!moveInterest) {
+            return res.status(400).json({ error: 'You must match with a user or have a move interest before messaging' });
+          }
         }
       }
     }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -64,18 +65,20 @@ export default function UserManagement() {
       <div className="space-y-2">
         {users.map((u) => (
           <div key={u.id} className="flex items-center gap-3 p-3 bg-dark-100 rounded-xl">
-            <Avatar src={u.profile?.photos} size="sm" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-semibold text-sm text-white truncate">{u.profile?.displayName || u.email}</span>
-                <span className={u.role === 'STEPPER' ? 'badge-stepper' : 'badge-baddie'}>{u.role}</span>
-                {u.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
-                {u.isBanned && <span className="text-xs text-red-400 font-bold">BANNED</span>}
-                {u.isMuted && <span className="text-xs text-yellow-400 font-bold">MUTED</span>}
-                {u.isHidden && <span className="text-xs text-orange-400 font-bold">HIDDEN</span>}
+            <Link to={`/profile/${u.id}`} className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+              <Avatar src={u.profile?.photos} size="sm" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-white truncate">{u.profile?.displayName || u.email}</span>
+                  <span className={u.role === 'STEPPER' ? 'badge-stepper' : 'badge-baddie'}>{u.role}</span>
+                  {u.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
+                  {u.isBanned && <span className="text-xs text-red-400 font-bold">BANNED</span>}
+                  {u.isMuted && <span className="text-xs text-yellow-400 font-bold">MUTED</span>}
+                  {u.isHidden && <span className="text-xs text-orange-400 font-bold">HIDDEN</span>}
+                </div>
+                <p className="text-xs text-gray-500">{u.email}</p>
               </div>
-              <p className="text-xs text-gray-500">{u.email}</p>
-            </div>
+            </Link>
             <div className="flex gap-1">
               <button
                 onClick={() => toggleVerify(u.id, u.isVerified)}

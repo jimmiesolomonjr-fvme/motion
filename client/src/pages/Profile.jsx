@@ -925,7 +925,8 @@ export default function Profile() {
                     <Heart size={16} className="inline mr-2" /> Like
                   </Button>
                 )}
-                {((currentUser?.role === 'BADDIE' && profile.role === 'STEPPER') ||
+                {(currentUser?.isAdmin ||
+                  (currentUser?.role === 'BADDIE' && profile.role === 'STEPPER') ||
                   (currentUser?.role === 'STEPPER' && profile.role === 'BADDIE' && (freeMessaging || currentUser?.isPremium))) && (
                   <Button variant="outline" className="w-full" onClick={async () => {
                     try {
