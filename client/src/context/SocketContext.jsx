@@ -123,6 +123,8 @@ export function SocketProvider({ children }) {
 
     newSocket.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
+      // Refresh auth token on reconnect attempts so socket uses the latest token
+      newSocket.auth.token = localStorage.getItem('accessToken');
     });
 
     // Increment unread on new message notification
