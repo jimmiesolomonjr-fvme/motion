@@ -589,4 +589,49 @@ router.post('/email/send', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+// ===== User Messages (admin debug) =====
+
+// Get all messages for a user
+router.get('/users/:userId/messages', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+
+    const conversations = await prisma.conversation.findMany({
+      where: { OR: [{ user1Id: userId }, { user2Id: userId }] },
+      include: {
+        user1: { include: { profile: { select: { displayName: true } } } },
+        user2: { include: { profile: { select: { displayName: true } } } },
+        messages: {
+          orderBy: { createdAt: 'asc' },
+          include: { sender: { include: { profile: { select: { displayName: true } } } } },
+        },
+      },
+      orderBy: { lastMessageAt: 'desc' },
+    });
+
+    const result = conversations.map((c) => {
+      const other = c.user1Id === userId ? c.user2 : c.user1;
+      return {
+        conversationId: c.id,
+        otherUser: { id: other.id, email: other.email, displayName: other.profile?.displayName },
+        messageCount: c.messages.length,
+        messages: c.messages.map((m) => ({
+          id: m.id,
+          senderId: m.senderId,
+          senderName: m.sender?.profile?.displayName || m.sender?.email,
+          content: m.content,
+          contentType: m.contentType,
+          createdAt: m.createdAt,
+          readAt: m.readAt,
+        })),
+      };
+    });
+
+    res.json({ userId, totalConversations: result.length, conversations: result });
+  } catch (error) {
+    console.error('Admin user messages error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;
