@@ -237,14 +237,7 @@ async function main() {
 
     await prisma.move.upsert({
       where: { id: moveId },
-      update: {
-        title: m.title,
-        description: m.description,
-        location: m.location,
-        category: m.category,
-        photo: m.photo,
-        date: daysFromNow(m.daysOut),
-      },
+      update: {},
       create: {
         id: moveId,
         creatorId: MOTION_USER_ID,
