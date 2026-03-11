@@ -25,6 +25,57 @@ router.get('/stats', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+// Engagement stats
+router.get('/engagement', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const [
+      dailyActiveUsers,
+      weeklyActiveUsers,
+      messagesToday,
+      messagesThisWeek,
+      profileViewsToday,
+      profileViewsThisWeek,
+      likesToday,
+      likesThisWeek,
+      matchesThisWeek,
+      activeConversations,
+    ] = await Promise.all([
+      prisma.user.count({ where: { lastOnline: { gte: todayStart } } }),
+      prisma.user.count({ where: { lastOnline: { gte: weekAgo } } }),
+      prisma.message.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.message.count({ where: { createdAt: { gte: weekAgo } } }),
+      prisma.profileView.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.profileView.count({ where: { createdAt: { gte: weekAgo } } }),
+      prisma.like.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.like.count({ where: { createdAt: { gte: weekAgo } } }),
+      prisma.match.count({ where: { createdAt: { gte: weekAgo } } }),
+      prisma.conversation.count({ where: { lastMessageAt: { gte: weekAgo } } }),
+    ]);
+
+    res.json({
+      dailyActiveUsers,
+      weeklyActiveUsers,
+      messagesToday,
+      messagesThisWeek,
+      profileViewsToday,
+      profileViewsThisWeek,
+      likesToday,
+      likesThisWeek,
+      matchesThisWeek,
+      activeConversations,
+    });
+  } catch (error) {
+    console.error('Engagement stats error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get reports
 router.get('/reports', authenticate, requireAdmin, async (req, res) => {
   try {
