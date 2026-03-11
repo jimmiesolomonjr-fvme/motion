@@ -172,20 +172,24 @@ router.get('/', authenticate, async (req, res) => {
       ];
     }
 
-    // Steppers only see their own Stepper-created moves + Baddie proposals (unless admin)
+    // Steppers only see their own Stepper-created moves + Baddie proposals + community moves (unless admin)
     if (currentUser?.role === 'STEPPER' && !currentUser?.isAdmin) {
       whereClause.OR = [
         { creatorId: req.userId },
         // Baddie proposals — show to Steppers
         { creator: { role: 'BADDIE' }, date: { gte: twoHoursFromNow } },
+        // Community moves (dummy creator) — show to both roles
+        { creator: { isDummy: true }, date: { gte: twoHoursFromNow } },
       ];
     }
 
-    // Baddies see Stepper-created moves (not other Baddies' own) + their own
+    // Baddies see Stepper-created moves (not other Baddies' own) + their own + community moves
     if (currentUser?.role === 'BADDIE') {
       whereClause.OR = [
         { creatorId: req.userId },
         { creator: { role: 'STEPPER' }, date: { gte: twoHoursFromNow } },
+        // Community moves (dummy creator) — show to both roles
+        { creator: { isDummy: true }, date: { gte: twoHoursFromNow } },
       ];
     }
 
@@ -267,6 +271,7 @@ router.get('/', authenticate, async (req, res) => {
           id: m.creator.id,
           role: m.creator.role,
           isVerified: m.creator.isVerified,
+          isDummy: m.creator.isDummy,
           profile: m.creator.profile,
         },
         stepper: m.stepper ? {
@@ -435,6 +440,7 @@ router.get('/saved', authenticate, async (req, res) => {
           id: m.creator.id,
           role: m.creator.role,
           isVerified: m.creator.isVerified,
+          isDummy: m.creator.isDummy,
           profile: m.creator.profile,
         },
         stepper: m.stepper ? {
@@ -535,13 +541,13 @@ router.get('/history/:userId', authenticate, async (req, res) => {
   }
 });
 
-// Express interest in a Move (opposite role of creator)
+// Express interest in a Move (opposite role of creator, or any role for community moves)
 router.post('/:moveId/interest', authenticate, async (req, res) => {
   try {
     const move = await prisma.move.findUnique({
       where: { id: req.params.moveId },
       include: {
-        creator: { select: { role: true } },
+        creator: { select: { role: true, isDummy: true } },
         _count: { select: { interests: true } },
       },
     });
@@ -550,8 +556,10 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Move not found or no longer active' });
     }
 
-    // Must be opposite role of creator
-    if (move.creator.role === req.userRole) {
+    const isCommunityMove = move.creator.isDummy;
+
+    // Must be opposite role of creator (skip for community moves — both roles allowed)
+    if (!isCommunityMove && move.creator.role === req.userRole) {
       return res.status(403).json({ error: 'You can only express interest in moves from the other role' });
     }
 
@@ -559,7 +567,7 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'This Move is no longer accepting interest' });
     }
 
-    if (await isHiddenFrom(req.userId, move.creatorId)) {
+    if (!isCommunityMove && await isHiddenFrom(req.userId, move.creatorId)) {
       return res.status(403).json({ error: 'Cannot interact with this Move' });
     }
 
@@ -582,33 +590,100 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
       },
     });
 
-    // Create notification for move creator
-    const userProfile = await prisma.profile.findUnique({
-      where: { userId: req.userId },
-      select: { displayName: true },
-    });
-
-    await prisma.notification.create({
-      data: {
-        userId: move.creatorId,
-        type: 'move_interest',
-        title: 'New Interest',
-        body: `${userProfile?.displayName || 'Someone'} is interested in "${move.title}"`,
-        data: { moveId: move.id, userId: req.userId },
-      },
-    });
-
-    // Emit socket notification
-    try {
-      const { io } = await import('../../server.js');
-      if (io) {
-        io.to(move.creatorId).emit('notification', {
-          type: 'move_interest',
+    if (isCommunityMove) {
+      // Community move matching: check for opposite-role users who already expressed interest
+      const oppositeRole = req.userRole === 'STEPPER' ? 'BADDIE' : 'STEPPER';
+      const oppositeInterests = await prisma.moveInterest.findMany({
+        where: {
           moveId: move.id,
-          userId: req.userId,
+          userId: { not: req.userId },
+          user: { role: oppositeRole },
+        },
+        include: { user: { include: { profile: { select: { displayName: true } } } } },
+      });
+
+      const userProfile = await prisma.profile.findUnique({
+        where: { userId: req.userId },
+        select: { displayName: true },
+      });
+
+      for (const oi of oppositeInterests) {
+        // Create match (upsert to avoid duplicates, order user IDs consistently)
+        const [u1, u2] = [req.userId, oi.userId].sort();
+        await prisma.match.upsert({
+          where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
+          update: {},
+          create: { user1Id: u1, user2Id: u2 },
         });
+
+        // Notify both users
+        await prisma.notification.createMany({
+          data: [
+            {
+              userId: req.userId,
+              type: 'move_match',
+              title: 'Move Match!',
+              body: `You and ${oi.user.profile?.displayName || 'someone'} both want to go to "${move.title}"!`,
+              data: { moveId: move.id, matchedUserId: oi.userId },
+            },
+            {
+              userId: oi.userId,
+              type: 'move_match',
+              title: 'Move Match!',
+              body: `You and ${userProfile?.displayName || 'someone'} both want to go to "${move.title}"!`,
+              data: { moveId: move.id, matchedUserId: req.userId },
+            },
+          ],
+        });
+
+        // Emit socket events to both
+        try {
+          const { io } = await import('../../server.js');
+          if (io) {
+            io.to(req.userId).emit('match-notification', {
+              type: 'move_match',
+              moveId: move.id,
+              matchedUserId: oi.userId,
+              moveTitle: move.title,
+            });
+            io.to(oi.userId).emit('match-notification', {
+              type: 'move_match',
+              moveId: move.id,
+              matchedUserId: req.userId,
+              moveTitle: move.title,
+            });
+          }
+        } catch {}
       }
-    } catch {}
+    } else {
+      // Regular move: notify move creator
+      const userProfile = await prisma.profile.findUnique({
+        where: { userId: req.userId },
+        select: { displayName: true },
+      });
+
+      await prisma.notification.create({
+        data: {
+          userId: move.creatorId,
+          type: 'move_interest',
+          title: 'New Interest',
+          body: `${userProfile?.displayName || 'Someone'} is interested in "${move.title}"`,
+          data: { moveId: move.id, userId: req.userId },
+        },
+      });
+
+      // Emit socket notification
+      try {
+        const { io } = await import('../../server.js');
+        if (io) {
+          io.to(move.creatorId).emit('notification', {
+            type: 'move_interest',
+            moveId: move.id,
+            userId: req.userId,
+          });
+        }
+      } catch {}
+    }
 
     res.status(201).json(interest);
   } catch (error) {

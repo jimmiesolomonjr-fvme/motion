@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -229,6 +229,32 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Smoother Song Autoplay',
         description: 'Profile songs play reliably with a visual cue.',
+      },
+    ],
+  },
+  '2.10.0': {
+    subtitle: 'Date ideas, curated by Motion.',
+    features: [
+      {
+        icon: Sparkles,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Community Moves',
+        description: 'Platform-curated date ideas across NYC & NJ. Both Steppers and Baddies can tap "I\'m Down."',
+      },
+      {
+        icon: Heart,
+        color: 'text-pink-400',
+        bg: 'bg-pink-400/10',
+        title: 'Move Matching',
+        description: 'When a Stepper and Baddie both express interest in the same Community Move, you match instantly.',
+      },
+      {
+        icon: MapPin,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: '20 Date Ideas',
+        description: 'Rooftop bars, jazz clubs, cooking classes, comedy nights & more — fresh ideas dropping regularly.',
       },
     ],
   },

@@ -215,7 +215,7 @@ async function main() {
 
   // Delete all dummy users except Jasmine W
   const dummyUsersToDelete = await prisma.user.findMany({
-    where: { isDummy: true, email: { not: 'jasmine.w@motion.app' } },
+    where: { isDummy: true, email: { notIn: ['jasmine.w@motion.app', 'motion@motion.app'] } },
     select: { id: true },
   });
   if (dummyUsersToDelete.length > 0) {

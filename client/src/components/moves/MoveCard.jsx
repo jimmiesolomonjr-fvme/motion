@@ -1,4 +1,4 @@
-import { MapPin, Calendar, Users, BadgeCheck, Check, Trash2, Bookmark, Clock, AlertTriangle, Edit3 } from 'lucide-react';
+import { MapPin, Calendar, Users, BadgeCheck, Check, Trash2, Bookmark, Clock, AlertTriangle, Edit3, Sparkles } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import { formatDate } from '../../utils/formatters';
@@ -15,8 +15,9 @@ const CATEGORY_LABELS = {
 export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete, onSave, onUnsave, currentUserId, onEdit }) {
   const interestedUsers = move.interestedUsers || [];
   const creator = move.creator || move.stepper;
+  const isCommunityMove = creator?.isDummy === true;
   const isCreatorBaddie = creator?.role === 'BADDIE';
-  const canExpress = (isCreatorBaddie && userRole === 'STEPPER') || (!isCreatorBaddie && userRole === 'BADDIE');
+  const canExpress = isCommunityMove || (isCreatorBaddie && userRole === 'STEPPER') || (!isCreatorBaddie && userRole === 'BADDIE');
 
   return (
     <div className="card-elevated">
@@ -40,19 +41,39 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
       )}
 
       <div className="flex items-start gap-3 mb-4">
-        <Avatar src={creator?.profile?.photos} name={creator?.profile?.displayName} size="sm" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="font-semibold text-white text-sm truncate">
-              {creator?.profile?.displayName}
-            </span>
-            {creator?.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
-            <span className={`ml-1 ${isCreatorBaddie ? 'badge-baddie' : 'badge-stepper'}`}>
-              {isCreatorBaddie ? 'Baddie' : 'Stepper'}
-            </span>
+        {isCommunityMove ? (
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-gold/20 to-purple-500/20 flex items-center justify-center flex-shrink-0">
+            <Sparkles size={18} className="text-gold" />
           </div>
-          {isCreatorBaddie && (
-            <p className="text-xs text-gray-500 mt-0.5">Looking for a Stepper to take her out</p>
+        ) : (
+          <Avatar src={creator?.profile?.photos} name={creator?.profile?.displayName} size="sm" />
+        )}
+        <div className="flex-1 min-w-0">
+          {isCommunityMove ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-gold text-sm">Motion</span>
+                <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-gold/10 text-gold">
+                  Community
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">Community Date Idea</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-white text-sm truncate">
+                  {creator?.profile?.displayName}
+                </span>
+                {creator?.isVerified && <BadgeCheck size={14} className="text-blue-400" />}
+                <span className={`ml-1 ${isCreatorBaddie ? 'badge-baddie' : 'badge-stepper'}`}>
+                  {isCreatorBaddie ? 'Baddie' : 'Stepper'}
+                </span>
+              </div>
+              {isCreatorBaddie && (
+                <p className="text-xs text-gray-500 mt-0.5">Looking for a Stepper to take her out</p>
+              )}
+            </>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -167,7 +188,7 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
           </Button>
         ) : (
           <Button variant="gold" className="w-full" onClick={() => onInterest(move.id)}>
-            {isCreatorBaddie ? "I'll Take You" : "I'm Interested"}
+            {isCommunityMove ? "I'm Down" : isCreatorBaddie ? "I'll Take You" : "I'm Interested"}
           </Button>
         )
       )}
