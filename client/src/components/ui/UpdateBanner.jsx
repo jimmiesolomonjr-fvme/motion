@@ -58,6 +58,7 @@ export default function UpdateBanner() {
         exit={{ y: -40, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
         className="fixed top-0 left-0 right-0 z-50"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="bg-gradient-to-r from-dark-100 to-dark-200 border-b border-gold/20 px-4 py-2 flex items-center justify-center gap-3">
           <RefreshCw size={14} className="text-gold flex-shrink-0" />
