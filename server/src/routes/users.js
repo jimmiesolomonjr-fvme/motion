@@ -790,6 +790,18 @@ router.delete('/account', authenticate, async (req, res) => {
 
     const userId = req.userId;
 
+    // Log deletion before wiping data
+    const profile = await prisma.profile.findUnique({ where: { userId }, select: { displayName: true, city: true } });
+    await prisma.deletionLog.create({
+      data: {
+        email: user.email,
+        role: user.role,
+        displayName: profile?.displayName,
+        city: profile?.city,
+        signedUpAt: user.createdAt,
+      },
+    });
+
     await prisma.$transaction(async (tx) => {
       // Delete messages sent by user
       await tx.message.deleteMany({ where: { senderId: userId } });

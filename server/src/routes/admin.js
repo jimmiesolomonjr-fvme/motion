@@ -685,4 +685,17 @@ router.get('/users/:userId/messages', authenticate, requireAdmin, async (req, re
   }
 });
 
+// Deletion log
+router.get('/deletion-log', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const logs = await prisma.deletionLog.findMany({
+      orderBy: { deletedAt: 'desc' },
+    });
+    res.json(logs);
+  } catch (error) {
+    console.error('Deletion log error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

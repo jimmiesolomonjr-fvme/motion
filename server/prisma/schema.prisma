@@ -435,3 +435,13 @@ model PushSubscription {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model DeletionLog {
+  id          String   @id @default(uuid())
+  email       String
+  role        Role
+  displayName String?
+  city        String?
+  signedUpAt  DateTime
+  deletedAt   DateTime @default(now())
+}
