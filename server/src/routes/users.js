@@ -307,7 +307,6 @@ router.get('/feed', authenticate, async (req, res) => {
       },
       include: { profile: true },
       orderBy: sort === 'newest' ? { createdAt: 'desc' } : { lastOnline: 'desc' },
-      take: 50,
     });
 
     // Filter by lookingForTags if requested
@@ -665,7 +664,6 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
         profilePrompts: { orderBy: { position: 'asc' }, take: 3 },
       },
       orderBy: sort === 'newest' ? { createdAt: 'desc' } : { lastOnline: 'desc' },
-      take: 50,
     });
 
     // Batch referral counts
