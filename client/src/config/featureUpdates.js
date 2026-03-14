@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -274,6 +274,39 @@ const FEATURE_UPDATES = {
         bg: 'bg-pink-400/10',
         title: 'Double-Tap to Like',
         description: 'Double-tap any photo for a gold heart burst — just like you\'d expect.',
+      },
+    ],
+  },
+  '2.12.0': {
+    subtitle: 'Smoother, faster, more addictive.',
+    features: [
+      {
+        icon: Zap,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Instant Likes',
+        description: 'Likes and unlikes update instantly — no more waiting for the server.',
+      },
+      {
+        icon: Heart,
+        color: 'text-pink-400',
+        bg: 'bg-pink-400/10',
+        title: 'Match Celebration',
+        description: 'Confetti burst, profile photo reveal, and a Send Message button when you match.',
+      },
+      {
+        icon: MessageCircle,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'Unread Dots Fixed',
+        description: 'Gold unread indicators now work correctly on all conversations.',
+      },
+      {
+        icon: Sparkles,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Performance Boost',
+        description: 'Lazy-loaded pages, skeleton loaders, and smoother transitions throughout.',
       },
     ],
   },

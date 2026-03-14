@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import Avatar from '../ui/Avatar';
 import { isOnline, timeAgo } from '../../utils/formatters';
 import { Mic, Trash2, ImageIcon } from 'lucide-react';
 
-function SwipeableConversation({ conv, onDelete }) {
+const SwipeableConversation = memo(function SwipeableConversation({ conv, onDelete, currentUserId }) {
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-100, -60], [1, 0]);
   const [swiped, setSwiped] = useState(false);
@@ -84,16 +84,16 @@ function SwipeableConversation({ conv, onDelete }) {
               )}
             </p>
           </div>
-          {conv.lastMessage && !conv.lastMessage.read && conv.lastMessage.senderId !== 'me' && (
+          {conv.lastMessage && !conv.lastMessage.read && conv.lastMessage.senderId !== currentUserId && (
             <span className="w-2.5 h-2.5 bg-gold rounded-full flex-shrink-0" />
           )}
         </Link>
       </motion.div>
     </div>
   );
-}
+});
 
-export default function ConversationList({ conversations, onDelete }) {
+export default function ConversationList({ conversations, onDelete, currentUserId }) {
   if (conversations.length === 0) {
     return (
       <div className="text-center py-16">
@@ -107,7 +107,7 @@ export default function ConversationList({ conversations, onDelete }) {
     <div className="space-y-1">
       {conversations.map((conv) => (
         onDelete ? (
-          <SwipeableConversation key={conv.id} conv={conv} onDelete={onDelete} />
+          <SwipeableConversation key={conv.id} conv={conv} onDelete={onDelete} currentUserId={currentUserId} />
         ) : (
           <Link
             key={conv.id}
@@ -136,7 +136,7 @@ export default function ConversationList({ conversations, onDelete }) {
                 )}
               </p>
             </div>
-            {conv.lastMessage && !conv.lastMessage.read && conv.lastMessage.senderId !== 'me' && (
+            {conv.lastMessage && !conv.lastMessage.read && conv.lastMessage.senderId !== currentUserId && (
               <span className="w-2.5 h-2.5 bg-gold rounded-full flex-shrink-0" />
             )}
           </Link>

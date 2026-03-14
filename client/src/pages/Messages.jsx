@@ -6,9 +6,10 @@ import api from '../services/api';
 import { useSocket, useNotifications } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/ui/Avatar';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Sparkles, Trash2, X } from 'lucide-react';
 import Modal from '../components/ui/Modal';
+import { ConversationSkeleton } from '../components/ui/Skeleton';
 
 function SwipeableInterest({ interest, onStartConversation, onDismiss }) {
   const x = useMotionValue(0);
@@ -75,6 +76,7 @@ function SwipeableInterest({ interest, onStartConversation, onDismiss }) {
 
 export default function Messages() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [conversations, setConversations] = useState([]);
   const [matches, setMatches] = useState([]);
   const [moveInterests, setMoveInterests] = useState([]);
@@ -127,7 +129,7 @@ export default function Messages() {
   const startConversation = async (userId) => {
     try {
       const { data } = await api.post(`/messages/start/${userId}`);
-      window.location.href = `/chat/${data.id}`;
+      navigate(`/chat/${data.id}`);
     } catch (err) {
       console.error('Start conversation error:', err);
     }
@@ -156,9 +158,8 @@ export default function Messages() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-        </div>
+        <h1 className="text-xl font-bold text-white mb-4">Messages</h1>
+        <ConversationSkeleton />
       </AppLayout>
     );
   }
@@ -218,7 +219,7 @@ export default function Messages() {
         </div>
       )}
 
-      <ConversationList conversations={conversations} onDelete={handleDeleteConversation} />
+      <ConversationList conversations={conversations} onDelete={handleDeleteConversation} currentUserId={user.id} />
 
       <Modal isOpen={!!unmatchTarget} onClose={() => setUnmatchTarget(null)} title="Remove Match">
         <p className="text-sm text-gray-400 mb-4">

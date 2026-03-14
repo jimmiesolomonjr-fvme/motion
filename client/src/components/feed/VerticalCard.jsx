@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Eye, MessageCircle, MapPin, BadgeCheck, Sparkles, Zap, Music, Play, Pause, VolumeX, Volume2 } from 'lucide-react';
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { isOnline } from '../../utils/formatters';
+import { haptic } from '../../utils/haptics';
 
 const stagger = (delay) => ({
   initial: { opacity: 0, y: 12 },
@@ -59,6 +60,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
       // Double tap — fire like
+      haptic(50);
       if (!user.hasLiked) {
         onLike(user.id);
       }
@@ -100,6 +102,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
             <img
               src={photos[0]}
               alt={profile.displayName}
+              loading="lazy"
               className={`w-full h-full object-cover transition-transform duration-[8000ms] ease-out ${
                 isVisible ? 'scale-110' : 'scale-100'
               }`}

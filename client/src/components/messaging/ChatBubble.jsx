@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, memo } from 'react';
 import { Check, CheckCheck, Mic, X, Reply } from 'lucide-react';
 
 const REACTION_EMOJIS = ['\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDE2E', '\uD83D\uDE22', '\uD83D\uDD25', '\uD83D\uDC4D'];
 
-export default function ChatBubble({ message, isOwn, onReact, currentUserId, showPicker, onTogglePicker, onReply }) {
+export default memo(function ChatBubble({ message, isOwn, onReact, currentUserId, showPicker, onTogglePicker, onReply }) {
   const isVoice = message.contentType === 'VOICE';
   const isImage = message.contentType === 'IMAGE';
   const [lightbox, setLightbox] = useState(false);
@@ -131,7 +131,7 @@ export default function ChatBubble({ message, isOwn, onReact, currentUserId, sho
     )}
     </>
   );
-}
+});
 
 function VoicePlayer({ src, isOwn }) {
   return (

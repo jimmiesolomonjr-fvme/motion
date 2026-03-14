@@ -1,7 +1,10 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Heart, MapPin, BadgeCheck, Sparkles, Zap, Play } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
 import { isVideoUrl } from '../../utils/mediaUtils';
+import { haptic } from '../../utils/haptics';
 
 function getVideoThumbnail(url) {
   if (url && url.includes('/video/upload/')) {
@@ -10,7 +13,7 @@ function getVideoThumbnail(url) {
   return null;
 }
 
-export default function ProfileCard({ user, onLike, onUnlike }) {
+export default memo(function ProfileCard({ user, onLike, onUnlike }) {
   const rawPhoto = user.profile?.photos?.[0];
   const photo = rawPhoto && isVideoUrl(rawPhoto) ? (getVideoThumbnail(rawPhoto) || null) : rawPhoto;
 
@@ -19,10 +22,10 @@ export default function ProfileCard({ user, onLike, onUnlike }) {
       <Link to={`/profile/${user.id}`}>
         <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-3">
           {photo ? (
-            <img src={photo} alt={user.profile?.displayName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <img src={photo} alt={user.profile?.displayName} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <div className="w-full h-full bg-dark-100 flex items-center justify-center">
-              <span className="text-4xl">👤</span>
+              <span className="text-4xl">&#x1f464;</span>
             </div>
           )}
 
@@ -68,22 +71,30 @@ export default function ProfileCard({ user, onLike, onUnlike }) {
       </Link>
 
       {user.hasLiked ? (
-        <button
-          onClick={() => onUnlike(user.id)}
+        <motion.button
+          onClick={() => { haptic(); onUnlike(user.id); }}
           className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-pink-400 hover:bg-pink-400/10 rounded-lg transition-colors"
+          whileTap={{ scale: 0.85 }}
         >
-          <Heart size={16} fill="currentColor" />
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+          >
+            <Heart size={16} fill="currentColor" />
+          </motion.span>
           Liked
-        </button>
+        </motion.button>
       ) : (
-        <button
-          onClick={() => onLike(user.id)}
+        <motion.button
+          onClick={() => { haptic(); onLike(user.id); }}
           className="w-full flex items-center justify-center gap-2 py-2 text-sm font-medium text-gold hover:bg-gold/10 rounded-lg transition-colors"
+          whileTap={{ scale: 0.85 }}
         >
           <Heart size={16} />
           Like
-        </button>
+        </motion.button>
       )}
     </div>
   );
-}
+});

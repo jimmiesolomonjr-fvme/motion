@@ -1,33 +1,39 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { initGA, trackPageView } from './utils/analytics';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 import Landing from './pages/Landing';
 import Register from './pages/Register';
 import Login from './pages/Login';
-import Onboarding from './pages/Onboarding';
-import Feed from './pages/Feed';
-import Profile from './pages/Profile';
-import Messages from './pages/Messages';
-import Chat from './pages/Chat';
-import VibeCheck from './pages/VibeCheck';
-import Moves from './pages/Moves';
-import Premium from './pages/Premium';
-import Settings from './pages/Settings';
-import Admin from './pages/Admin';
-import Notifications from './pages/Notifications';
 import FeatureUpdatesOverlay from './components/ui/FeatureUpdatesOverlay';
+
+const Onboarding = lazy(() => import('./pages/Onboarding'));
+const Feed = lazy(() => import('./pages/Feed'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Messages = lazy(() => import('./pages/Messages'));
+const Chat = lazy(() => import('./pages/Chat'));
+const VibeCheck = lazy(() => import('./pages/VibeCheck'));
+const Moves = lazy(() => import('./pages/Moves'));
+const Premium = lazy(() => import('./pages/Premium'));
+const Settings = lazy(() => import('./pages/Settings'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Notifications = lazy(() => import('./pages/Notifications'));
+
+function FullScreenSpinner() {
+  return (
+    <div className="min-h-screen bg-dark flex items-center justify-center">
+      <div className="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-dark flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <FullScreenSpinner />;
   }
 
   if (!user) return <Navigate to="/login" />;
@@ -38,11 +44,7 @@ function PublicRoute({ children }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-dark flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <FullScreenSpinner />;
   }
 
   if (user?.hasProfile) return <Navigate to="/feed" />;
@@ -64,6 +66,7 @@ function AppRoutes() {
   return (
     <>
     <FeatureUpdatesOverlay />
+    <Suspense fallback={<FullScreenSpinner />}>
     <Routes>
       {/* Public */}
       <Route path="/" element={<PublicRoute><Landing /></PublicRoute>} />
@@ -87,6 +90,7 @@ function AppRoutes() {
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
+    </Suspense>
     </>
   );
 }
@@ -96,7 +100,9 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <SocketProvider>
-          <AppRoutes />
+          <ErrorBoundary>
+            <AppRoutes />
+          </ErrorBoundary>
         </SocketProvider>
       </AuthProvider>
     </BrowserRouter>

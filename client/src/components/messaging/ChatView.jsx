@@ -33,6 +33,7 @@ export default function ChatView({ conversationId, otherUser }) {
   const [voicePreview, setVoicePreview] = useState(null); // { blob, url, duration }
   const [voiceSending, setVoiceSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+  const typingTimerRef = useRef(null);
   const menuRef = useRef(null);
   const bottomRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -132,6 +133,7 @@ export default function ChatView({ conversationId, otherUser }) {
       socket.off('error', handleError);
       socket.off('send-message-error', handleSendError);
       socket.off('message-reaction', handleReaction);
+      clearTimeout(typingTimerRef.current);
     };
   }, [socket, conversationId]);
 
@@ -186,8 +188,8 @@ export default function ChatView({ conversationId, otherUser }) {
     setInput(e.target.value);
     if (socket) {
       socket.emit('typing', { conversationId });
-      clearTimeout(window._typingTimer);
-      window._typingTimer = setTimeout(() => {
+      clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = setTimeout(() => {
         socket.emit('stop-typing', { conversationId });
       }, 2000);
     }
@@ -313,7 +315,7 @@ export default function ChatView({ conversationId, otherUser }) {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] max-w-lg mx-auto">
+    <div className="flex flex-col h-[calc(100dvh-3.5rem)] max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-dark-50" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
         <Link to="/messages" className="text-gray-400 hover:text-white">
@@ -382,7 +384,7 @@ export default function ChatView({ conversationId, otherUser }) {
       </div>
 
       {/* Input */}
-      <div className="p-3 border-t border-dark-50">
+      <div className="p-3 border-t border-dark-50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}>
         {needsPremium ? (
           <div className="text-center py-2 space-y-2">
             <p className="text-sm text-gray-400">Steppers need Premium to send messages</p>

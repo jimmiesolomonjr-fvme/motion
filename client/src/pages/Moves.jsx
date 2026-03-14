@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import MoveCard from '../components/moves/MoveCard';
 import CreateMove from '../components/moves/CreateMove';
@@ -42,6 +43,7 @@ function getTimeFilterDates(time) {
 
 export default function Moves() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [moves, setMoves] = useState([]);
   const [myMoves, setMyMoves] = useState([]);
   const [expiredMoves, setExpiredMoves] = useState([]);
@@ -127,7 +129,7 @@ export default function Moves() {
   const startConversation = async (userId) => {
     try {
       const { data } = await api.post(`/messages/start/${userId}`);
-      window.location.href = `/chat/${data.id}`;
+      navigate(`/chat/${data.id}`);
     } catch (err) {
       console.error('Start conversation error:', err);
     }

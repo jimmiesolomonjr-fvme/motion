@@ -14,6 +14,9 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Mutex to prevent concurrent refresh calls
+let refreshPromise = null;
+
 // Response interceptor for token refresh
 api.interceptors.response.use(
   (response) => response,
@@ -24,16 +27,24 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token');
+        if (!refreshPromise) {
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) throw new Error('No refresh token');
 
-        const { data } = await axios.post('/api/auth/refresh', { refreshToken });
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('refreshToken', data.refreshToken);
+          refreshPromise = axios.post('/api/auth/refresh', { refreshToken })
+            .then(({ data }) => {
+              localStorage.setItem('accessToken', data.accessToken);
+              localStorage.setItem('refreshToken', data.refreshToken);
+              return data.accessToken;
+            })
+            .finally(() => { refreshPromise = null; });
+        }
 
-        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        const newToken = await refreshPromise;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch {
+        refreshPromise = null;
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         window.location.href = '/login';

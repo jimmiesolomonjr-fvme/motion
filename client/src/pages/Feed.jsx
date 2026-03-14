@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/layout/AppLayout';
 import FeedGrid from '../components/feed/FeedGrid';
 import FeedFilters from '../components/feed/FeedFilters';
@@ -6,10 +8,14 @@ import VerticalFeed from '../components/feed/VerticalFeed';
 import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
 import Modal from '../components/ui/Modal';
-import { Heart, LayoutGrid, Rows3, SlidersHorizontal } from 'lucide-react';
+import Avatar from '../components/ui/Avatar';
+import { Heart, LayoutGrid, Rows3, SlidersHorizontal, MessageCircle } from 'lucide-react';
 import StoryBar from '../components/stories/StoryBar';
+import { FeedSkeleton } from '../components/ui/Skeleton';
+import { haptic } from '../utils/haptics';
 
 export default function Feed() {
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [sort, setSort] = useState('active');
   const [ageRange, setAgeRange] = useState([18, 99]);
@@ -138,26 +144,36 @@ export default function Feed() {
   };
 
   const handleUnlike = async (userId) => {
+    // Optimistic update
+    haptic();
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
+    setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
     try {
       await api.delete(`/likes/${userId}`);
-      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
-      setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
     } catch (err) {
+      // Rollback
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
+      setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
       console.error('Unlike error:', err);
     }
   };
 
   const handleLike = async (userId) => {
+    // Optimistic update
+    haptic();
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
+    setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
     try {
       const { data } = await api.post(`/likes/${userId}`);
-      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
-      setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: true } : u));
-
       if (data.matched) {
+        haptic(200);
         const matched = users.find((u) => u.id === userId) || verticalUsers.find((u) => u.id === userId);
         setMatchModal(matched);
       }
     } catch (err) {
+      // Rollback
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
+      setVerticalUsers((prev) => prev.map((u) => u.id === userId ? { ...u, hasLiked: false } : u));
       console.error('Like error:', err);
     }
   };
@@ -183,9 +199,7 @@ export default function Feed() {
       />
 
       {isLoading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-8 h-8 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-        </div>
+        <FeedSkeleton mode={viewMode} />
       ) : viewMode === 'grid' ? (
         <FeedGrid users={users} onLike={handleLike} onUnlike={handleUnlike} hasMore={hasMore} loadingMore={loadingMore} sentinelRef={sentinelRef} />
       ) : (
@@ -221,17 +235,59 @@ export default function Feed() {
 
       {/* Match Modal */}
       <Modal isOpen={!!matchModal} onClose={() => setMatchModal(null)} title="">
-        <div className="text-center py-4">
-          <div className="w-16 h-16 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-4">
-            <Heart className="text-gold" size={32} fill="currentColor" />
+        <div className="text-center py-4 relative overflow-hidden">
+          {/* Confetti burst */}
+          <AnimatePresence>
+            {matchModal && (
+              <div className="absolute inset-0 pointer-events-none">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <motion.div
+                    key={i}
+                    className="absolute w-2 h-2 rounded-full bg-gold"
+                    initial={{
+                      x: '50%',
+                      y: '40%',
+                      scale: 0,
+                      opacity: 1,
+                    }}
+                    animate={{
+                      x: `${50 + (Math.cos((i * 30) * Math.PI / 180) * 40)}%`,
+                      y: `${40 + (Math.sin((i * 30) * Math.PI / 180) * 40)}%`,
+                      scale: [0, 1.5, 0],
+                      opacity: [1, 1, 0],
+                    }}
+                    transition={{ duration: 0.8, delay: i * 0.04, ease: 'easeOut' }}
+                  />
+                ))}
+              </div>
+            )}
+          </AnimatePresence>
+
+          <div className="w-20 h-20 rounded-full mx-auto mb-4 ring-4 ring-gold/30 overflow-hidden">
+            <Avatar src={matchModal?.profile?.photos} name={matchModal?.profile?.displayName} size="xl" />
           </div>
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.1 }}
+          >
+            <Heart className="text-gold mx-auto mb-2" size={28} fill="currentColor" />
+          </motion.div>
           <h3 className="text-2xl font-bold text-white mb-2">It&apos;s a Match!</h3>
           <p className="text-gray-400 mb-6">
             You and <span className="text-gold font-semibold">{matchModal?.profile?.displayName}</span> liked each other
           </p>
-          <button onClick={() => setMatchModal(null)} className="btn-gold w-full">
-            Keep Browsing
-          </button>
+          <div className="flex gap-3">
+            <button onClick={() => setMatchModal(null)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+              Keep Browsing
+            </button>
+            <button
+              onClick={() => { setMatchModal(null); navigate('/messages'); }}
+              className="flex-1 px-4 py-2.5 btn-gold rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+            >
+              <MessageCircle size={16} /> Send Message
+            </button>
+          </div>
         </div>
       </Modal>
     </AppLayout>
