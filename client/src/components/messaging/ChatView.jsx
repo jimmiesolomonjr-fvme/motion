@@ -33,6 +33,7 @@ export default function ChatView({ conversationId, otherUser }) {
   const [voicePreview, setVoicePreview] = useState(null); // { blob, url, duration }
   const [voiceSending, setVoiceSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
+  const [reconnecting, setReconnecting] = useState(false);
   const typingTimerRef = useRef(null);
   const menuRef = useRef(null);
   const bottomRef = useRef(null);
@@ -144,19 +145,39 @@ export default function ChatView({ conversationId, otherUser }) {
   const pendingMessageRef = useRef('');
 
   const sendMessage = () => {
-    if (!input.trim() || !socket) return;
+    if (!input.trim() || !socket || reconnecting) return;
+
+    const msg = input.trim();
+    const replyId = replyingTo?.id || undefined;
+
+    const doSend = () => {
+      pendingMessageRef.current = msg;
+      socket.emit('send-message', { conversationId, content: msg, replyToId: replyId });
+      setInput('');
+      setReplyingTo(null);
+      setIcebreakers([]);
+      setReconnecting(false);
+      socket.emit('stop-typing', { conversationId });
+    };
 
     if (!socket.connected) {
-      setSocketError('Connection lost, reconnecting...');
+      setReconnecting(true);
+      const timeout = setTimeout(() => {
+        socket.off('connect', onConnect);
+        setReconnecting(false);
+        setSocketError('Connection lost — please try again');
+        setTimeout(() => setSocketError(''), 4000);
+      }, 5000);
+      const onConnect = () => {
+        clearTimeout(timeout);
+        socket.emit('join-conversation', conversationId);
+        doSend();
+      };
+      socket.once('connect', onConnect);
       return;
     }
 
-    pendingMessageRef.current = input.trim();
-    socket.emit('send-message', { conversationId, content: input.trim(), replyToId: replyingTo?.id || undefined });
-    setInput('');
-    setReplyingTo(null);
-    setIcebreakers([]);
-    socket.emit('stop-typing', { conversationId });
+    doSend();
   };
 
   const handleUpgrade = async () => {
@@ -475,8 +496,8 @@ export default function ChatView({ conversationId, otherUser }) {
                   placeholder="Type a message..."
                   className="flex-1 input-field py-2.5"
                 />
-                <button onClick={sendMessage} disabled={!input.trim()} className="p-2.5 bg-gold rounded-xl text-dark disabled:opacity-30">
-                  <Send size={18} />
+                <button onClick={sendMessage} disabled={!input.trim() || reconnecting} className="p-2.5 bg-gold rounded-xl text-dark disabled:opacity-30">
+                  {reconnecting ? <Loader size={18} className="animate-spin" /> : <Send size={18} />}
                 </button>
               </div>
             )}

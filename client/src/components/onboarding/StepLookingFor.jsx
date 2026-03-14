@@ -28,11 +28,11 @@ export default function StepLookingFor({ profile, setProfile, onNext, onBack }) 
           value={profile.lookingFor || ''}
           onChange={(e) => setProfile({ ...profile, lookingFor: e.target.value })}
           placeholder="e.g. Someone who loves adventure and good conversation"
-          className="w-full input-field py-2.5 text-sm"
+          className={`w-full input-field py-2.5 text-sm ${!hasText ? 'ring-2 ring-gold/50' : ''}`}
           maxLength={100}
         />
         {!hasText && (
-          <p className="text-xs text-gray-500 mt-1.5">Required — tell people what you're looking for</p>
+          <p className="text-xs text-gold/80 mt-1.5 font-medium">Required — tell people what you're looking for</p>
         )}
       </div>
 
