@@ -172,7 +172,7 @@ export default function Feed() {
 
   return (
     <AppLayout>
-      <StoryBar />
+      {viewMode === 'grid' && <StoryBar />}
       <FeedFilters
         sort={sort} setSort={setSort}
         ageRange={ageRange} maxDistance={maxDistance}
