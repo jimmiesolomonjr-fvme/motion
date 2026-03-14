@@ -27,7 +27,7 @@ export default function Feed() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef(null);
-  const [viewMode, setViewMode] = useState('vertical');
+  const [viewMode, setViewMode] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
 
   // Vertical feed state (separate from grid)
@@ -217,7 +217,7 @@ export default function Feed() {
       {/* FAB — Filters */}
       <button
         onClick={() => setShowFilters(true)}
-        className={`fixed bottom-[8.5rem] right-4 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform ${
+        className={`fixed bottom-[10.5rem] right-4 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform ${
           ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100 || selectedTags.length > 0
             ? 'bg-purple-500 text-white'
             : 'bg-dark-100 text-gray-300 border border-dark-50'
