@@ -236,8 +236,8 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
 
         {/* Content Area + Actions */}
         <div className="flex-1 flex flex-col min-h-0 px-4 pt-3 pb-2">
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          {/* Scrollable content — no flex-1 so it only takes needed height */}
+          <div className="overflow-y-auto min-h-0">
             {/* Song Player */}
             {profile.songTitle && (
               isVisible ? (
