@@ -6,7 +6,7 @@ import VerticalFeed from '../components/feed/VerticalFeed';
 import { useGeolocation } from '../hooks/useGeolocation';
 import api from '../services/api';
 import Modal from '../components/ui/Modal';
-import { Heart, LayoutGrid, Rows3 } from 'lucide-react';
+import { Heart, LayoutGrid, Rows3, SlidersHorizontal } from 'lucide-react';
 import StoryBar from '../components/stories/StoryBar';
 
 export default function Feed() {
@@ -21,7 +21,8 @@ export default function Feed() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const sentinelRef = useRef(null);
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState('vertical');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Vertical feed state (separate from grid)
   const [verticalUsers, setVerticalUsers] = useState([]);
@@ -177,6 +178,8 @@ export default function Feed() {
         ageRange={ageRange} maxDistance={maxDistance}
         selectedTags={selectedTags}
         onApply={handleApplyFilters}
+        externalOpen={showFilters}
+        onExternalClose={() => setShowFilters(false)}
       />
 
       {isLoading ? (
@@ -195,6 +198,18 @@ export default function Feed() {
           onLoadMore={handleVerticalLoadMore}
         />
       )}
+
+      {/* FAB — Filters */}
+      <button
+        onClick={() => setShowFilters(true)}
+        className={`fixed bottom-[8.5rem] right-4 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform ${
+          ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100 || selectedTags.length > 0
+            ? 'bg-purple-500 text-white'
+            : 'bg-dark-100 text-gray-300 border border-dark-50'
+        }`}
+      >
+        <SlidersHorizontal size={20} />
+      </button>
 
       {/* FAB — Grid/Vertical toggle */}
       <button

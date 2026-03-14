@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import VerticalCard from './VerticalCard';
 
 export default function VerticalFeed({ users, onLike, onUnlike, hasMore, loadingMore, onLoadMore }) {
@@ -48,14 +49,22 @@ export default function VerticalFeed({ users, onLike, onUnlike, hasMore, loading
       style={{ height: 'calc(100dvh - 10rem)' }}
     >
       {users.map((user, i) => (
-        <div key={user.id} data-index={i}>
+        <motion.div
+          key={user.id}
+          data-index={i}
+          animate={i === visibleIndex
+            ? { opacity: 1, scale: 1, y: 0 }
+            : { opacity: 0.6, scale: 0.95, y: 10 }
+          }
+          transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+        >
           <VerticalCard
             user={user}
             onLike={onLike}
             onUnlike={onUnlike}
             isVisible={i === visibleIndex}
           />
-        </div>
+        </motion.div>
       ))}
       {loadingMore && (
         <div className="h-20 flex items-center justify-center">

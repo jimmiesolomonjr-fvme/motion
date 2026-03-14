@@ -258,6 +258,25 @@ const FEATURE_UPDATES = {
       },
     ],
   },
+  '2.11.0': {
+    subtitle: 'The feed just came alive.',
+    features: [
+      {
+        icon: Sparkles,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Animated Feed',
+        description: 'Cards spring in with glow borders, staggered content reveals, and Ken Burns photo zoom.',
+      },
+      {
+        icon: Heart,
+        color: 'text-pink-400',
+        bg: 'bg-pink-400/10',
+        title: 'Double-Tap to Like',
+        description: 'Double-tap any photo for a gold heart burst — just like you\'d expect.',
+      },
+    ],
+  },
 };
 
 export default FEATURE_UPDATES;

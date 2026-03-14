@@ -1,12 +1,25 @@
-import { useState } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 import { LOOKING_FOR_TAGS } from '../../utils/constants';
 
-export default function FeedFilters({ sort, setSort, ageRange, maxDistance, selectedTags, onApply }) {
+export default function FeedFilters({ sort, setSort, ageRange, maxDistance, selectedTags, onApply, externalOpen, onExternalClose }) {
   const [showOverlay, setShowOverlay] = useState(false);
   const [pendingAge, setPendingAge] = useState(ageRange);
   const [pendingDistance, setPendingDistance] = useState(maxDistance);
   const [pendingTags, setPendingTags] = useState(selectedTags || []);
+
+  // Sync overlay state with parent open/close
+  useEffect(() => {
+    if (externalOpen) {
+      setPendingAge(ageRange);
+      setPendingDistance(maxDistance);
+      setPendingTags(selectedTags || []);
+      setShowOverlay(true);
+    } else {
+      setShowOverlay(false);
+    }
+  }, [externalOpen]);
 
   const sortOptions = [
     { value: 'active', label: 'Recently Active' },
@@ -17,16 +30,14 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
 
   const hasActiveFilters = ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100 || (selectedTags && selectedTags.length > 0);
 
-  const openOverlay = () => {
-    setPendingAge(ageRange);
-    setPendingDistance(maxDistance);
-    setPendingTags(selectedTags || []);
-    setShowOverlay(true);
+  const closeOverlay = () => {
+    setShowOverlay(false);
+    onExternalClose?.();
   };
 
   const handleApply = () => {
     onApply({ ageRange: pendingAge, maxDistance: pendingDistance, tags: pendingTags });
-    setShowOverlay(false);
+    closeOverlay();
   };
 
   const handleClear = () => {
@@ -34,7 +45,7 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
     setPendingDistance(100);
     setPendingTags([]);
     onApply({ ageRange: [18, 99], maxDistance: 100, tags: [] });
-    setShowOverlay(false);
+    closeOverlay();
   };
 
   const toggleTag = (tag) => {
@@ -59,29 +70,19 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
             {opt.label}
           </button>
         ))}
-        <button
-          onClick={openOverlay}
-          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-            hasActiveFilters
-              ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-              : 'bg-dark-50 text-gray-400 hover:text-white'
-          }`}
-        >
-          <SlidersHorizontal size={14} /> Filters
-        </button>
       </div>
 
-      {/* Full-screen filter overlay */}
-      {showOverlay && (
-        <div className="fixed inset-0 z-50 bg-dark flex flex-col">
+      {/* Full-screen filter overlay — portal to body to avoid stacking context issues */}
+      {showOverlay && createPortal(
+        <div className="fixed inset-0 z-[100] bg-dark flex flex-col" style={{ touchAction: 'manipulation' }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-4 border-b border-dark-50">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-dark-50" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
             <h2 className="text-lg font-bold text-white">Filters</h2>
             <button
-              onClick={() => setShowOverlay(false)}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
+              onClick={closeOverlay}
+              className="w-11 h-11 flex items-center justify-center text-gray-400 hover:text-white transition-colors -mr-2"
             >
-              <X size={20} />
+              <X size={22} />
             </button>
           </div>
 
@@ -178,7 +179,7 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
           </div>
 
           {/* Sticky bottom bar */}
-          <div className="px-4 py-4 border-t border-dark-50 flex items-center gap-4">
+          <div className="px-4 py-4 border-t border-dark-50 flex items-center gap-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
             <button
               onClick={handleClear}
               className="text-sm text-gray-400 hover:text-white transition-colors"
@@ -192,7 +193,8 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
               View Results
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
