@@ -16,6 +16,8 @@ import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
 import SongSearchModal from '../components/profile/SongSearchModal';
 import ImageCropper from '../components/ui/ImageCropper';
+import ProfileRing from '../components/ui/ProfileRing';
+import { getProfileCompletion } from '../utils/profileCompletion';
 
 export default function Profile() {
   const { userId } = useParams();
@@ -53,6 +55,7 @@ export default function Profile() {
   const [autoplayMusic, setAutoplayMusic] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const unlockListenersRef = useRef(null);
+  const [deletePhotoIndex, setDeletePhotoIndex] = useState(null);
   const [cropQueue, setCropQueue] = useState([]); // images waiting to be cropped
   const [croppedFiles, setCroppedFiles] = useState([]); // cropped blobs ready to upload
   const [videoFiles, setVideoFiles] = useState([]); // videos skip cropping
@@ -454,7 +457,7 @@ export default function Profile() {
                       <img src={photos[i]} alt="" className="w-full h-full object-cover" />
                     )}
                     <button
-                      onClick={() => handlePhotoDelete(i)}
+                      onClick={() => setDeletePhotoIndex(i)}
                       className="absolute top-1.5 right-1.5 w-6 h-6 bg-black/70 hover:bg-red-500 rounded-full flex items-center justify-center transition-colors"
                     >
                       <X className="text-white" size={12} />
@@ -833,6 +836,17 @@ export default function Profile() {
               </button>
             )}
 
+            {/* ── Profile Completion Ring (own profile, view mode) ── */}
+            {isOwnProfile && (() => {
+              const { percent, missing } = getProfileCompletion(profile);
+              return percent < 100 ? (
+                <>
+                  <div className="border-t border-dark-50" />
+                  <ProfileRing percent={percent} missing={missing} onEditProfile={() => setEditing(true)} />
+                </>
+              ) : null;
+            })()}
+
             {/* ── About ── */}
             {(profile.bio || profile.lookingFor || (profile.lookingForTags || []).length > 0) && (
               <>
@@ -1038,6 +1052,21 @@ export default function Profile() {
             onCancel={handlePhotoCropCancel}
           />
         )}
+      </Modal>
+
+      {/* Photo Delete Confirmation Modal */}
+      <Modal isOpen={deletePhotoIndex !== null} onClose={() => setDeletePhotoIndex(null)} title="Delete Photo">
+        <p className="text-sm text-gray-400 mb-4">
+          Are you sure you want to delete this photo? This cannot be undone.
+        </p>
+        <div className="flex gap-3">
+          <button onClick={() => setDeletePhotoIndex(null)} className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors">
+            Cancel
+          </button>
+          <button onClick={() => { handlePhotoDelete(deletePhotoIndex); setDeletePhotoIndex(null); }} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
+            Delete
+          </button>
+        </div>
       </Modal>
 
       {/* Song Modal */}

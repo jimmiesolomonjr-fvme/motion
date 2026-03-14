@@ -53,8 +53,8 @@ export default function StepProfile({ profile, setProfile, onNext, onBack }) {
   const isCustomOccupation = profile.occupation && !OCCUPATION_OPTIONS.includes(profile.occupation);
   const occupationSelect = isCustomOccupation ? 'Other' : (profile.occupation || '');
 
-  const bioCharsNeeded = 50 - (profile.bio?.length || 0);
-  const isValid = profile.displayName && profile.age && profile.city && (profile.bio?.length || 0) >= 50;
+  const bioCharsNeeded = 20 - (profile.bio?.length || 0);
+  const isValid = profile.displayName && profile.age && profile.city && (profile.bio?.length || 0) >= 20;
 
   return (
     <div className="space-y-6">

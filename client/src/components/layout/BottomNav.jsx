@@ -23,13 +23,13 @@ export default function BottomNav() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+              `flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-colors ${
                 isActive ? 'text-gold' : 'text-gray-500 hover:text-gray-300'
               }`
             }
           >
             <div className="relative">
-              <Icon size={20} />
+              <Icon size={22} />
               {badge > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                   {badge > 9 ? '9+' : badge}

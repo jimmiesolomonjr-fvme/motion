@@ -50,7 +50,7 @@ router.post('/register', async (req, res) => {
     let referredBy = null;
     if (referralCode) {
       const referrer = await prisma.user.findUnique({ where: { referralCode } });
-      if (referrer) referredBy = referralCode;
+      if (referrer) referredBy = referrer.id;
     }
 
     // Generate unique referral code for new user

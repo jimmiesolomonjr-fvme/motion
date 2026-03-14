@@ -19,6 +19,7 @@ import storyRoutes from './src/routes/stories.js';
 import pushRoutes from './src/routes/push.js';
 import songRoutes from './src/routes/songs.js';
 import { setupSocketHandlers } from './src/sockets/chat.js';
+import { startReengagementJob } from './src/jobs/reengagement.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -75,6 +76,7 @@ setupSocketHandlers(io);
 // Start server
 httpServer.listen(config.port, () => {
   console.log(`Motion server running on port ${config.port}`);
+  startReengagementJob();
 });
 
 export { app, io };

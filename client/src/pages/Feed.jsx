@@ -201,7 +201,7 @@ export default function Feed() {
       {isLoading ? (
         <FeedSkeleton mode={viewMode} />
       ) : viewMode === 'grid' ? (
-        <FeedGrid users={users} onLike={handleLike} onUnlike={handleUnlike} hasMore={hasMore} loadingMore={loadingMore} sentinelRef={sentinelRef} />
+        <FeedGrid users={users} onLike={handleLike} onUnlike={handleUnlike} hasMore={hasMore} loadingMore={loadingMore} sentinelRef={sentinelRef} onOpenFilters={() => setShowFilters(true)} />
       ) : (
         <VerticalFeed
           users={verticalUsers}
@@ -210,6 +210,7 @@ export default function Feed() {
           hasMore={verticalHasMore}
           loadingMore={verticalLoadingMore}
           onLoadMore={handleVerticalLoadMore}
+          onOpenFilters={() => setShowFilters(true)}
         />
       )}
 

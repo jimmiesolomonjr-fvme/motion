@@ -60,6 +60,7 @@ model User {
   referralCode String?  @unique
   referredBy   String?
   lastOnline   DateTime @default(now())
+  lastReengagementEmail DateTime?
   locationLat  Float?
   locationLng  Float?
   createdAt    DateTime @default(now())

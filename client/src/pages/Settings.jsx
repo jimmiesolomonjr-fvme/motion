@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check, Sparkles, Moon, Music } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
@@ -30,7 +30,7 @@ export default function Settings() {
   const [autoplayMusic, setAutoplayMusic] = useState(true);
 
   // Referral state
-  const [showReferral, setShowReferral] = useState(false);
+  const [showReferral, setShowReferral] = useState(true);
   const [referralCode, setReferralCode] = useState('');
   const [referralCount, setReferralCount] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -219,6 +219,17 @@ export default function Settings() {
                     ? `${referralCount} ${referralCount === 1 ? 'person' : 'people'} joined with your code`
                     : 'No one has used your code yet'}
                 </p>
+                <div className="mt-3 flex items-center justify-center gap-2">
+                  {referralCount >= 3 ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 text-xs font-semibold">
+                      <Zap size={12} /> Plug Badge Earned!
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      Invite {3 - referralCount} more {3 - referralCount === 1 ? 'friend' : 'friends'} to earn the <span className="text-amber-400 font-semibold">Plug</span> badge
+                    </span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={handleShare}

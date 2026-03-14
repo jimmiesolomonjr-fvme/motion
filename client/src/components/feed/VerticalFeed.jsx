@@ -1,8 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Users } from 'lucide-react';
 import VerticalCard from './VerticalCard';
 
-export default function VerticalFeed({ users, onLike, onUnlike, hasMore, loadingMore, onLoadMore }) {
+export default function VerticalFeed({ users, onLike, onUnlike, hasMore, loadingMore, onLoadMore, onOpenFilters }) {
   const containerRef = useRef(null);
   const [visibleIndex, setVisibleIndex] = useState(0);
 
@@ -35,9 +37,20 @@ export default function VerticalFeed({ users, onLike, onUnlike, hasMore, loading
 
   if (users.length === 0) {
     return (
-      <div className="text-center py-16">
-        <p className="text-gray-400 text-lg mb-2">No one here yet</p>
-        <p className="text-gray-500 text-sm">Check back soon — the vibe is building</p>
+      <div className="text-center py-16 flex flex-col items-center">
+        <Users className="text-gray-600 mb-3" size={40} />
+        <p className="text-gray-400 text-lg mb-2">No profiles match your filters</p>
+        <p className="text-gray-500 text-sm mb-4">Try adjusting your filters or invite friends</p>
+        <div className="flex gap-3">
+          {onOpenFilters && (
+            <button onClick={onOpenFilters} className="px-4 py-2 bg-gold text-dark rounded-xl font-semibold text-sm hover:bg-gold/90 transition-colors">
+              Adjust Filters
+            </button>
+          )}
+          <Link to="/settings" className="px-4 py-2 bg-dark-50 text-gray-300 rounded-xl font-semibold text-sm hover:bg-dark-100 transition-colors">
+            Invite Friends
+          </Link>
+        </div>
       </div>
     );
   }

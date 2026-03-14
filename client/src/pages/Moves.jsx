@@ -420,9 +420,11 @@ export default function Moves() {
         <div className="space-y-4">
           <MoveFilters filters={filters} onFilterChange={setFilters} />
           {moves.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-400">No active Moves right now</p>
-              <p className="text-gray-500 text-sm">Check back soon</p>
+            <div className="text-center py-12 flex flex-col items-center">
+              <Flame className="text-gray-600 mb-3" size={40} />
+              <p className="text-gray-400 text-lg mb-2">No active Moves right now</p>
+              <p className="text-gray-500 text-sm mb-4">Be the first to make a move</p>
+              <Button variant="gold" onClick={() => setShowCreate(true)}>Create a Move</Button>
             </div>
           ) : (
             moves.map((move) => (

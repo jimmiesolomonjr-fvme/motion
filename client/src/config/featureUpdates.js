@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -307,6 +307,32 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Performance Boost',
         description: 'Lazy-loaded pages, skeleton loaders, and smoother transitions throughout.',
+      },
+    ],
+  },
+  '2.13.0': {
+    subtitle: 'Polish pass — smoother, smarter, more complete.',
+    features: [
+      {
+        icon: Users,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Better Empty States',
+        description: 'Feed, messages, and moves now show helpful actions when there\'s nothing to display.',
+      },
+      {
+        icon: Share2,
+        color: 'text-amber-400',
+        bg: 'bg-amber-400/10',
+        title: 'Invite Friends',
+        description: 'Referral section auto-expanded with Plug badge progress — invite 3 friends to earn it.',
+      },
+      {
+        icon: Target,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Profile Completion Ring',
+        description: 'See exactly how complete your profile is and what\'s missing at a glance.',
       },
     ],
   },

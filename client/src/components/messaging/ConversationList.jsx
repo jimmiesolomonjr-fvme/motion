@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import Avatar from '../ui/Avatar';
 import { isOnline, timeAgo } from '../../utils/formatters';
-import { Mic, Trash2, ImageIcon } from 'lucide-react';
+import { Mic, Trash2, ImageIcon, MessageCircle } from 'lucide-react';
 
 const SwipeableConversation = memo(function SwipeableConversation({ conv, onDelete, currentUserId }) {
   const x = useMotionValue(0);
@@ -96,9 +96,13 @@ const SwipeableConversation = memo(function SwipeableConversation({ conv, onDele
 export default function ConversationList({ conversations, onDelete, currentUserId }) {
   if (conversations.length === 0) {
     return (
-      <div className="text-center py-16">
+      <div className="text-center py-16 flex flex-col items-center">
+        <MessageCircle className="text-gray-600 mb-3" size={40} />
         <p className="text-gray-400 text-lg mb-2">No conversations yet</p>
-        <p className="text-gray-500 text-sm">Match with someone to start chatting</p>
+        <p className="text-gray-500 text-sm mb-4">Like someone in the feed to start a conversation</p>
+        <Link to="/feed" className="px-4 py-2 bg-gold text-dark rounded-xl font-semibold text-sm hover:bg-gold/90 transition-colors">
+          Browse Profiles
+        </Link>
       </div>
     );
   }
