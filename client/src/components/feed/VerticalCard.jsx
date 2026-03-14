@@ -235,130 +235,131 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
         </div>
 
         {/* Content Area + Actions */}
-        <div className="flex-1 flex flex-col overflow-hidden px-4 pt-3 pb-4">
-          {/* Song Player */}
-          {profile.songTitle && (
-            isVisible ? (
-              <motion.div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit" {...stagger(0.2)}>
-                {profile.songArtworkUrl ? (
-                  <img src={profile.songArtworkUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
-                ) : (
-                  <Music size={14} className="text-purple-400 flex-shrink-0" />
-                )}
-                <span className="text-sm text-white font-medium truncate max-w-[160px]">{profile.songTitle}</span>
-                {profile.songArtist && <span className="text-xs text-gray-500 truncate max-w-[100px]">&middot; {profile.songArtist}</span>}
-                {profile.songPreviewUrl && (
-                  <>
-                    <button onClick={toggleSong} className="w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
-                      {songPlaying ? <Pause size={12} className="text-purple-400" /> : <Play size={12} className="text-purple-400 ml-0.5" />}
-                    </button>
-                    <audio ref={audioRef} src={profile.songPreviewUrl} preload="none" onEnded={() => setSongPlaying(false)} />
-                  </>
-                )}
-              </motion.div>
-            ) : (
-              <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit">
-                {profile.songArtworkUrl ? (
-                  <img src={profile.songArtworkUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
-                ) : (
-                  <Music size={14} className="text-purple-400 flex-shrink-0" />
-                )}
-                <span className="text-sm text-white font-medium truncate max-w-[160px]">{profile.songTitle}</span>
-                {profile.songArtist && <span className="text-xs text-gray-500 truncate max-w-[100px]">&middot; {profile.songArtist}</span>}
-                {profile.songPreviewUrl && (
-                  <>
-                    <button onClick={toggleSong} className="w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
-                      {songPlaying ? <Pause size={12} className="text-purple-400" /> : <Play size={12} className="text-purple-400 ml-0.5" />}
-                    </button>
-                    <audio ref={audioRef} src={profile.songPreviewUrl} preload="none" onEnded={() => setSongPlaying(false)} />
-                  </>
-                )}
+        <div className="flex-1 flex flex-col min-h-0 px-4 pt-3 pb-2">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {/* Song Player */}
+            {profile.songTitle && (
+              isVisible ? (
+                <motion.div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit" {...stagger(0.2)}>
+                  {profile.songArtworkUrl ? (
+                    <img src={profile.songArtworkUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+                  ) : (
+                    <Music size={14} className="text-purple-400 flex-shrink-0" />
+                  )}
+                  <span className="text-sm text-white font-medium truncate max-w-[160px]">{profile.songTitle}</span>
+                  {profile.songArtist && <span className="text-xs text-gray-500 truncate max-w-[100px]">&middot; {profile.songArtist}</span>}
+                  {profile.songPreviewUrl && (
+                    <>
+                      <button onClick={toggleSong} className="w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
+                        {songPlaying ? <Pause size={12} className="text-purple-400" /> : <Play size={12} className="text-purple-400 ml-0.5" />}
+                      </button>
+                      <audio ref={audioRef} src={profile.songPreviewUrl} preload="none" onEnded={() => setSongPlaying(false)} />
+                    </>
+                  )}
+                </motion.div>
+              ) : (
+                <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit">
+                  {profile.songArtworkUrl ? (
+                    <img src={profile.songArtworkUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+                  ) : (
+                    <Music size={14} className="text-purple-400 flex-shrink-0" />
+                  )}
+                  <span className="text-sm text-white font-medium truncate max-w-[160px]">{profile.songTitle}</span>
+                  {profile.songArtist && <span className="text-xs text-gray-500 truncate max-w-[100px]">&middot; {profile.songArtist}</span>}
+                  {profile.songPreviewUrl && (
+                    <>
+                      <button onClick={toggleSong} className="w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
+                        {songPlaying ? <Pause size={12} className="text-purple-400" /> : <Play size={12} className="text-purple-400 ml-0.5" />}
+                      </button>
+                      <audio ref={audioRef} src={profile.songPreviewUrl} preload="none" onEnded={() => setSongPlaying(false)} />
+                    </>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Profile Prompts (max 2, clamped) */}
+            {prompts.length > 0 && (
+              isVisible ? (
+                <motion.div className="space-y-2 mb-3" {...stagger(0.25)}>
+                  {prompts.slice(0, 2).map((p, i) => (
+                    <div key={i} className="border-l-2 border-purple-accent/50 bg-purple-accent/5 rounded-r-xl p-3">
+                      <p className="text-xs text-gray-500 italic mb-1">{p.prompt}</p>
+                      <p className="text-white font-medium text-sm line-clamp-2">{p.answer}</p>
+                    </div>
+                  ))}
+                </motion.div>
+              ) : (
+                <div className="space-y-2 mb-3">
+                  {prompts.slice(0, 2).map((p, i) => (
+                    <div key={i} className="border-l-2 border-purple-accent/50 bg-purple-accent/5 rounded-r-xl p-3">
+                      <p className="text-xs text-gray-500 italic mb-1">{p.prompt}</p>
+                      <p className="text-white font-medium text-sm line-clamp-2">{p.answer}</p>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+
+            {/* Bio (2-line clamp) */}
+            {profile.bio && (
+              isVisible ? (
+                <motion.div className="mb-3" {...stagger(0.3)}>
+                  <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">{profile.bio}</p>
+                </motion.div>
+              ) : (
+                <div className="mb-3">
+                  <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">{profile.bio}</p>
+                </div>
+              )
+            )}
+
+            {/* Looking For Tags */}
+            {(profile.lookingForTags || []).length > 0 && (
+              isVisible ? (
+                <motion.div className="flex flex-wrap gap-1.5 mb-3" {...stagger(0.35)}>
+                  {profile.lookingForTags.slice(0, 3).map((tag) => (
+                    <span key={tag} className="px-2 py-0.5 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
+                      {tag}
+                    </span>
+                  ))}
+                  {profile.lookingForTags.length > 3 && (
+                    <span className="px-2 py-0.5 text-gold/60 text-xs font-medium">
+                      +{profile.lookingForTags.length - 3}
+                    </span>
+                  )}
+                </motion.div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {profile.lookingForTags.slice(0, 3).map((tag) => (
+                    <span key={tag} className="px-2 py-0.5 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
+                      {tag}
+                    </span>
+                  ))}
+                  {profile.lookingForTags.length > 3 && (
+                    <span className="px-2 py-0.5 text-gold/60 text-xs font-medium">
+                      +{profile.lookingForTags.length - 3}
+                    </span>
+                  )}
+                </div>
+              )
+            )}
+
+            {/* Recent Vibe Answer */}
+            {user.recentVibe && user.recentVibe.questionText && (
+              <div className="border-l-2 border-gold/50 bg-gold/5 rounded-r-xl p-3 mb-3">
+                <p className="text-xs text-gray-500 italic mb-1">{user.recentVibe.questionText}</p>
+                <p className="text-white font-medium text-sm">
+                  {user.recentVibe.answer ? 'Yes' : 'No'}
+                </p>
               </div>
-            )
-          )}
+            )}
+          </div>
 
-          {/* Profile Prompts (max 2, clamped) */}
-          {prompts.length > 0 && (
-            isVisible ? (
-              <motion.div className="space-y-2 mb-3" {...stagger(0.25)}>
-                {prompts.slice(0, 2).map((p, i) => (
-                  <div key={i} className="border-l-2 border-purple-accent/50 bg-purple-accent/5 rounded-r-xl p-3">
-                    <p className="text-xs text-gray-500 italic mb-1">{p.prompt}</p>
-                    <p className="text-white font-medium text-sm line-clamp-2">{p.answer}</p>
-                  </div>
-                ))}
-              </motion.div>
-            ) : (
-              <div className="space-y-2 mb-3">
-                {prompts.slice(0, 2).map((p, i) => (
-                  <div key={i} className="border-l-2 border-purple-accent/50 bg-purple-accent/5 rounded-r-xl p-3">
-                    <p className="text-xs text-gray-500 italic mb-1">{p.prompt}</p>
-                    <p className="text-white font-medium text-sm line-clamp-2">{p.answer}</p>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-
-          {/* Bio (2-line clamp) */}
-          {profile.bio && (
-            isVisible ? (
-              <motion.div className="mb-3" {...stagger(0.3)}>
-                <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">{profile.bio}</p>
-              </motion.div>
-            ) : (
-              <div className="mb-3">
-                <p className="text-gray-300 text-sm leading-relaxed line-clamp-2">{profile.bio}</p>
-              </div>
-            )
-          )}
-
-          {/* Looking For Tags */}
-          {(profile.lookingForTags || []).length > 0 && (
-            isVisible ? (
-              <motion.div className="flex flex-wrap gap-1.5 mb-3" {...stagger(0.35)}>
-                {profile.lookingForTags.slice(0, 3).map((tag) => (
-                  <span key={tag} className="px-2 py-0.5 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
-                    {tag}
-                  </span>
-                ))}
-                {profile.lookingForTags.length > 3 && (
-                  <span className="px-2 py-0.5 text-gold/60 text-xs font-medium">
-                    +{profile.lookingForTags.length - 3}
-                  </span>
-                )}
-              </motion.div>
-            ) : (
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {profile.lookingForTags.slice(0, 3).map((tag) => (
-                  <span key={tag} className="px-2 py-0.5 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20">
-                    {tag}
-                  </span>
-                ))}
-                {profile.lookingForTags.length > 3 && (
-                  <span className="px-2 py-0.5 text-gold/60 text-xs font-medium">
-                    +{profile.lookingForTags.length - 3}
-                  </span>
-                )}
-              </div>
-            )
-          )}
-
-          {/* Recent Vibe Answer */}
-          {user.recentVibe && user.recentVibe.questionText && (
-            <div className="border-l-2 border-gold/50 bg-gold/5 rounded-r-xl p-3 mb-3">
-              <p className="text-xs text-gray-500 italic mb-1">{user.recentVibe.questionText}</p>
-              <p className="text-white font-medium text-sm">
-                {user.recentVibe.answer ? 'Yes' : 'No'}
-              </p>
-            </div>
-          )}
-
-          <div className="min-h-2" />
-
-          {/* Action Buttons — View Profile, Like, Message */}
+          {/* Action Buttons — always pinned at bottom */}
           {isVisible ? (
-            <motion.div className="flex justify-center gap-5 pb-2" {...stagger(0.4)}>
+            <motion.div className="flex-shrink-0 flex justify-center gap-5 pt-2 pb-1" {...stagger(0.4)}>
               <motion.button
                 onClick={() => navigate(`/profile/${user.id}`)}
                 className="w-14 h-14 rounded-full bg-dark-50 border border-dark-50 flex items-center justify-center"
@@ -399,7 +400,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
               </motion.button>
             </motion.div>
           ) : (
-            <div className="flex justify-center gap-5 pb-2">
+            <div className="flex-shrink-0 flex justify-center gap-5 pt-2 pb-1">
               <button
                 onClick={() => navigate(`/profile/${user.id}`)}
                 className="w-14 h-14 rounded-full bg-dark-50 border border-dark-50 flex items-center justify-center"
