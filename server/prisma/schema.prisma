@@ -443,6 +443,7 @@ model DeletionLog {
   role        Role
   displayName String?
   city        String?
+  photos      Json     @default("[]")
   signedUpAt  DateTime
   deletedAt   DateTime @default(now())
 }

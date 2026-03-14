@@ -787,13 +787,14 @@ router.delete('/account', authenticate, async (req, res) => {
     const userId = req.userId;
 
     // Log deletion before wiping data
-    const profile = await prisma.profile.findUnique({ where: { userId }, select: { displayName: true, city: true } });
+    const profile = await prisma.profile.findUnique({ where: { userId }, select: { displayName: true, city: true, photos: true } });
     await prisma.deletionLog.create({
       data: {
         email: user.email,
         role: user.role,
         displayName: profile?.displayName,
         city: profile?.city,
+        photos: profile?.photos || [],
         signedUpAt: user.createdAt,
       },
     });
