@@ -16,7 +16,6 @@ import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
 import SongSearchModal from '../components/profile/SongSearchModal';
 import ImageCropper from '../components/ui/ImageCropper';
-import ProfileRing from '../components/ui/ProfileRing';
 import { getProfileCompletion } from '../utils/profileCompletion';
 
 export default function Profile() {
@@ -836,13 +835,26 @@ export default function Profile() {
               </button>
             )}
 
-            {/* ── Profile Completion Ring (own profile, view mode) ── */}
+            {/* ── Complete Your Profile banner (own profile, view mode) ── */}
             {isOwnProfile && (() => {
-              const { percent, missing } = getProfileCompletion(profile);
-              return percent < 100 ? (
+              const { missing } = getProfileCompletion(profile);
+              return missing.length > 0 ? (
                 <>
                   <div className="border-t border-dark-50" />
-                  <ProfileRing percent={percent} missing={missing} onEditProfile={() => setEditing(true)} />
+                  <div className="bg-dark-100 rounded-xl p-3 space-y-2">
+                    <p className="text-sm font-semibold text-white">Complete Your Profile</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {missing.map((item) => (
+                        <button
+                          key={item.key}
+                          onClick={() => setEditing(true)}
+                          className="px-2.5 py-1 bg-gold/10 text-gold text-xs font-medium rounded-full border border-gold/20 hover:bg-gold/20 transition-colors"
+                        >
+                          + {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </>
               ) : null;
             })()}

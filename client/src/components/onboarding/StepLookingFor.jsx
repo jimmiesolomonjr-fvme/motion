@@ -24,6 +24,7 @@ export default function StepLookingFor({ profile, setProfile, onNext, onBack }) 
           <h2 className="text-2xl font-bold mb-2">What Are You Looking For?</h2>
           <p className="text-gray-400">Describe what you want in your own words</p>
         </div>
+        <label className="block text-sm font-medium text-gray-300 mb-1.5">In Your Own Words</label>
         <input
           value={profile.lookingFor || ''}
           onChange={(e) => setProfile({ ...profile, lookingFor: e.target.value })}
