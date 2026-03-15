@@ -8,6 +8,53 @@ const prisma = new PrismaClient();
 const MAX_ROUNDS_PER_DAY = 3;
 const VALID_PICKS = ['smash', 'marry', 'friendzone'];
 
+const SMF_MESSAGES = {
+  smash: {
+    titles: (name) => [
+      `${name} rated you Smash 🔥`,
+      `${name} picked Smash on you 😏`,
+      `${name} said Smash — no hesitation 🫣`,
+    ],
+    bodies: [
+      'Go see what they look like 👀',
+      'The attraction is real. Tap to check them out.',
+      'You caught their eye. See their profile.',
+    ],
+  },
+  marry: {
+    titles: (name) => [
+      `${name} rated you Marry 💍`,
+      `${name} picked Marry — you're the one 💒`,
+      `${name} sees wifey/hubby material 💍`,
+    ],
+    bodies: [
+      'They see forever in you. Tap to check them out.',
+      'Ring energy. Go see their profile.',
+      'You\'re giving long-term vibes. See who thinks so.',
+    ],
+  },
+  friendzone: {
+    titles: () => [
+      'Someone Friendzoned you 😂',
+      'You got hit with the "just friends" 🫠',
+      'Friendzone alert 💙',
+    ],
+    bodies: [
+      'It happens to the best of us. Play again and see who\'s feeling you.',
+      'Not everyone\'s your person — but someone out there is.',
+      'At least they didn\'t ghost you. Check your SMF stats.',
+    ],
+  },
+};
+
+function randomSmfMessage(pick, name) {
+  const msgs = SMF_MESSAGES[pick];
+  const titles = msgs.titles(name);
+  const title = titles[Math.floor(Math.random() * titles.length)];
+  const body = msgs.bodies[Math.floor(Math.random() * msgs.bodies.length)];
+  return { title, body };
+}
+
 function todayMidnightUTC() {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
@@ -144,7 +191,17 @@ router.post('/round', authenticate, async (req, res) => {
       return res.status(429).json({ error: 'Daily limit reached', resetsAt: tomorrowMidnightUTC() });
     }
 
+    // Fetch the picker's profile for personalized notifications
+    const pickerProfile = await prisma.profile.findUnique({
+      where: { userId: req.userId },
+      select: { displayName: true, photos: true },
+    });
+    const pickerName = pickerProfile?.displayName || 'Someone';
+    const pickerPhoto = Array.isArray(pickerProfile?.photos) && pickerProfile.photos.length > 0
+      ? pickerProfile.photos[0] : null;
+
     // Create round + picks in a transaction
+    const notifEntries = [];
     const round = await prisma.$transaction(async (tx) => {
       const r = await tx.smfRound.create({
         data: {
@@ -158,22 +215,13 @@ router.post('/round', authenticate, async (req, res) => {
         },
       });
 
-      // Create notifications for each target
-      const notifData = picks.map((p) => {
-        let title;
-        if (p.pick === 'smash') title = 'Someone chose Smash for you 🔥';
-        else if (p.pick === 'marry') title = 'Someone chose Marry for you 💍';
-        else title = "You've been Friendzoned 😂";
+      // Create notifications for each target (random message with picker's name)
+      for (const p of picks) {
+        const { title, body } = randomSmfMessage(p.pick, pickerName);
+        notifEntries.push({ userId: p.userId, type: 'smf_pick', title, body });
+      }
 
-        return {
-          userId: p.userId,
-          type: 'smf_pick',
-          title,
-          body: 'Play Smash Marry Friendzone to see how others rate you!',
-        };
-      });
-
-      await tx.notification.createMany({ data: notifData });
+      await tx.notification.createMany({ data: notifEntries });
 
       return r;
     });
@@ -181,16 +229,13 @@ router.post('/round', authenticate, async (req, res) => {
     // Emit real-time notifications via Socket.io
     try {
       const { io } = await import('../../server.js');
-      for (const p of picks) {
-        let title;
-        if (p.pick === 'smash') title = 'Someone chose Smash for you 🔥';
-        else if (p.pick === 'marry') title = 'Someone chose Marry for you 💍';
-        else title = "You've been Friendzoned 😂";
-
-        io.to(p.userId).emit('notification', {
+      for (let i = 0; i < picks.length; i++) {
+        const isFriendzone = picks[i].pick === 'friendzone';
+        io.to(picks[i].userId).emit('notification', {
           type: 'smf_pick',
-          title,
-          body: 'Play Smash Marry Friendzone to see how others rate you!',
+          title: notifEntries[i].title,
+          body: notifEntries[i].body,
+          data: isFriendzone ? {} : { pickerId: req.userId, pickerName, pickerPhoto },
         });
       }
     } catch (socketErr) {

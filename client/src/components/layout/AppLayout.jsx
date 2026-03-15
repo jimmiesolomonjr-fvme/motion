@@ -5,7 +5,7 @@ import BottomNav from './BottomNav';
 import { useNotifications } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Heart, X, Sparkles, Eye } from 'lucide-react';
+import { Heart, X, Sparkles, Eye, Flame } from 'lucide-react';
 import UpdateBanner from '../ui/UpdateBanner';
 import InstallBanner from '../ui/InstallBanner';
 
@@ -37,6 +37,7 @@ export default function AppLayout({ children }) {
     switch (type) {
       case 'match': return <Heart className="text-gold" size={20} fill="currentColor" />;
       case 'profile_view': return <Eye className="text-purple-glow" size={20} />;
+      case 'smf_pick': return <Flame className="text-orange-400" size={20} />;
       default: return <Sparkles className="text-gold" size={20} />;
     }
   };
@@ -45,6 +46,8 @@ export default function AppLayout({ children }) {
     dismissToast(toast.id);
     if (toast.type === 'profile_view' && toast.data?.viewerId) {
       navigate(`/profile/${toast.data.viewerId}`);
+    } else if (toast.type === 'smf_pick' && toast.data?.pickerId) {
+      navigate(`/profile/${toast.data.pickerId}`);
     } else if (toast.type === 'match') {
       navigate('/messages');
     }
@@ -121,9 +124,13 @@ export default function AppLayout({ children }) {
             className="bg-dark-100 border border-gold/30 rounded-2xl p-4 shadow-xl flex items-center gap-3 cursor-pointer animate-fade-in"
             onClick={() => handleToastClick(toast)}
           >
-            <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center flex-shrink-0">
-              {getToastIcon(toast.type)}
-            </div>
+            {toast.type === 'smf_pick' && toast.data?.pickerPhoto ? (
+              <img src={toast.data.pickerPhoto} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0 ring-2 ring-gold" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center flex-shrink-0">
+                {getToastIcon(toast.type)}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold text-white">{toast.title}</p>
               <p className="text-xs text-gray-400 truncate">{toast.body}</p>
