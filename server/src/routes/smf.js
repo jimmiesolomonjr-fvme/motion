@@ -5,7 +5,8 @@ import { authenticate } from '../middleware/auth.js';
 const router = Router();
 const prisma = new PrismaClient();
 
-const MAX_ROUNDS_PER_DAY = 3;
+const MAX_ROUNDS_PER_WINDOW = 3;
+const WINDOW_HOURS = 6;
 const VALID_PICKS = ['smash', 'marry', 'friendzone'];
 
 const SMF_MESSAGES = {
@@ -55,28 +56,30 @@ function randomSmfMessage(pick, name) {
   return { title, body };
 }
 
-function todayMidnightUTC() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+function windowStart() {
+  return new Date(Date.now() - WINDOW_HOURS * 60 * 60 * 1000);
 }
 
-function tomorrowMidnightUTC() {
-  const d = todayMidnightUTC();
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d;
+function windowResetsAt(oldestRoundDate) {
+  return new Date(new Date(oldestRoundDate).getTime() + WINDOW_HOURS * 60 * 60 * 1000);
 }
 
 // GET /api/smf/round — get 3 random opposite-role profiles for a new round
 router.get('/round', authenticate, async (req, res) => {
   try {
-    const midnight = todayMidnightUTC();
+    const winStart = windowStart();
 
-    const roundsToday = await prisma.smfRound.count({
-      where: { playerId: req.userId, createdAt: { gte: midnight } },
+    const recentRounds = await prisma.smfRound.findMany({
+      where: { playerId: req.userId, createdAt: { gte: winStart } },
+      orderBy: { createdAt: 'asc' },
+      include: { picks: { select: { targetId: true } } },
     });
 
-    if (roundsToday >= MAX_ROUNDS_PER_DAY) {
-      return res.json({ limited: true, resetsAt: tomorrowMidnightUTC(), roundsPlayed: roundsToday, roundsLeft: 0 });
+    const roundsInWindow = recentRounds.length;
+
+    if (roundsInWindow >= MAX_ROUNDS_PER_WINDOW) {
+      const resetsAt = windowResetsAt(recentRounds[0].createdAt);
+      return res.json({ limited: true, resetsAt, roundsPlayed: roundsInWindow, roundsLeft: 0 });
     }
 
     const currentUser = await prisma.user.findUnique({
@@ -98,12 +101,8 @@ router.get('/round', authenticate, async (req, res) => {
     });
     const hiddenIds = hiddenPairs.map((h) => (h.user1Id === req.userId ? h.user2Id : h.user1Id));
 
-    // Already picked today — prevent repeats within the same day
-    const todayRounds = await prisma.smfRound.findMany({
-      where: { playerId: req.userId, createdAt: { gte: midnight } },
-      include: { picks: { select: { targetId: true } } },
-    });
-    const pickedTodayIds = todayRounds.flatMap((r) => r.picks.map((p) => p.targetId));
+    // Already picked in this window — prevent repeats
+    const pickedTodayIds = recentRounds.flatMap((r) => r.picks.map((p) => p.targetId));
 
     // Check dummy user visibility
     const showDummySetting = await prisma.appSetting.findUnique({ where: { key: 'showDummyUsers' } });
@@ -147,10 +146,10 @@ router.get('/round', authenticate, async (req, res) => {
     });
 
     if (users.length < 3) {
-      return res.json({ limited: true, resetsAt: tomorrowMidnightUTC(), roundsPlayed: roundsToday, roundsLeft: 0, notEnoughUsers: true });
+      return res.json({ limited: true, resetsAt: new Date(Date.now() + WINDOW_HOURS * 60 * 60 * 1000), roundsPlayed: roundsInWindow, roundsLeft: 0, notEnoughUsers: true });
     }
 
-    res.json({ users, roundsPlayed: roundsToday, roundsLeft: MAX_ROUNDS_PER_DAY - roundsToday });
+    res.json({ users, roundsPlayed: roundsInWindow, roundsLeft: MAX_ROUNDS_PER_WINDOW - roundsInWindow });
   } catch (err) {
     console.error('SMF round error:', err);
     res.status(500).json({ error: 'Failed to load round' });
@@ -185,14 +184,14 @@ router.post('/round', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Duplicate user IDs' });
     }
 
-    // Race condition guard: check daily limit again
-    const midnight = todayMidnightUTC();
-    const roundsToday = await prisma.smfRound.count({
-      where: { playerId: req.userId, createdAt: { gte: midnight } },
+    // Race condition guard: check window limit again
+    const winStart = windowStart();
+    const roundsInWindow = await prisma.smfRound.count({
+      where: { playerId: req.userId, createdAt: { gte: winStart } },
     });
 
-    if (roundsToday >= MAX_ROUNDS_PER_DAY) {
-      return res.status(429).json({ error: 'Daily limit reached', resetsAt: tomorrowMidnightUTC() });
+    if (roundsInWindow >= MAX_ROUNDS_PER_WINDOW) {
+      return res.status(429).json({ error: 'Round limit reached — try again later' });
     }
 
     // Fetch the picker's profile for personalized notifications
@@ -246,7 +245,7 @@ router.post('/round', authenticate, async (req, res) => {
       console.error('SMF socket emit error:', socketErr);
     }
 
-    const roundsLeft = MAX_ROUNDS_PER_DAY - (roundsToday + 1);
+    const roundsLeft = MAX_ROUNDS_PER_WINDOW - (roundsInWindow + 1);
     res.json({ success: true, roundsLeft });
   } catch (err) {
     console.error('SMF submit error:', err);

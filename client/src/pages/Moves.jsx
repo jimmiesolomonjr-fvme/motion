@@ -107,15 +107,17 @@ export default function Moves() {
   };
 
   const handleInterest = (moveId) => {
-    setInterestModal(moveId);
+    const move = [...moves, ...myMoves].find((m) => m.id === moveId);
+    const isCommunity = move?.creator?.isDummy === true || move?.stepper?.isDummy === true;
+    setInterestModal({ moveId, isCommunity });
   };
 
   const submitInterest = async () => {
     if (!interestModal) return;
     try {
-      await api.post(`/moves/${interestModal}/interest`, {
-        message: interestMessage || null,
-        counterProposal: counterProposal || null,
+      await api.post(`/moves/${interestModal.moveId}/interest`, {
+        message: interestModal.isCommunity ? null : interestMessage || null,
+        counterProposal: interestModal.isCommunity ? null : counterProposal || null,
       });
       setInterestModal(null);
       setInterestMessage('');
@@ -440,25 +442,37 @@ export default function Moves() {
       </Modal>
 
       {/* Interest Modal */}
-      <Modal isOpen={!!interestModal} onClose={() => { setInterestModal(null); setCounterProposal(''); setInterestMessage(''); }} title="Express Interest">
+      <Modal isOpen={!!interestModal} onClose={() => { setInterestModal(null); setCounterProposal(''); setInterestMessage(''); }} title={interestModal?.isCommunity ? "I'm Down" : "Express Interest"}>
         <div className="space-y-4">
-          <p className="text-gray-400 text-sm">Leave a message to stand out (optional)</p>
-          <Textarea
-            placeholder="Hey, I'd love to join..."
-            value={interestMessage}
-            onChange={(e) => setInterestMessage(e.target.value)}
-          />
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1.5">Counter-proposal (optional)</label>
-            <Textarea
-              placeholder="How about a different time or place?"
-              value={counterProposal}
-              onChange={(e) => setCounterProposal(e.target.value)}
-            />
-          </div>
-          <Button variant="gold" className="w-full" onClick={submitInterest}>
-            I&apos;m Interested
-          </Button>
+          {interestModal?.isCommunity ? (
+            <>
+              <p className="text-gray-300 text-sm">You're expressing interest in this Community Move. You'll be matched if someone from the other side is also down.</p>
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setInterestModal(null)}>Cancel</Button>
+                <Button variant="gold" className="flex-1" onClick={submitInterest}>I&apos;m Down</Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-gray-400 text-sm">Leave a message to stand out (optional)</p>
+              <Textarea
+                placeholder="Hey, I'd love to join..."
+                value={interestMessage}
+                onChange={(e) => setInterestMessage(e.target.value)}
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Counter-proposal (optional)</label>
+                <Textarea
+                  placeholder="How about a different time or place?"
+                  value={counterProposal}
+                  onChange={(e) => setCounterProposal(e.target.value)}
+                />
+              </div>
+              <Button variant="gold" className="w-full" onClick={submitInterest}>
+                I&apos;m Interested
+              </Button>
+            </>
+          )}
         </div>
       </Modal>
 

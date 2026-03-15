@@ -266,7 +266,7 @@ export default function SmashMarryFriendzone() {
           </AnimatePresence>
 
           <p className="text-center text-gray-500 text-xs mt-4">
-            {roundsLeft} round{roundsLeft !== 1 ? 's' : ''} left today
+            {roundsLeft} round{roundsLeft !== 1 ? 's' : ''} left
           </p>
         </div>
       )}
@@ -320,8 +320,8 @@ export default function SmashMarryFriendzone() {
           ) : (
             <div className="bg-dark-50 rounded-xl p-4 border border-gray-700/50">
               <Clock size={24} className="text-gray-400 mx-auto mb-2" />
-              <p className="text-white font-bold">Come back tomorrow!</p>
-              <p className="text-gray-400 text-sm">You've used all 3 rounds today</p>
+              <p className="text-white font-bold">Come back soon!</p>
+              <p className="text-gray-400 text-sm">You've used all 3 rounds — more in a few hours</p>
             </div>
           )}
         </motion.div>
@@ -342,14 +342,14 @@ export default function SmashMarryFriendzone() {
             )}
           </div>
           <h2 className="text-lg font-bold text-white mb-2">
-            {notEnoughUsers ? 'Not enough profiles yet' : "You've played all 3 rounds today!"}
+            {notEnoughUsers ? 'Not enough profiles yet' : "You've played all 3 rounds!"}
           </h2>
           <p className="text-gray-400 text-sm mb-1">
             {notEnoughUsers
               ? 'Check back when more people join.'
               : countdown
               ? `New rounds in ${countdown}`
-              : 'Come back tomorrow for more rounds'}
+              : 'More rounds coming soon'}
           </p>
         </motion.div>
       )}
@@ -387,9 +387,12 @@ export default function SmashMarryFriendzone() {
             className="fixed inset-0 bg-black/95 z-50 flex flex-col"
             onClick={() => setEnlargedPhoto(null)}
           >
-            {/* Close button */}
-            <button className="absolute top-4 right-4 z-10 text-white/70 hover:text-white">
-              <X size={24} />
+            {/* Close button — large tap target */}
+            <button
+              onClick={(e) => { e.stopPropagation(); setEnlargedPhoto(null); }}
+              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white active:bg-white/30 transition-colors"
+            >
+              <X size={22} />
             </button>
 
             {/* Photo count */}
@@ -469,11 +472,11 @@ export default function SmashMarryFriendzone() {
               </div>
             </div>
 
-            {/* Bottom: name + dot indicators */}
+            {/* Bottom: name + dot indicators + close hint */}
             <div className="pb-8 text-center" onClick={(e) => e.stopPropagation()}>
               <p className="text-white font-bold text-lg mb-3">{enlargedPhoto.name}</p>
               {enlargedPhoto.photos.length > 1 && (
-                <div className="flex justify-center gap-1.5">
+                <div className="flex justify-center gap-1.5 mb-4">
                   {enlargedPhoto.photos.map((_, i) => (
                     <button
                       key={i}
@@ -485,6 +488,12 @@ export default function SmashMarryFriendzone() {
                   ))}
                 </div>
               )}
+              <button
+                onClick={() => setEnlargedPhoto(null)}
+                className="text-gray-500 text-xs"
+              >
+                Tap anywhere to close
+              </button>
             </div>
           </motion.div>
         )}
