@@ -56,6 +56,38 @@ router.get('/conversations', authenticate, async (req, res) => {
   }
 });
 
+// Get single conversation info (lightweight — used by Chat page)
+router.get('/conversations/:conversationId/info', authenticate, async (req, res) => {
+  try {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: req.params.conversationId },
+      include: {
+        user1: { include: { profile: true } },
+        user2: { include: { profile: true } },
+      },
+    });
+
+    if (!conversation || (conversation.user1Id !== req.userId && conversation.user2Id !== req.userId)) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const other = conversation.user1Id === req.userId ? conversation.user2 : conversation.user1;
+    res.json({
+      id: conversation.id,
+      lastMessageAt: conversation.lastMessageAt,
+      otherUser: {
+        id: other.id,
+        role: other.role,
+        lastOnline: other.lastOnline,
+        profile: other.profile,
+      },
+    });
+  } catch (error) {
+    console.error('Conversation info error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get messages for a conversation
 router.get('/:conversationId', authenticate, async (req, res) => {
   try {
@@ -233,6 +265,16 @@ router.post('/:conversationId/voice', authenticate, requirePremium, uploadVoice.
       where: { id: req.params.conversationId },
       data: { lastMessageAt: new Date() },
     });
+
+    // Emit via socket so chat updates in real-time
+    try {
+      const { io } = await import('../../server.js');
+      io.to(`conv:${req.params.conversationId}`).emit('new-message', message);
+      const otherUserId = conversation.user1Id === req.userId ? conversation.user2Id : conversation.user1Id;
+      io.to(otherUserId).emit('message-notification', { conversationId: req.params.conversationId, message });
+    } catch {
+      // Socket notification is best-effort
+    }
 
     res.status(201).json(message);
   } catch (error) {

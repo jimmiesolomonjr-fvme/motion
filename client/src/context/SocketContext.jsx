@@ -115,7 +115,11 @@ export function SocketProvider({ children }) {
     const token = localStorage.getItem('accessToken');
     const newSocket = io({
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
     });
 
     newSocket.on('connect', () => {
@@ -124,10 +128,28 @@ export function SocketProvider({ children }) {
       subscribeToPush();
     });
 
-    newSocket.on('connect_error', (err) => {
+    let refreshingToken = false;
+    newSocket.on('connect_error', async (err) => {
       console.error('Socket connection error:', err.message);
-      // Refresh auth token on reconnect attempts so socket uses the latest token
-      newSocket.auth.token = localStorage.getItem('accessToken');
+      const msg = (err.message || '').toLowerCase();
+      if ((msg.includes('token') || msg.includes('auth') || msg.includes('unauthorized')) && !refreshingToken) {
+        refreshingToken = true;
+        try {
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (refreshToken) {
+            const { data } = await api.post('/auth/refresh', { refreshToken });
+            localStorage.setItem('accessToken', data.accessToken);
+            if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+            newSocket.auth.token = data.accessToken;
+          }
+        } catch {
+          // Refresh failed — Socket.io will keep retrying with backoff
+        } finally {
+          refreshingToken = false;
+        }
+      } else {
+        newSocket.auth.token = localStorage.getItem('accessToken');
+      }
     });
 
     // Increment unread on new message notification

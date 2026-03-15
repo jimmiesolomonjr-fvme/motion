@@ -2,6 +2,7 @@ import multer from 'multer';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { v2 as cloudinary } from 'cloudinary';
+import sharp from 'sharp';
 import config from '../config/index.js';
 
 const isProduction = config.nodeEnv === 'production';
@@ -112,6 +113,22 @@ function toDataUrl(file) {
 }
 
 /**
+ * Compress and resize an image buffer using sharp.
+ * Converts to WebP at the given quality and caps width.
+ * Non-image files (voice notes, videos) pass through untouched.
+ */
+async function compressImage(file, maxWidth = 1080, quality = 80) {
+  if (!file.mimetype.startsWith('image/')) return file;
+
+  const compressed = await sharp(file.buffer)
+    .resize(maxWidth, null, { withoutEnlargement: true, fit: 'inside' })
+    .webp({ quality })
+    .toBuffer();
+
+  return { ...file, buffer: compressed, mimetype: 'image/webp' };
+}
+
+/**
  * Upload a file (multer file object OR base64 data URL string) to Cloudinary.
  * Falls back to base64/disk path when Cloudinary is not configured.
  *
@@ -131,8 +148,12 @@ export async function uploadToCloud(fileOrDataUrl, folder = 'motion/uploads') {
     return result.secure_url;
   }
 
-  // Handle multer file object
-  const file = fileOrDataUrl;
+  // Handle multer file object — compress images before upload
+  let file = fileOrDataUrl;
+  if (file.buffer && file.mimetype.startsWith('image/')) {
+    file = await compressImage(file);
+  }
+
   if (!cloudinaryEnabled) {
     return file.buffer ? toDataUrl(file) : `/uploads/${file.filename}`;
   }

@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap, X, Loader } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap, X, Loader, WifiOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
@@ -34,6 +34,8 @@ export default function ChatView({ conversationId, otherUser }) {
   const [voiceSending, setVoiceSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState(null);
   const [reconnecting, setReconnecting] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(true);
+  const queuedMessageRef = useRef(null); // { content, replyToId }
   const typingTimerRef = useRef(null);
   const menuRef = useRef(null);
   const bottomRef = useRef(null);
@@ -76,6 +78,25 @@ export default function ChatView({ conversationId, otherUser }) {
     if (!socket) return;
     socket.emit('join-conversation', conversationId);
     socket.emit('mark-read', { conversationId });
+    setSocketConnected(socket.connected);
+
+    const handleConnect = () => {
+      setSocketConnected(true);
+      setReconnecting(false);
+      // Re-join room after reconnect
+      socket.emit('join-conversation', conversationId);
+      // Flush queued message
+      if (queuedMessageRef.current) {
+        const { content, replyToId } = queuedMessageRef.current;
+        queuedMessageRef.current = null;
+        pendingMessageRef.current = content;
+        socket.emit('send-message', { conversationId, content, replyToId });
+      }
+    };
+
+    const handleDisconnect = () => {
+      setSocketConnected(false);
+    };
 
     const handleNewMessage = (msg) => {
       setMessages((prev) => [...prev, msg]);
@@ -117,6 +138,8 @@ export default function ChatView({ conversationId, otherUser }) {
       ));
     };
 
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
     socket.on('new-message', handleNewMessage);
     socket.on('user-typing', handleTyping);
     socket.on('user-stop-typing', handleStopTyping);
@@ -127,6 +150,8 @@ export default function ChatView({ conversationId, otherUser }) {
 
     return () => {
       socket.emit('leave-conversation', conversationId);
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
       socket.off('new-message', handleNewMessage);
       socket.off('user-typing', handleTyping);
       socket.off('user-stop-typing', handleStopTyping);
@@ -150,34 +175,35 @@ export default function ChatView({ conversationId, otherUser }) {
     const msg = input.trim();
     const replyId = replyingTo?.id || undefined;
 
-    const doSend = () => {
-      pendingMessageRef.current = msg;
-      socket.emit('send-message', { conversationId, content: msg, replyToId: replyId });
-      setInput('');
-      setReplyingTo(null);
-      setIcebreakers([]);
-      setReconnecting(false);
-      socket.emit('stop-typing', { conversationId });
-    };
+    setInput('');
+    setReplyingTo(null);
+    setIcebreakers([]);
+    socket.emit('stop-typing', { conversationId });
 
     if (!socket.connected) {
+      // Queue the message — it will be flushed on reconnect via handleConnect
+      queuedMessageRef.current = { content: msg, replyToId: replyId };
       setReconnecting(true);
+      // Timeout: if not reconnected in 10s, restore the message to input
       const timeout = setTimeout(() => {
-        socket.off('connect', onConnect);
+        if (queuedMessageRef.current) {
+          setInput(queuedMessageRef.current.content);
+          queuedMessageRef.current = null;
+        }
         setReconnecting(false);
         setSocketError('Connection lost — please try again');
         setTimeout(() => setSocketError(''), 4000);
-      }, 5000);
-      const onConnect = () => {
+      }, 10000);
+      const onReconnect = () => {
         clearTimeout(timeout);
-        socket.emit('join-conversation', conversationId);
-        doSend();
+        setReconnecting(false);
       };
-      socket.once('connect', onConnect);
+      socket.once('connect', onReconnect);
       return;
     }
 
-    doSend();
+    pendingMessageRef.current = msg;
+    socket.emit('send-message', { conversationId, content: msg, replyToId: replyId });
   };
 
   const handleUpgrade = async () => {
@@ -378,6 +404,15 @@ export default function ChatView({ conversationId, otherUser }) {
           )}
         </div>
       </div>
+
+      {/* Reconnecting banner */}
+      {!socketConnected && (
+        <div className="flex items-center justify-center gap-2 py-2 px-4 bg-amber-500/10 border-b border-amber-500/20">
+          <WifiOff size={14} className="text-amber-400" />
+          <span className="text-xs text-amber-400 font-medium">Reconnecting...</span>
+          <Loader size={12} className="text-amber-400 animate-spin" />
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2 space-y-1" onClick={() => setActivePickerMsgId(null)}>

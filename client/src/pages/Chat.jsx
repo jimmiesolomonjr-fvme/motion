@@ -14,15 +14,15 @@ export default function Chat() {
   useEffect(() => {
     const fetchConversation = async () => {
       try {
-        const { data: conversations } = await api.get('/messages/conversations');
-        const conv = conversations.find((c) => c.id === conversationId);
-        if (!conv) {
+        const { data } = await api.get(`/messages/conversations/${conversationId}/info`);
+        setOtherUser(data.otherUser);
+      } catch (err) {
+        if (err.response?.status === 404) {
           navigate('/messages');
-          return;
+        } else {
+          // Network error or server issue — don't bounce the user
+          console.error('Failed to load conversation:', err);
         }
-        setOtherUser(conv.otherUser);
-      } catch {
-        navigate('/messages');
       } finally {
         setLoading(false);
       }

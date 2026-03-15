@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic, KeyRound } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic, KeyRound, WifiOff, Image } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -383,6 +383,51 @@ const FEATURE_UPDATES = {
         bg: 'bg-gold/10',
         title: 'Forgot Password',
         description: 'Lost your password? Reset it via email right from the login screen.',
+      },
+    ],
+  },
+  '2.17.0': {
+    subtitle: 'Chat that just works.',
+    features: [
+      {
+        icon: WifiOff,
+        color: 'text-amber-400',
+        bg: 'bg-amber-400/10',
+        title: 'Auto-Reconnect',
+        description: 'Socket stays alive even when your token expires. No more random disconnects.',
+      },
+      {
+        icon: MessageCircle,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'Smarter Message Delivery',
+        description: 'Messages queue up while reconnecting and send automatically when you\'re back online.',
+      },
+      {
+        icon: Mic,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Voice Notes Fixed',
+        description: 'Voice messages now appear instantly in the chat for both sender and receiver.',
+      },
+    ],
+  },
+  '2.18.0': {
+    subtitle: 'Photos load faster than ever.',
+    features: [
+      {
+        icon: Image,
+        color: 'text-green-400',
+        bg: 'bg-green-400/10',
+        title: 'Smart Photo Compression',
+        description: 'All photos are now auto-compressed and resized before upload — faster loading, less data usage.',
+      },
+      {
+        icon: Zap,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Faster Feed & Profiles',
+        description: 'Images are ~10x smaller without visible quality loss. Scrolling is buttery smooth.',
       },
     ],
   },
