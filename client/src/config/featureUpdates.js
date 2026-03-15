@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic, KeyRound } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -364,6 +364,25 @@ const FEATURE_UPDATES = {
         bg: 'bg-green-400/10',
         title: 'Live Viewing Pulse',
         description: "Get a real-time glow when someone is on your profile right now. Creates urgency and sparks connection.",
+      },
+    ],
+  },
+  '2.16.0': {
+    subtitle: 'SMF just got real + password recovery.',
+    features: [
+      {
+        icon: Flame,
+        color: 'text-orange-400',
+        bg: 'bg-orange-400/10',
+        title: 'SMF Inbox Messages',
+        description: 'Smash or Marry picks now send a real message to their inbox so you can start chatting.',
+      },
+      {
+        icon: KeyRound,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Forgot Password',
+        description: 'Lost your password? Reset it via email right from the login screen.',
       },
     ],
   },

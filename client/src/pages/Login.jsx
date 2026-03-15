@@ -38,6 +38,10 @@ export default function Login() {
           <Input label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="you@email.com" required />
           <Input label="Password" name="password" type="password" value={form.password} onChange={handleChange} placeholder="Your password" required />
 
+          <div className="text-right">
+            <Link to="/forgot-password" className="text-sm text-gold hover:underline">Forgot Password?</Link>
+          </div>
+
           {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
           <Button variant="gold" type="submit" className="w-full" loading={loading}>

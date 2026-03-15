@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useNotifications } from '../context/SocketContext';
 import api from '../services/api';
-import { Eye, Heart, Sparkles, CheckCheck, UserCircle, Download, Gift, MapPin } from 'lucide-react';
+import { Eye, Heart, Sparkles, CheckCheck, UserCircle, Download, Gift, MapPin, Flame } from 'lucide-react';
 
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || window.navigator.standalone === true;
@@ -51,6 +51,9 @@ export default function Notifications() {
       navigate('/moves');
     } else if (notif.type === 'story_reply' && notif.data?.conversationId) {
       navigate(`/chat/${notif.data.conversationId}`);
+    } else if (notif.type === 'smf_pick') {
+      if (notif.data?.conversationId) navigate(`/chat/${notif.data.conversationId}`);
+      else if (notif.data?.pickerId) navigate(`/profile/${notif.data.pickerId}`);
     } else if (notif.type === 'new_version') {
       navigate('/');
     }
@@ -66,6 +69,7 @@ export default function Notifications() {
       case 'new_version': return <Gift className="text-gold" size={18} />;
       case 'move_interest': return <MapPin className="text-green-400" size={18} />;
       case 'move_selected': return <MapPin className="text-gold" size={18} />;
+      case 'smf_pick': return <Flame className="text-orange-400" size={18} />;
       default: return <Sparkles className="text-gold" size={18} />;
     }
   };

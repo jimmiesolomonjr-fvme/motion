@@ -1,10 +1,12 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import config from '../config/index.js';
 import { validateEmail, validatePassword, validateRole } from '../utils/validators.js';
 import { authenticate } from '../middleware/auth.js';
+import { sendEmail, brandedTemplate } from '../services/email.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -202,6 +204,104 @@ router.put('/change-password', authenticate, async (req, res) => {
     res.json({ message: 'Password updated successfully' });
   } catch (error) {
     console.error('Change password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Forgot password — request reset email
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Always return same message to prevent email enumeration
+    const successMsg = 'If an account with that email exists, a reset link has been sent.';
+
+    if (!email || !validateEmail(email)) {
+      return res.json({ message: successMsg });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.json({ message: successMsg });
+    }
+
+    // Generate token — store SHA-256 hash, send raw token in email
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken: hashedToken,
+        resetTokenExpiry: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+      },
+    });
+
+    const clientUrl = config.clientUrl || 'https://motionapp.up.railway.app';
+    const resetLink = `${clientUrl}/reset-password?token=${rawToken}`;
+
+    const bodyHtml = `
+      <h2 style="color:#D4AF37;margin:0 0 16px;">Reset Your Password</h2>
+      <p>We received a request to reset your password. Click the button below to set a new one:</p>
+      <div style="text-align:center;margin:24px 0;">
+        <a href="${resetLink}" style="display:inline-block;padding:14px 32px;background-color:#D4AF37;color:#0A0A0A;font-weight:bold;text-decoration:none;border-radius:8px;font-size:15px;">Reset Password</a>
+      </div>
+      <p style="color:#999;font-size:13px;">This link expires in 1 hour. If you didn't request this, just ignore this email.</p>
+    `;
+
+    await sendEmail({
+      to: email,
+      subject: 'Reset Your Motion Password',
+      html: brandedTemplate(bodyHtml, 'Reset your Motion password'),
+    });
+
+    res.json({ message: successMsg });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.json({ message: 'If an account with that email exists, a reset link has been sent.' });
+  }
+});
+
+// Reset password — set new password using token
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+
+    if (!validatePassword(newPassword)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken: hashedToken,
+        resetTokenExpiry: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset link' });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+    });
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
