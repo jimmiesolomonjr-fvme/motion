@@ -278,16 +278,26 @@ async function main() {
   // Create Jasmine W dummy user
   const dummyPassword = await bcrypt.hash('motion123', 12);
 
-  // Upload Jasmine's photos to Cloudinary if configured, otherwise use base64
-  const jasminePhotoUrls = await Promise.all(
-    jasminePhotos.map(photo => uploadToCloud(photo, 'motion/profiles'))
-  );
-
   const jasmineUser = await prisma.user.upsert({
     where: { email: 'jasmine.w@motion.app' },
     update: {},
     create: { email: 'jasmine.w@motion.app', passwordHash: dummyPassword, role: 'BADDIE', isDummy: true },
   });
+
+  // Check if Jasmine already has Cloudinary URLs — skip re-upload to avoid duplicates
+  const existingProfile = await prisma.profile.findUnique({
+    where: { userId: jasmineUser.id },
+    select: { photos: true },
+  });
+  const existingPhotos = Array.isArray(existingProfile?.photos) ? existingProfile.photos : [];
+  const alreadyOnCloud = existingPhotos.length > 0 && existingPhotos.every(
+    (p) => typeof p === 'string' && p.includes('res.cloudinary.com')
+  );
+
+  const jasminePhotoUrls = alreadyOnCloud
+    ? existingPhotos
+    : await Promise.all(jasminePhotos.map(photo => uploadToCloud(photo, 'motion/profiles')));
+
   await prisma.profile.upsert({
     where: { userId: jasmineUser.id },
     update: { city: 'Maplewood, NJ', photos: jasminePhotoUrls },

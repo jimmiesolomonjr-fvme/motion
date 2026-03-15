@@ -1104,6 +1104,11 @@ router.delete('/:moveId', authenticate, async (req, res) => {
       data: { isActive: false, status: 'CANCELLED' },
     });
 
+    // Clean up move photo from Cloudinary
+    if (move.photo) {
+      deleteFromCloud(move.photo).catch(() => {});
+    }
+
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });

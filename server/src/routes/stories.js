@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
-import { uploadMedia, uploadToCloud, uploadVideoToCloud } from '../middleware/upload.js';
+import { uploadMedia, uploadToCloud, uploadVideoToCloud, deleteFromCloud } from '../middleware/upload.js';
 import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
 
 const router = Router();
@@ -314,6 +314,8 @@ router.delete('/:storyId', authenticate, async (req, res) => {
     }
 
     await prisma.story.delete({ where: { id: req.params.storyId } });
+    // Clean up from Cloudinary
+    deleteFromCloud(story.photo).catch(() => {});
     res.json({ success: true });
   } catch (error) {
     console.error('Delete story error:', error);
