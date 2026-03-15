@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/layout/AppLayout';
 import api from '../services/api';
-import { ArrowLeft, Flame, Heart, HandMetal, Lock, Clock } from 'lucide-react';
+import { ArrowLeft, Flame, Heart, HandMetal, Lock, Clock, X } from 'lucide-react';
 
 const CATEGORIES = [
   { key: 'smash', label: 'Smash', emoji: '🔥', color: 'bg-red-500', border: 'border-red-500', text: 'text-red-400', bg: 'bg-red-500/10' },
@@ -48,6 +48,7 @@ export default function SmashMarryFriendzone() {
   const [stats, setStats] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [notEnoughUsers, setNotEnoughUsers] = useState(false);
+  const [enlargedPhoto, setEnlargedPhoto] = useState(null);
 
   const countdown = useCountdown(resetsAt);
 
@@ -190,7 +191,10 @@ export default function SmashMarryFriendzone() {
 
                   <div className="flex gap-3 p-3">
                     {/* Photo */}
-                    <div className="w-28 h-28 rounded-xl overflow-hidden flex-shrink-0 bg-dark-100">
+                    <div
+                      className="w-28 h-28 rounded-xl overflow-hidden flex-shrink-0 bg-dark-100 cursor-pointer active:scale-95 transition-transform"
+                      onClick={() => user.photo && setEnlargedPhoto({ photo: user.photo, name: user.displayName })}
+                    >
                       {user.photo ? (
                         <img src={user.photo} alt={user.displayName} className="w-full h-full object-cover" />
                       ) : (
@@ -373,6 +377,31 @@ export default function SmashMarryFriendzone() {
           </div>
         </div>
       )}
+      {/* Enlarged photo overlay */}
+      <AnimatePresence>
+        {enlargedPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+            onClick={() => setEnlargedPhoto(null)}
+          >
+            <button className="absolute top-4 right-4 text-white/70 hover:text-white">
+              <X size={24} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              src={enlargedPhoto.photo}
+              alt={enlargedPhoto.name}
+              className="max-w-full max-h-[80vh] rounded-2xl object-contain"
+            />
+            <p className="absolute bottom-8 text-white font-bold text-lg">{enlargedPhoto.name}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 }
