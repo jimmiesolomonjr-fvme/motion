@@ -134,13 +134,17 @@ router.get('/round', authenticate, async (req, res) => {
       [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
     }
 
-    const users = candidates.slice(0, 3).map((u) => ({
-      id: u.id,
-      displayName: u.profile.displayName,
-      photo: Array.isArray(u.profile.photos) && u.profile.photos.length > 0 ? u.profile.photos[0] : null,
-      age: u.profile.age,
-      city: u.profile.city,
-    }));
+    const users = candidates.slice(0, 3).map((u) => {
+      const photos = Array.isArray(u.profile.photos) ? u.profile.photos.filter(Boolean) : [];
+      return {
+        id: u.id,
+        displayName: u.profile.displayName,
+        photo: photos[0] || null,
+        photos,
+        age: u.profile.age,
+        city: u.profile.city,
+      };
+    });
 
     if (users.length < 3) {
       return res.json({ limited: true, resetsAt: tomorrowMidnightUTC(), roundsPlayed: roundsToday, roundsLeft: 0, notEnoughUsers: true });

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/layout/AppLayout';
 import api from '../services/api';
-import { ArrowLeft, Flame, Heart, HandMetal, Lock, Clock, X } from 'lucide-react';
+import { ArrowLeft, Flame, Heart, HandMetal, Lock, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const CATEGORIES = [
   { key: 'smash', label: 'Smash', emoji: '🔥', color: 'bg-red-500', border: 'border-red-500', text: 'text-red-400', bg: 'bg-red-500/10' },
@@ -193,7 +193,7 @@ export default function SmashMarryFriendzone() {
                     {/* Photo */}
                     <div
                       className="w-28 h-28 rounded-xl overflow-hidden flex-shrink-0 bg-dark-100 cursor-pointer active:scale-95 transition-transform"
-                      onClick={() => user.photo && setEnlargedPhoto({ photo: user.photo, name: user.displayName })}
+                      onClick={() => user.photos?.length > 0 && setEnlargedPhoto({ photos: user.photos, name: user.displayName, index: 0 })}
                     >
                       {user.photo ? (
                         <img src={user.photo} alt={user.displayName} className="w-full h-full object-cover" />
@@ -377,28 +377,115 @@ export default function SmashMarryFriendzone() {
           </div>
         </div>
       )}
-      {/* Enlarged photo overlay */}
+      {/* Enlarged photo gallery overlay */}
       <AnimatePresence>
         {enlargedPhoto && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/95 z-50 flex flex-col"
             onClick={() => setEnlargedPhoto(null)}
           >
-            <button className="absolute top-4 right-4 text-white/70 hover:text-white">
+            {/* Close button */}
+            <button className="absolute top-4 right-4 z-10 text-white/70 hover:text-white">
               <X size={24} />
             </button>
-            <motion.img
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              src={enlargedPhoto.photo}
-              alt={enlargedPhoto.name}
-              className="max-w-full max-h-[80vh] rounded-2xl object-contain"
-            />
-            <p className="absolute bottom-8 text-white font-bold text-lg">{enlargedPhoto.name}</p>
+
+            {/* Photo count */}
+            {enlargedPhoto.photos.length > 1 && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full">
+                {enlargedPhoto.index + 1} / {enlargedPhoto.photos.length}
+              </div>
+            )}
+
+            {/* Scrollable gallery */}
+            <div className="flex-1 flex items-center justify-center overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* Left arrow */}
+              {enlargedPhoto.index > 0 && (
+                <button
+                  onClick={() => setEnlargedPhoto((prev) => ({ ...prev, index: prev.index - 1 }))}
+                  className="absolute left-2 z-10 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white/80 hover:text-white"
+                >
+                  <ChevronLeft size={24} />
+                </button>
+              )}
+
+              {/* Right arrow */}
+              {enlargedPhoto.index < enlargedPhoto.photos.length - 1 && (
+                <button
+                  onClick={() => setEnlargedPhoto((prev) => ({ ...prev, index: prev.index + 1 }))}
+                  className="absolute right-2 z-10 w-10 h-10 rounded-full bg-black/50 flex items-center justify-center text-white/80 hover:text-white"
+                >
+                  <ChevronRight size={24} />
+                </button>
+              )}
+
+              {/* Main photo with peek of next/prev */}
+              <div
+                className="w-full h-full flex items-center justify-center px-4 relative"
+                onTouchStart={(e) => { e.currentTarget._touchX = e.touches[0].clientX; }}
+                onTouchEnd={(e) => {
+                  const dx = e.changedTouches[0].clientX - (e.currentTarget._touchX || 0);
+                  if (dx < -50 && enlargedPhoto.index < enlargedPhoto.photos.length - 1) {
+                    setEnlargedPhoto((prev) => ({ ...prev, index: prev.index + 1 }));
+                  } else if (dx > 50 && enlargedPhoto.index > 0) {
+                    setEnlargedPhoto((prev) => ({ ...prev, index: prev.index - 1 }));
+                  }
+                }}
+              >
+                {/* Peek left */}
+                {enlargedPhoto.index > 0 && (
+                  <div
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-48 rounded-r-xl overflow-hidden opacity-30 cursor-pointer"
+                    onClick={() => setEnlargedPhoto((prev) => ({ ...prev, index: prev.index - 1 }))}
+                  >
+                    <img src={enlargedPhoto.photos[enlargedPhoto.index - 1]} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+
+                <AnimatePresence mode="wait">
+                  <motion.img
+                    key={enlargedPhoto.index}
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.2 }}
+                    src={enlargedPhoto.photos[enlargedPhoto.index]}
+                    alt={enlargedPhoto.name}
+                    className="max-w-full max-h-[75vh] rounded-2xl object-contain"
+                  />
+                </AnimatePresence>
+
+                {/* Peek right */}
+                {enlargedPhoto.index < enlargedPhoto.photos.length - 1 && (
+                  <div
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-48 rounded-l-xl overflow-hidden opacity-30 cursor-pointer"
+                    onClick={() => setEnlargedPhoto((prev) => ({ ...prev, index: prev.index + 1 }))}
+                  >
+                    <img src={enlargedPhoto.photos[enlargedPhoto.index + 1]} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom: name + dot indicators */}
+            <div className="pb-8 text-center" onClick={(e) => e.stopPropagation()}>
+              <p className="text-white font-bold text-lg mb-3">{enlargedPhoto.name}</p>
+              {enlargedPhoto.photos.length > 1 && (
+                <div className="flex justify-center gap-1.5">
+                  {enlargedPhoto.photos.map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setEnlargedPhoto((prev) => ({ ...prev, index: i }))}
+                      className={`w-2 h-2 rounded-full transition-all ${
+                        i === enlargedPhoto.index ? 'bg-gold w-4' : 'bg-white/30'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
