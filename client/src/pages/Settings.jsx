@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Mail, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
@@ -23,6 +23,7 @@ export default function Settings() {
 
   // Notifications state
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
 
   // Vibe preferences state
   const [showVibeInFeed, setShowVibeInFeed] = useState(true);
@@ -43,7 +44,10 @@ export default function Settings() {
 
   useEffect(() => {
     api.get('/reports/blocked').then(({ data }) => setBlocked(data)).catch(() => {});
-    api.get('/users/notifications').then(({ data }) => setNotificationsEnabled(data.notificationsEnabled)).catch(() => {});
+    api.get('/users/notifications').then(({ data }) => {
+      setNotificationsEnabled(data.notificationsEnabled);
+      setEmailNotificationsEnabled(data.emailNotificationsEnabled ?? true);
+    }).catch(() => {});
     api.get('/users/preferences').then(({ data }) => {
       setShowVibeInFeed(data.showVibeInFeed);
       setAfterDarkEnabled(data.afterDarkEnabled);
@@ -99,6 +103,16 @@ export default function Settings() {
       await api.put('/users/notifications', { enabled: newVal });
     } catch {
       setNotificationsEnabled(!newVal);
+    }
+  };
+
+  const handleToggleEmailNotifications = async () => {
+    const newVal = !emailNotificationsEnabled;
+    setEmailNotificationsEnabled(newVal);
+    try {
+      await api.put('/users/notifications', { emailEnabled: newVal });
+    } catch {
+      setEmailNotificationsEnabled(!newVal);
     }
   };
 
@@ -306,6 +320,25 @@ export default function Settings() {
             <span
               className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
                 notificationsEnabled ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
+              }`}
+            />
+          </button>
+        </div>
+        <div className="flex items-center justify-between p-4 rounded-xl">
+          <div className="flex-1 mr-3">
+            <div className="flex items-center gap-2">
+              <Mail size={18} className="text-gray-400" />
+              <span className="text-white font-medium">Email Notifications</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5 ml-7">Receive emails when someone views, likes, or messages you</p>
+          </div>
+          <button
+            onClick={handleToggleEmailNotifications}
+            className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${emailNotificationsEnabled ? 'bg-gold' : 'bg-gray-600'}`}
+          >
+            <span
+              className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                emailNotificationsEnabled ? 'left-[calc(100%-1.625rem)]' : 'left-0.5'
               }`}
             />
           </button>

@@ -6,6 +6,7 @@ import { uploadMedia, uploadVoice, uploadToCloud, uploadVideoToCloud, deleteFrom
 import { getDistanceMiles } from '../utils/distance.js';
 import { validateAge } from '../utils/validators.js';
 import { isVideoUrl } from '../utils/mediaUtils.js';
+import { sendNotificationEmail } from '../utils/emailNotifications.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -573,6 +574,9 @@ router.post('/profile/:userId/view', authenticate, async (req, res) => {
     const { io } = await import('../../server.js');
     io.to(viewedId).emit('notification', notification);
 
+    // Fire-and-forget email notification
+    sendNotificationEmail(viewedId, 'profile_view', req.userId).catch(() => {});
+
     res.json({ success: true });
   } catch (error) {
     console.error('Profile view error:', error);
@@ -585,9 +589,12 @@ router.get('/notifications', authenticate, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { notificationsEnabled: true },
+      select: { notificationsEnabled: true, emailNotificationsEnabled: true },
     });
-    res.json({ notificationsEnabled: user?.notificationsEnabled ?? true });
+    res.json({
+      notificationsEnabled: user?.notificationsEnabled ?? true,
+      emailNotificationsEnabled: user?.emailNotificationsEnabled ?? true,
+    });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -596,12 +603,21 @@ router.get('/notifications', authenticate, async (req, res) => {
 // Update notification preferences
 router.put('/notifications', authenticate, async (req, res) => {
   try {
-    const { enabled } = req.body;
-    await prisma.user.update({
+    const { enabled, emailEnabled } = req.body;
+    const data = {};
+    if (typeof enabled === 'boolean') data.notificationsEnabled = enabled;
+    if (typeof emailEnabled === 'boolean') data.emailNotificationsEnabled = emailEnabled;
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: 'No valid fields provided' });
+    }
+
+    const user = await prisma.user.update({
       where: { id: req.userId },
-      data: { notificationsEnabled: !!enabled },
+      data,
+      select: { notificationsEnabled: true, emailNotificationsEnabled: true },
     });
-    res.json({ notificationsEnabled: !!enabled });
+    res.json(user);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

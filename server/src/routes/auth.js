@@ -7,6 +7,7 @@ import config from '../config/index.js';
 import { validateEmail, validatePassword, validateRole } from '../utils/validators.js';
 import { authenticate } from '../middleware/auth.js';
 import { sendEmail, brandedTemplate } from '../services/email.js';
+import { verifyUnsubscribeToken } from '../utils/emailNotifications.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -305,6 +306,68 @@ router.post('/reset-password', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+// Unsubscribe from email notifications (no login required)
+router.get('/unsubscribe', async (req, res) => {
+  try {
+    const { uid, token } = req.query;
+    if (!uid || !token) {
+      return res.status(400).send(unsubscribePage('Invalid Link', 'The unsubscribe link is missing required parameters.', false));
+    }
+
+    if (!verifyUnsubscribeToken(uid, token)) {
+      return res.status(400).send(unsubscribePage('Invalid Link', 'This unsubscribe link is invalid or has been tampered with.', false));
+    }
+
+    await prisma.user.update({
+      where: { id: uid },
+      data: { emailNotificationsEnabled: false },
+    });
+
+    res.send(unsubscribePage('Unsubscribed', "You've been unsubscribed from email notifications. You can re-enable them anytime in Settings.", true));
+  } catch (error) {
+    console.error('Unsubscribe error:', error);
+    res.status(500).send(unsubscribePage('Error', 'Something went wrong. Please try again later.', false));
+  }
+});
+
+function unsubscribePage(title, message, success) {
+  const icon = success ? '&#10003;' : '&#10007;';
+  const iconColor = success ? '#4ade80' : '#f87171';
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} - Motion</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0A0A0A;font-family:Arial,Helvetica,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0A0A0A;min-height:100vh;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:440px;width:100%;background-color:#1A1A1A;border-radius:16px;overflow:hidden;">
+          <tr>
+            <td align="center" style="padding:40px 32px 20px;">
+              <h1 style="margin:0 0 24px;font-size:28px;font-weight:800;letter-spacing:4px;color:#D4AF37;">MOTION</h1>
+              <div style="width:64px;height:64px;border-radius:50%;background-color:${iconColor}20;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;">
+                <span style="font-size:32px;color:${iconColor};line-height:64px;">${icon}</span>
+              </div>
+              <h2 style="margin:0 0 12px;font-size:20px;font-weight:700;color:#FFFFFF;">${title}</h2>
+              <p style="margin:0;font-size:15px;color:#999;line-height:1.6;">${message}</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 32px 32px;">
+              <p style="margin:0;font-size:12px;color:#666;">&copy; ${new Date().getFullYear()} Motion &mdash; Move Different</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+}
 
 async function sendWelcomeMessage(userId, role) {
   const admin = await prisma.user.findUnique({ where: { email: 'admin@motion.app' } });

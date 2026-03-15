@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
+import { sendNotificationEmail } from '../utils/emailNotifications.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -43,6 +44,9 @@ router.post('/:userId', authenticate, async (req, res) => {
     await prisma.like.create({
       data: { likerId: req.userId, likedId },
     });
+
+    // Fire-and-forget email notification
+    sendNotificationEmail(likedId, 'like', req.userId).catch(() => {});
 
     // Check for mutual like (match)
     const mutualLike = await prisma.like.findUnique({

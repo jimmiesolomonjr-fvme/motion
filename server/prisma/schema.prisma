@@ -55,8 +55,9 @@ model User {
   isHidden     Boolean  @default(false)
   isDummy      Boolean  @default(false)
   isAdmin      Boolean  @default(false)
-  notificationsEnabled Boolean @default(true)
-  showVibeInFeed       Boolean @default(true)
+  notificationsEnabled      Boolean @default(true)
+  emailNotificationsEnabled Boolean @default(true)
+  showVibeInFeed            Boolean @default(true)
   afterDarkEnabled     Boolean @default(false)
   autoplayMusic        Boolean @default(true)
   referralCode String?  @unique

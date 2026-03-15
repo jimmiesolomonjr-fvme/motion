@@ -390,14 +390,18 @@ export default function SmashMarryFriendzone() {
             {/* Close button — large tap target */}
             <button
               onClick={(e) => { e.stopPropagation(); setEnlargedPhoto(null); }}
-              className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white active:bg-white/30 transition-colors"
+              className="absolute right-4 z-10 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center text-white active:bg-white/30 transition-colors"
+              style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
             >
               <X size={22} />
             </button>
 
             {/* Photo count */}
             {enlargedPhoto.photos.length > 1 && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full">
+              <div
+                className="absolute left-1/2 -translate-x-1/2 z-10 bg-black/60 text-white text-xs font-bold px-3 py-1 rounded-full"
+                style={{ top: 'calc(env(safe-area-inset-top, 0px) + 1rem)' }}
+              >
                 {enlargedPhoto.index + 1} / {enlargedPhoto.photos.length}
               </div>
             )}

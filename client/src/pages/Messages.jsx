@@ -7,7 +7,7 @@ import { useSocket, useNotifications } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import Avatar from '../components/ui/Avatar';
 import { Link, useNavigate } from 'react-router-dom';
-import { Sparkles, Trash2, X } from 'lucide-react';
+import { Sparkles, Trash2, X, CheckCircle, Send } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import { ConversationSkeleton } from '../components/ui/Skeleton';
 
@@ -82,6 +82,7 @@ export default function Messages() {
   const [moveInterests, setMoveInterests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unmatchTarget, setUnmatchTarget] = useState(null);
+  const [activeTab, setActiveTab] = useState('your-turn');
   const socket = useSocket();
   const { setUnreadCount } = useNotifications();
 
@@ -168,6 +169,11 @@ export default function Messages() {
   const conversationUserIds = conversations.flatMap((c) => [c.otherUser?.id]);
   const newMatches = matches.filter((m) => !conversationUserIds.includes(m.user.id));
 
+  // Tab filtering
+  const yourTurnConversations = conversations.filter((c) => !c.lastMessage || c.lastMessage.senderId !== user.id);
+  const sentConversations = conversations.filter((c) => c.lastMessage && c.lastMessage.senderId === user.id);
+  const filteredConversations = activeTab === 'your-turn' ? yourTurnConversations : sentConversations;
+
   return (
     <AppLayout>
       <h1 className="text-xl font-bold text-white mb-4">Messages</h1>
@@ -219,7 +225,53 @@ export default function Messages() {
         </div>
       )}
 
-      <ConversationList conversations={conversations} onDelete={handleDeleteConversation} currentUserId={user.id} />
+      {/* Your Turn / Sent Tabs */}
+      {conversations.length > 0 && (
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setActiveTab('your-turn')}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 ${activeTab === 'your-turn' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+          >
+            Your Turn
+            {yourTurnConversations.length > 0 && (
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${activeTab === 'your-turn' ? 'bg-dark/20 text-dark' : 'bg-gold/20 text-gold'}`}>
+                {yourTurnConversations.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('sent')}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium ${activeTab === 'sent' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+          >
+            Sent
+          </button>
+        </div>
+      )}
+
+      {/* Tab-specific empty states */}
+      {conversations.length > 0 && filteredConversations.length === 0 ? (
+        <div className="text-center py-12">
+          {activeTab === 'your-turn' ? (
+            <>
+              <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-3">
+                <CheckCircle size={24} className="text-green-400" />
+              </div>
+              <p className="text-white font-semibold mb-1">You're all caught up!</p>
+              <p className="text-gray-500 text-sm">No messages waiting for your reply</p>
+            </>
+          ) : (
+            <>
+              <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-3">
+                <Send size={24} className="text-blue-400" />
+              </div>
+              <p className="text-white font-semibold mb-1">No sent messages yet</p>
+              <p className="text-gray-500 text-sm">Make the first move!</p>
+            </>
+          )}
+        </div>
+      ) : (
+        <ConversationList conversations={filteredConversations} onDelete={handleDeleteConversation} currentUserId={user.id} />
+      )}
 
       <Modal isOpen={!!unmatchTarget} onClose={() => setUnmatchTarget(null)} title="Remove Match">
         <p className="text-sm text-gray-400 mb-4">

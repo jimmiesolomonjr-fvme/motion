@@ -39,13 +39,15 @@ const SMF_NOTIFICATION = {
 const SMF_INBOX_MESSAGES = {
   smash: [
     "I picked Smash on you in SMF... so yeah, I think you're fine 😏🔥",
-    "You got my Smash vote. No hesitation. Wanna talk about it? 😌",
-    "SMF said Smash, and I meant it. Come say hi 🫣🔥",
+    "You got my Smash vote in SMF... just saying, you caught my eye 👀✨",
+    "Not gonna lie, you were my easiest Smash pick yet 😅🔥",
+    "Blame SMF but I had to pick Smash... your profile is dangerous 😂👀",
   ],
   marry: [
     "I picked Marry on you in SMF... ring shopping might be premature, but hi 💍😂",
     "You got my Marry vote. I see long-term vibes here 💒✨",
     "SMF said Marry — I don't play about that one. Let's chat 💍😏",
+    "You just got a Marry in SMF... no pressure but save me a plus one 😂💍",
   ],
 };
 

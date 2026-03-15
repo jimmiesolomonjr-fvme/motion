@@ -431,6 +431,37 @@ const FEATURE_UPDATES = {
       },
     ],
   },
+  '2.19.0': {
+    subtitle: 'Stay in the loop, even offline.',
+    features: [
+      {
+        icon: Mail,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Email Notifications',
+        description: 'Get an email when someone views your profile, likes you, or sends you a message while you\'re away.',
+      },
+      {
+        icon: Bell,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'Smart Sending',
+        description: 'Emails only send when you\'re offline — no spam. Toggle it off anytime in Settings.',
+      },
+    ],
+  },
+  '2.20.0': {
+    subtitle: 'Your inbox, organized.',
+    features: [
+      {
+        icon: MessageCircle,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Your Turn / Sent Tabs',
+        description: 'Messages are now split into "Your Turn" and "Sent" so you never miss a reply.',
+      },
+    ],
+  },
 };
 
 export default FEATURE_UPDATES;

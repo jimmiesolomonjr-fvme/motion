@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import webpush from 'web-push';
 import config from '../config/index.js';
+import { sendNotificationEmail } from '../utils/emailNotifications.js';
 
 const prisma = new PrismaClient();
 
@@ -135,6 +136,9 @@ export function setupSocketHandlers(io) {
           const title = senderProfile?.displayName || 'New message';
           const body = contentType === 'TEXT' ? content.substring(0, 100) : (contentType === 'VOICE' ? 'Voice note' : 'Photo');
           sendPushNotification(otherUserId, { title, body, conversationId });
+
+          // Fire-and-forget email notification
+          sendNotificationEmail(otherUserId, 'message', socket.userId).catch(() => {});
         }
       } catch (error) {
         console.error('Socket send-message error:', error);
