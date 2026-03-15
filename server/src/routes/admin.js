@@ -45,6 +45,8 @@ router.get('/engagement', authenticate, requireAdmin, async (req, res) => {
       likesThisWeek,
       matchesThisWeek,
       activeConversations,
+      smfRoundsToday,
+      smfRoundsThisWeek,
     ] = await Promise.all([
       prisma.user.count({ where: { lastOnline: { gte: todayStart } } }),
       prisma.user.count({ where: { lastOnline: { gte: weekAgo } } }),
@@ -56,6 +58,8 @@ router.get('/engagement', authenticate, requireAdmin, async (req, res) => {
       prisma.like.count({ where: { createdAt: { gte: weekAgo } } }),
       prisma.match.count({ where: { createdAt: { gte: weekAgo } } }),
       prisma.conversation.count({ where: { lastMessageAt: { gte: weekAgo } } }),
+      prisma.smfRound.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.smfRound.count({ where: { createdAt: { gte: weekAgo } } }),
     ]);
 
     res.json({
@@ -69,6 +73,8 @@ router.get('/engagement', authenticate, requireAdmin, async (req, res) => {
       likesThisWeek,
       matchesThisWeek,
       activeConversations,
+      smfRoundsToday,
+      smfRoundsThisWeek,
     });
   } catch (error) {
     console.error('Engagement stats error:', error);

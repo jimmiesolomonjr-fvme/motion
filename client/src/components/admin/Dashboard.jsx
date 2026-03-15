@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Crown, Sparkles, Heart, AlertTriangle, DollarSign, Activity, MessageCircle, Eye, ThumbsUp, TrendingUp, MessagesSquare } from 'lucide-react';
+import { Users, Crown, Sparkles, Heart, AlertTriangle, DollarSign, Activity, MessageCircle, Eye, ThumbsUp, TrendingUp, MessagesSquare, Flame } from 'lucide-react';
 import api from '../../services/api';
 
 export default function Dashboard() {
@@ -34,6 +34,8 @@ export default function Dashboard() {
         { label: 'Likes This Week', value: engagement.likesThisWeek, sub: 'Last 7 days', icon: ThumbsUp, color: 'text-pink-300' },
         { label: 'Matches This Week', value: engagement.matchesThisWeek, sub: 'Last 7 days', icon: Heart, color: 'text-red-400' },
         { label: 'Active Conversations', value: engagement.activeConversations, sub: 'Last 7 days', icon: MessagesSquare, color: 'text-cyan-400' },
+        { label: 'SMF Rounds Today', value: engagement.smfRoundsToday, sub: 'Today', icon: Flame, color: 'text-orange-400' },
+        { label: 'SMF Rounds This Week', value: engagement.smfRoundsThisWeek, sub: 'Last 7 days', icon: Flame, color: 'text-orange-300' },
       ]
     : [];
 

@@ -188,48 +188,52 @@ export default function SmashMarryFriendzone() {
                     )}
                   </AnimatePresence>
 
-                  {/* Photo */}
-                  <div className="w-full aspect-[4/3] overflow-hidden bg-dark-100">
-                    {user.photo ? (
-                      <img src={user.photo} alt={user.displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-500 text-5xl font-bold">
-                        {user.displayName?.[0]}
+                  <div className="flex gap-3 p-3">
+                    {/* Photo */}
+                    <div className="w-28 h-28 rounded-xl overflow-hidden flex-shrink-0 bg-dark-100">
+                      {user.photo ? (
+                        <img src={user.photo} alt={user.displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-3xl font-bold">
+                          {user.displayName?.[0]}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info + Buttons */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-white font-bold text-base truncate">{user.displayName}</h3>
+                        <p className="text-gray-400 text-sm">
+                          {user.age && `${user.age}`}
+                          {user.age && user.city && ' · '}
+                          {user.city && user.city}
+                        </p>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Info + Buttons */}
-                  <div className="p-4">
-                    <h3 className="text-white font-bold text-base truncate">{user.displayName}</h3>
-                    <p className="text-gray-400 text-sm">
-                      {user.age && `${user.age}`}
-                      {user.age && user.city && ' · '}
-                      {user.city && user.city}
-                    </p>
-
-                    {/* Category buttons */}
-                    <div className="flex gap-2 mt-3">
-                      {CATEGORIES.map((c) => {
-                        const isSelected = assignments[user.id] === c.key;
-                        const isTaken = assignedCategories.has(c.key) && !isSelected;
-                        return (
-                          <button
-                            key={c.key}
-                            onClick={() => !isTaken && handleAssign(user.id, c.key)}
-                            disabled={isTaken}
-                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
-                              isSelected
-                                ? `${c.color} text-white`
-                                : isTaken
-                                ? 'bg-dark-100 text-gray-600 cursor-not-allowed'
-                                : `${c.bg} ${c.text} hover:opacity-80`
-                            }`}
-                          >
-                            {c.emoji} {c.label}
-                          </button>
-                        );
-                      })}
+                      {/* Category buttons */}
+                      <div className="flex gap-1.5 mt-2">
+                        {CATEGORIES.map((c) => {
+                          const isSelected = assignments[user.id] === c.key;
+                          const isTaken = assignedCategories.has(c.key) && !isSelected;
+                          return (
+                            <button
+                              key={c.key}
+                              onClick={() => !isTaken && handleAssign(user.id, c.key)}
+                              disabled={isTaken}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                isSelected
+                                  ? `${c.color} text-white`
+                                  : isTaken
+                                  ? 'bg-dark-100 text-gray-600 cursor-not-allowed'
+                                  : `${c.bg} ${c.text} hover:opacity-80`
+                              }`}
+                            >
+                              {c.emoji} {c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </motion.div>

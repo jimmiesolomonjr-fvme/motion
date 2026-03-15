@@ -163,19 +163,23 @@ export default function VibeCheck() {
       </div>
 
       {/* SMF Game Card */}
-      <div
+      <button
         onClick={() => navigate('/smf')}
-        className="mb-6 p-4 bg-gradient-to-r from-pink-500/10 via-yellow-500/10 to-blue-500/10
-                   rounded-2xl border border-gold/20 cursor-pointer hover:border-gold/40 transition-all"
+        className="w-full mb-6 p-4 bg-gradient-to-r from-pink-500/10 via-yellow-500/10 to-blue-500/10
+                   rounded-2xl border border-gold/30 cursor-pointer hover:border-gold/50 hover:scale-[1.01]
+                   active:scale-[0.99] transition-all shadow-lg shadow-gold/5"
       >
         <div className="flex items-center justify-between">
-          <div>
+          <div className="text-left">
             <h3 className="text-white font-bold">Smash Marry Friendzone</h3>
             <p className="text-gray-400 text-xs mt-0.5">Rate 3 profiles — 3 rounds per day</p>
           </div>
-          <span className="text-2xl">🔥💍👋</span>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🔥💍👋</span>
+            <span className="text-gold text-sm font-bold">Play →</span>
+          </div>
         </div>
-      </div>
+      </button>
 
       {/* Progress bar */}
       <div className="w-full bg-dark-50 rounded-full h-1.5 mb-6">
