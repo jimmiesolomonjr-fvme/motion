@@ -18,6 +18,7 @@ import notificationRoutes from './src/routes/notifications.js';
 import storyRoutes from './src/routes/stories.js';
 import pushRoutes from './src/routes/push.js';
 import songRoutes from './src/routes/songs.js';
+import smfRoutes from './src/routes/smf.js';
 import { setupSocketHandlers } from './src/sockets/chat.js';
 import { startReengagementJob } from './src/jobs/reengagement.js';
 
@@ -55,6 +56,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/stories', storyRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/songs', songRoutes);
+app.use('/api/smf', smfRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

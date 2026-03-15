@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { authenticate } from '../middleware/auth.js';
-import { uploadMedia, uploadToCloud, uploadVideoToCloud, deleteFromCloud } from '../middleware/upload.js';
+import { uploadMedia, uploadVoice, uploadToCloud, uploadVideoToCloud, deleteFromCloud } from '../middleware/upload.js';
 import { getDistanceMiles } from '../utils/distance.js';
 import { validateAge } from '../utils/validators.js';
 import { isVideoUrl } from '../utils/mediaUtils.js';
@@ -188,6 +188,55 @@ router.delete('/photos/:index', authenticate, async (req, res) => {
 
     res.json(updated);
   } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Upload voice intro (15s max)
+router.post('/voice-intro', authenticate, uploadVoice.single('voice'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No audio file provided' });
+
+    const profile = await prisma.profile.findUnique({ where: { userId: req.userId } });
+    if (!profile) return res.status(400).json({ error: 'Create a profile first' });
+
+    // Delete old voice intro from cloud if exists
+    if (profile.voiceIntroUrl) {
+      await deleteFromCloud(profile.voiceIntroUrl);
+    }
+
+    const voiceUrl = await uploadToCloud(req.file, 'motion/voice-intros');
+
+    const updated = await prisma.profile.update({
+      where: { userId: req.userId },
+      data: { voiceIntroUrl: voiceUrl },
+    });
+
+    res.json({ voiceIntroUrl: updated.voiceIntroUrl });
+  } catch (error) {
+    console.error('Voice intro upload error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete voice intro
+router.delete('/voice-intro', authenticate, async (req, res) => {
+  try {
+    const profile = await prisma.profile.findUnique({ where: { userId: req.userId } });
+    if (!profile) return res.status(404).json({ error: 'Profile not found' });
+
+    if (profile.voiceIntroUrl) {
+      await deleteFromCloud(profile.voiceIntroUrl);
+    }
+
+    await prisma.profile.update({
+      where: { userId: req.userId },
+      data: { voiceIntroUrl: null },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Voice intro delete error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

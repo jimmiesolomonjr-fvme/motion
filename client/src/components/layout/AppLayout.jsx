@@ -10,7 +10,7 @@ import UpdateBanner from '../ui/UpdateBanner';
 import InstallBanner from '../ui/InstallBanner';
 
 export default function AppLayout({ children }) {
-  const { toasts, dismissToast } = useNotifications();
+  const { toasts, dismissToast, viewingPulse } = useNotifications();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [vibeBanner, setVibeBanner] = useState(false);
@@ -86,6 +86,32 @@ export default function AppLayout({ children }) {
         {children}
       </main>
       <BottomNav />
+
+      {/* Live "viewing you" pulse */}
+      {viewingPulse && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full px-4">
+          <div
+            className="bg-dark-100 border border-purple-accent/40 rounded-2xl p-3 shadow-xl flex items-center gap-3 cursor-pointer animate-fade-in"
+            onClick={() => viewingPulse.viewerId && navigate(`/profile/${viewingPulse.viewerId}`)}
+            style={{ boxShadow: '0 0 20px rgba(147, 51, 234, 0.3)' }}
+          >
+            <div className="relative flex-shrink-0">
+              {viewingPulse.viewerPhoto ? (
+                <img src={viewingPulse.viewerPhoto} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-purple-400 animate-pulse" />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-purple-accent/20 flex items-center justify-center ring-2 ring-purple-400 animate-pulse">
+                  <Eye size={18} className="text-purple-400" />
+                </div>
+              )}
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-dark-100" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white">{viewingPulse.viewerName} is viewing you</p>
+              <p className="text-xs text-purple-400">Right now 👀</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stacked notification toasts */}
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-full px-4 flex flex-col gap-2">

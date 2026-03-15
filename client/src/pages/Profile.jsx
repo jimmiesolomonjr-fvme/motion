@@ -8,7 +8,7 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase, Mic, Square, Loader } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_OPTIONS, LOOKING_FOR_TAGS, MAX_LOOKING_FOR_TAGS } from '../utils/constants';
 import { detectFace } from '../utils/faceDetection';
@@ -17,11 +17,13 @@ import CreateStory from '../components/stories/CreateStory';
 import SongSearchModal from '../components/profile/SongSearchModal';
 import ImageCropper from '../components/ui/ImageCropper';
 import { getProfileCompletion } from '../utils/profileCompletion';
+import { useSocket } from '../context/SocketContext';
 
 export default function Profile() {
   const { userId } = useParams();
   const { user: currentUser, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const socket = useSocket();
   const isOwnProfile = !userId || userId === currentUser?.id;
 
   const [profile, setProfile] = useState(null);
@@ -60,6 +62,18 @@ export default function Profile() {
   const [videoFiles, setVideoFiles] = useState([]); // videos skip cropping
   const [cropPreview, setCropPreview] = useState(null); // current image being cropped
 
+  // Voice intro state
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const [voicePreview, setVoicePreview] = useState(null); // { blob, url, duration }
+  const [voiceUploading, setVoiceUploading] = useState(false);
+  const [voicePlaying, setVoicePlaying] = useState(false);
+  const voiceMediaRecorderRef = useRef(null);
+  const voiceChunksRef = useRef([]);
+  const voiceRecordStartRef = useRef(null);
+  const voicePlayerRef = useRef(null);
+  const voiceTimerRef = useRef(null);
+  const [voiceRecordTime, setVoiceRecordTime] = useState(0);
+
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
@@ -96,6 +110,15 @@ export default function Profile() {
     };
     fetchProfile();
   }, [userId]);
+
+  // Emit live "viewing profile" pulse via socket
+  useEffect(() => {
+    if (isOwnProfile || !userId || !socket) return;
+    socket.emit('viewing-profile', { viewedId: userId });
+    return () => {
+      socket.emit('stop-viewing-profile', { viewedId: userId });
+    };
+  }, [isOwnProfile, userId, socket]);
 
   // Fetch autoplay preference and autoplay song on other profiles
   useEffect(() => {
@@ -155,6 +178,92 @@ export default function Profile() {
       }).catch(() => {});
     }
   }, [editing]);
+
+  // Voice intro recording
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      voiceMediaRecorderRef.current = mediaRecorder;
+      voiceChunksRef.current = [];
+      voiceRecordStartRef.current = Date.now();
+      setVoiceRecordTime(0);
+
+      mediaRecorder.ondataavailable = (e) => voiceChunksRef.current.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(voiceChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        const duration = Math.round((Date.now() - voiceRecordStartRef.current) / 1000);
+        setVoicePreview({ blob, url, duration });
+        stream.getTracks().forEach((t) => t.stop());
+        if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+      };
+
+      mediaRecorder.start();
+      setVoiceRecording(true);
+
+      // Live timer + auto-stop at 15s
+      voiceTimerRef.current = setInterval(() => {
+        const elapsed = Math.round((Date.now() - voiceRecordStartRef.current) / 1000);
+        setVoiceRecordTime(elapsed);
+        if (elapsed >= 15) {
+          mediaRecorder.stop();
+          setVoiceRecording(false);
+        }
+      }, 500);
+    } catch (err) {
+      console.error('Mic access error:', err);
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (voiceMediaRecorderRef.current && voiceRecording) {
+      voiceMediaRecorderRef.current.stop();
+      setVoiceRecording(false);
+    }
+  };
+
+  const discardVoicePreview = () => {
+    if (voicePreview?.url) URL.revokeObjectURL(voicePreview.url);
+    setVoicePreview(null);
+  };
+
+  const uploadVoiceIntro = async () => {
+    if (!voicePreview) return;
+    setVoiceUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('voice', voicePreview.blob, 'voice-intro.webm');
+      const { data } = await api.post('/users/voice-intro', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setProfile({ ...profile, voiceIntroUrl: data.voiceIntroUrl });
+      discardVoicePreview();
+    } catch (err) {
+      console.error('Voice intro upload error:', err);
+    } finally {
+      setVoiceUploading(false);
+    }
+  };
+
+  const deleteVoiceIntro = async () => {
+    try {
+      await api.delete('/users/voice-intro');
+      setProfile({ ...profile, voiceIntroUrl: null });
+    } catch (err) {
+      console.error('Voice intro delete error:', err);
+    }
+  };
+
+  const toggleVoicePlay = () => {
+    if (!voicePlayerRef.current) return;
+    if (voicePlaying) {
+      voicePlayerRef.current.pause();
+      setVoicePlaying(false);
+    } else {
+      voicePlayerRef.current.play().then(() => setVoicePlaying(true)).catch(() => {});
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -714,6 +823,55 @@ export default function Profile() {
 
             <div className="border-t border-dark-50 pt-1" />
 
+            {/* Voice Intro Edit */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Voice Intro (15s max)</label>
+              {profile.voiceIntroUrl && !voicePreview ? (
+                <div className="flex items-center gap-2 bg-dark-100 rounded-xl p-3">
+                  <Mic size={16} className="text-purple-400 flex-shrink-0" />
+                  <audio controls src={profile.voiceIntroUrl} className="h-8 flex-1 min-w-0" />
+                  <button onClick={deleteVoiceIntro} className="text-gray-500 hover:text-red-400 flex-shrink-0">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ) : voicePreview ? (
+                <div className="flex items-center gap-2 bg-dark-100 rounded-xl p-3">
+                  <Mic size={16} className="text-purple-400 flex-shrink-0" />
+                  <audio controls src={voicePreview.url} className="h-8 flex-1 min-w-0" />
+                  <span className="text-xs text-gray-500">{voicePreview.duration}s</span>
+                  <button onClick={discardVoicePreview} className="text-gray-500 hover:text-red-400 flex-shrink-0">
+                    <Trash2 size={16} />
+                  </button>
+                  <button
+                    onClick={uploadVoiceIntro}
+                    disabled={voiceUploading}
+                    className="text-gold hover:text-gold/80 flex-shrink-0"
+                  >
+                    {voiceUploading ? <Loader size={16} className="animate-spin" /> : <Check size={16} />}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={voiceRecording ? stopVoiceRecording : startVoiceRecording}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                      voiceRecording
+                        ? 'bg-red-500 text-white animate-pulse'
+                        : 'bg-dark-100 border border-dashed border-dark-50 hover:border-purple-accent/40 text-gray-400 hover:text-purple-400'
+                    }`}
+                  >
+                    {voiceRecording ? (
+                      <><Square size={14} /> Stop ({15 - voiceRecordTime}s)</>
+                    ) : (
+                      <><Mic size={14} /> Record Voice Intro</>
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-dark-50 pt-1" />
+
             {/* Profile Prompts Edit */}
             <div className={editPrompts.length === 0 ? 'ring-2 ring-gold/50 rounded-xl p-1' : ''}>
               <label className="block text-sm font-medium text-gray-300 mb-2">Profile Prompts (max 3)</label>
@@ -823,6 +981,31 @@ export default function Profile() {
             )}
             {autoplayBlocked && !songPlaying && profile.songTitle && (
               <p className="text-xs text-purple-400/70 -mt-3 ml-1">Tap anywhere to hear their song</p>
+            )}
+
+            {/* Voice Intro Player */}
+            {profile.voiceIntroUrl && (
+              <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 w-fit">
+                <Mic size={14} className="text-purple-400 flex-shrink-0" />
+                <span className="text-sm text-white font-medium">Voice Intro</span>
+                <button
+                  onClick={toggleVoicePlay}
+                  className="w-7 h-7 bg-purple-accent/20 rounded-full flex items-center justify-center flex-shrink-0"
+                >
+                  {voicePlaying ? <Pause size={12} className="text-purple-400" /> : <Play size={12} className="text-purple-400 ml-0.5" />}
+                </button>
+                {isOwnProfile && (
+                  <button onClick={deleteVoiceIntro} className="text-gray-600 hover:text-red-400 flex-shrink-0">
+                    <X size={14} />
+                  </button>
+                )}
+                <audio
+                  ref={voicePlayerRef}
+                  src={profile.voiceIntroUrl}
+                  preload="none"
+                  onEnded={() => setVoicePlaying(false)}
+                />
+              </div>
             )}
 
             {/* Add Song button (own profile, no song) */}

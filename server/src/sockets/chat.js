@@ -207,6 +207,30 @@ export function setupSocketHandlers(io) {
       }
     });
 
+    // Live "viewing profile" pulse — ephemeral, no DB record
+    socket.on('viewing-profile', async (data) => {
+      if (!data?.viewedId || data.viewedId === socket.userId) return;
+      try {
+        const viewer = await prisma.profile.findUnique({
+          where: { userId: socket.userId },
+          select: { displayName: true, photos: true },
+        });
+        const photo = Array.isArray(viewer?.photos) && viewer.photos.length > 0 ? viewer.photos[0] : null;
+        io.to(data.viewedId).emit('viewing-pulse', {
+          viewerId: socket.userId,
+          viewerName: viewer?.displayName || 'Someone',
+          viewerPhoto: photo,
+        });
+      } catch {}
+    });
+
+    socket.on('stop-viewing-profile', (data) => {
+      if (!data?.viewedId || data.viewedId === socket.userId) return;
+      io.to(data.viewedId).emit('viewing-pulse-end', {
+        viewerId: socket.userId,
+      });
+    });
+
     // Disconnect
     socket.on('disconnect', async () => {
       await prisma.user.update({

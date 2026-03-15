@@ -12,6 +12,7 @@ const NotificationContext = createContext({
   toasts: [],
   dismissToast: () => {},
   notifCount: 0,
+  viewingPulse: null,
 });
 
 let toastIdCounter = 0;
@@ -23,6 +24,8 @@ export function SocketProvider({ children }) {
   const [matchAlert, setMatchAlert] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [notifCount, setNotifCount] = useState(0);
+  const [viewingPulse, setViewingPulse] = useState(null);
+  const viewingPulseTimerRef = useRef(null);
   const timersRef = useRef({});
 
   const clearMatchAlert = useCallback(() => setMatchAlert(null), []);
@@ -145,6 +148,21 @@ export function SocketProvider({ children }) {
       setNotifCount((prev) => prev + 1);
     });
 
+    // Live "viewing pulse" — ephemeral, shows when someone is on your profile
+    newSocket.on('viewing-pulse', (data) => {
+      if (viewingPulseTimerRef.current) clearTimeout(viewingPulseTimerRef.current);
+      setViewingPulse(data);
+      viewingPulseTimerRef.current = setTimeout(() => setViewingPulse(null), 8000);
+    });
+
+    newSocket.on('viewing-pulse-end', () => {
+      setViewingPulse(null);
+      if (viewingPulseTimerRef.current) {
+        clearTimeout(viewingPulseTimerRef.current);
+        viewingPulseTimerRef.current = null;
+      }
+    });
+
     setSocket(newSocket);
 
     return () => {
@@ -166,6 +184,7 @@ export function SocketProvider({ children }) {
         matchAlert, clearMatchAlert,
         toasts, dismissToast,
         notifCount, setNotifCount,
+        viewingPulse,
       }}>
         {children}
       </NotificationContext.Provider>

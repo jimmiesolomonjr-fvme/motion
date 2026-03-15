@@ -162,6 +162,21 @@ export default function VibeCheck() {
         <p className="text-xs text-gray-500 mt-1">{remaining} questions remaining today</p>
       </div>
 
+      {/* SMF Game Card */}
+      <div
+        onClick={() => navigate('/smf')}
+        className="mb-6 p-4 bg-gradient-to-r from-pink-500/10 via-yellow-500/10 to-blue-500/10
+                   rounded-2xl border border-gold/20 cursor-pointer hover:border-gold/40 transition-all"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-white font-bold">Smash Marry Friendzone</h3>
+            <p className="text-gray-400 text-xs mt-0.5">Rate 3 profiles — 3 rounds per day</p>
+          </div>
+          <span className="text-2xl">🔥💍👋</span>
+        </div>
+      </div>
+
       {/* Progress bar */}
       <div className="w-full bg-dark-50 rounded-full h-1.5 mb-6">
         <motion.div

@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -333,6 +333,37 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Profile Completion Ring',
         description: 'See exactly how complete your profile is and what\'s missing at a glance.',
+      },
+    ],
+  },
+  '2.14.0': {
+    subtitle: 'A new game just dropped.',
+    features: [
+      {
+        icon: Flame,
+        color: 'text-pink-400',
+        bg: 'bg-pink-400/10',
+        title: 'Smash Marry Friendzone',
+        description: 'New game! Rate 3 random profiles as Smash, Marry, or Friendzone. Play up to 3 rounds per day.',
+      },
+    ],
+  },
+  '2.15.0': {
+    subtitle: 'Profiles just got real.',
+    features: [
+      {
+        icon: Mic,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Voice Intros',
+        description: 'Record a 15-second voice intro on your profile. Let people hear you before they match.',
+      },
+      {
+        icon: Eye,
+        color: 'text-green-400',
+        bg: 'bg-green-400/10',
+        title: 'Live Viewing Pulse',
+        description: "Get a real-time glow when someone is on your profile right now. Creates urgency and sparks connection.",
       },
     ],
   },

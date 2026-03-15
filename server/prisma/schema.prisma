@@ -97,6 +97,7 @@ model User {
   stories          Story[]
   storyViews       StoryView[] @relation("storyViews")
   storyLikes       StoryLike[] @relation("storyLikes")
+  smfRounds        SmfRound[]
 
   vibeStreak           Int       @default(0)
   vibeLastAnsweredDate DateTime?
@@ -125,6 +126,7 @@ model Profile {
   songArtist     String?
   songPreviewUrl String?
   songArtworkUrl String?
+  voiceIntroUrl  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -435,6 +437,30 @@ model PushSubscription {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SmfRound {
+  id        String    @id @default(uuid())
+  playerId  String
+  createdAt DateTime  @default(now())
+
+  player    User      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  picks     SmfPick[]
+
+  @@index([playerId, createdAt])
+}
+
+model SmfPick {
+  id        String   @id @default(uuid())
+  roundId   String
+  targetId  String
+  pick      String   // "smash" | "marry" | "friendzone"
+  createdAt DateTime @default(now())
+
+  round     SmfRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  @@unique([roundId, targetId])
+  @@index([targetId, pick])
 }
 
 model DeletionLog {

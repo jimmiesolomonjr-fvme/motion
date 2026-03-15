@@ -20,6 +20,7 @@ const Premium = lazy(() => import('./pages/Premium'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Notifications = lazy(() => import('./pages/Notifications'));
+const SmashMarryFriendzone = lazy(() => import('./pages/SmashMarryFriendzone'));
 
 function FullScreenSpinner() {
   return (
@@ -85,6 +86,7 @@ function AppRoutes() {
       <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+      <Route path="/smf" element={<ProtectedRoute><SmashMarryFriendzone /></ProtectedRoute>} />
       <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
 
       {/* Fallback */}
