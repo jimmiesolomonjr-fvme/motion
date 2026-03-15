@@ -178,6 +178,25 @@ router.post('/round', authenticate, async (req, res) => {
       return r;
     });
 
+    // Emit real-time notifications via Socket.io
+    try {
+      const { io } = await import('../../server.js');
+      for (const p of picks) {
+        let title;
+        if (p.pick === 'smash') title = 'Someone chose Smash for you 🔥';
+        else if (p.pick === 'marry') title = 'Someone chose Marry for you 💍';
+        else title = "You've been Friendzoned 😂";
+
+        io.to(p.userId).emit('notification', {
+          type: 'smf_pick',
+          title,
+          body: 'Play Smash Marry Friendzone to see how others rate you!',
+        });
+      }
+    } catch (socketErr) {
+      console.error('SMF socket emit error:', socketErr);
+    }
+
     const roundsLeft = MAX_ROUNDS_PER_DAY - (roundsToday + 1);
     res.json({ success: true, roundsLeft });
   } catch (err) {
