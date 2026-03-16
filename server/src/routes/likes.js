@@ -124,6 +124,12 @@ router.get('/matches', authenticate, async (req, res) => {
 
     const hiddenIds = await getHiddenIds(req.userId);
 
+    // Get user-hidden IDs (one-directional)
+    const userHides = await prisma.userHide.findMany({
+      where: { hiderId: req.userId },
+    });
+    const userHiddenIds = new Set(userHides.map((h) => h.hiddenId));
+
     const result = matches
       .map((m) => {
         const other = m.user1Id === req.userId ? m.user2 : m.user1;
@@ -140,7 +146,7 @@ router.get('/matches', authenticate, async (req, res) => {
           },
         };
       })
-      .filter((m) => !hiddenIds.has(m.user.id));
+      .filter((m) => !hiddenIds.has(m.user.id) && !userHiddenIds.has(m.user.id));
 
     res.json(result);
   } catch (error) {

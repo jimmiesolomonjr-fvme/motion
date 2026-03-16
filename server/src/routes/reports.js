@@ -71,6 +71,55 @@ router.delete('/block/:userId', authenticate, async (req, res) => {
   }
 });
 
+// Hide a user
+router.post('/hide', authenticate, async (req, res) => {
+  try {
+    const { hiddenId } = req.body;
+    if (!hiddenId) return res.status(400).json({ error: 'Hidden user ID required' });
+
+    await prisma.userHide.upsert({
+      where: { hiderId_hiddenId: { hiderId: req.userId, hiddenId } },
+      update: {},
+      create: { hiderId: req.userId, hiddenId },
+    });
+
+    res.json({ hidden: true });
+  } catch (error) {
+    console.error('Hide error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Unhide a user
+router.delete('/hide/:userId', authenticate, async (req, res) => {
+  try {
+    await prisma.userHide.deleteMany({
+      where: { hiderId: req.userId, hiddenId: req.params.userId },
+    });
+    res.json({ unhidden: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get hidden users
+router.get('/hidden', authenticate, async (req, res) => {
+  try {
+    const hides = await prisma.userHide.findMany({
+      where: { hiderId: req.userId },
+      include: { hidden: { include: { profile: true } } },
+    });
+
+    res.json(hides.map((h) => ({
+      id: h.hidden.id,
+      profile: h.hidden.profile,
+      hiddenAt: h.createdAt,
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get blocked users
 router.get('/blocked', authenticate, async (req, res) => {
   try {

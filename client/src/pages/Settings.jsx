@@ -5,13 +5,14 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Mail, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Mail, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [blocked, setBlocked] = useState([]);
+  const [hiddenUsers, setHiddenUsers] = useState([]);
 
   // Change password state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -44,6 +45,7 @@ export default function Settings() {
 
   useEffect(() => {
     api.get('/reports/blocked').then(({ data }) => setBlocked(data)).catch(() => {});
+    api.get('/reports/hidden').then(({ data }) => setHiddenUsers(data)).catch(() => {});
     api.get('/users/notifications').then(({ data }) => {
       setNotificationsEnabled(data.notificationsEnabled);
       setEmailNotificationsEnabled(data.emailNotificationsEnabled ?? true);
@@ -67,6 +69,11 @@ export default function Settings() {
   const handleUnblock = async (userId) => {
     await api.delete(`/reports/block/${userId}`);
     setBlocked((prev) => prev.filter((b) => b.id !== userId));
+  };
+
+  const handleUnhide = async (userId) => {
+    await api.delete(`/reports/hide/${userId}`);
+    setHiddenUsers((prev) => prev.filter((h) => h.id !== userId));
   };
 
   const handleChangePassword = async (e) => {
@@ -421,6 +428,23 @@ export default function Settings() {
               <div key={b.id} className="flex items-center justify-between p-3 bg-dark-50 rounded-xl">
                 <span className="text-white text-sm">{b.profile?.displayName || 'Unknown'}</span>
                 <Button variant="ghost" className="text-xs text-red-400" onClick={() => handleUnblock(b.id)}>Unblock</Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Users */}
+      {hiddenUsers.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2 px-4">
+            <EyeOff size={16} /> Hidden Users
+          </h2>
+          <div className="space-y-2 px-4">
+            {hiddenUsers.map((h) => (
+              <div key={h.id} className="flex items-center justify-between p-3 bg-dark-50 rounded-xl">
+                <span className="text-white text-sm">{h.profile?.displayName || 'Unknown'}</span>
+                <Button variant="ghost" className="text-xs text-gold" onClick={() => handleUnhide(h.id)}>Unhide</Button>
               </div>
             ))}
           </div>

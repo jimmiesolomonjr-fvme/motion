@@ -99,6 +99,12 @@ router.get('/round', authenticate, async (req, res) => {
     });
     const hiddenIds = hiddenPairs.map((h) => (h.user1Id === req.userId ? h.user2Id : h.user1Id));
 
+    // User-hidden IDs (one-directional)
+    const userHides = await prisma.userHide.findMany({
+      where: { hiderId: req.userId },
+    });
+    const userHiddenIds = userHides.map((h) => h.hiddenId);
+
     // Already picked in this window — prevent repeats
     const pickedTodayIds = recentRounds.flatMap((r) => r.picks.map((p) => p.targetId));
 
@@ -106,7 +112,7 @@ router.get('/round', authenticate, async (req, res) => {
     const showDummySetting = await prisma.appSetting.findUnique({ where: { key: 'showDummyUsers' } });
     const hideDummies = showDummySetting?.value !== 'true';
 
-    const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds, ...pickedTodayIds])];
+    const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds, ...userHiddenIds, ...pickedTodayIds])];
 
     // Fetch a pool of candidates and shuffle to pick 3
     const candidates = await prisma.user.findMany({
