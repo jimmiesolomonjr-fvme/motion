@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -502,6 +502,18 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Date Energy',
         description: 'Set your mood — "Low-key tonight," "Ready to go out," and more. It shows on your card so people know where your head is at.',
+      },
+    ],
+  },
+  '2.24.0': {
+    subtitle: 'Images load way faster now.',
+    features: [
+      {
+        icon: Gauge,
+        color: 'text-green-400',
+        bg: 'bg-green-400/10',
+        title: 'CDN Image Optimization',
+        description: 'All photos are now served at the exact size needed — avatars, feed cards, stories, and chat images load faster with less data.',
       },
     ],
   },

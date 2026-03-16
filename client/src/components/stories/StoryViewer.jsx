@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Eye, Heart, Send, MoreVertical, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import { isVideoUrl } from '../../utils/mediaUtils';
+import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 
 export default function StoryViewer({ storyGroups, startIndex, currentUserId, isAdmin, onClose }) {
   const [groupIdx, setGroupIdx] = useState(startIndex);
@@ -239,7 +240,7 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center gap-3 p-4" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1.5rem)' }}>
           <img
-            src={Array.isArray(group.avatar) ? group.avatar[0] : group.avatar}
+            src={optimizeCloudinaryUrl(Array.isArray(group.avatar) ? group.avatar[0] : group.avatar, { width: 64, crop: 'fill' })}
             alt=""
             className="w-8 h-8 rounded-full object-cover border border-white/30"
           />
@@ -313,7 +314,7 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
             onLoadedMetadata={handleVideoMetadata}
           />
         ) : (
-          <img src={story.photo} alt="" className="w-full h-full object-cover" />
+          <img src={optimizeCloudinaryUrl(story.photo, { width: 1000 })} alt="" className="w-full h-full object-cover" />
         )}
 
         {/* Bottom area */}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 import StoryViewer from './StoryViewer';
 import CreateStory from './CreateStory';
 
@@ -66,7 +67,7 @@ export default function StoryBar() {
               <div className="relative">
                 {photo ? (
                   <img
-                    src={photo}
+                    src={optimizeCloudinaryUrl(photo, { width: 112, crop: 'fill' })}
                     alt={group.displayName}
                     className={`w-14 h-14 rounded-full object-cover ring-2 ${ringColor}`}
                   />

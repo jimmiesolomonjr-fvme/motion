@@ -5,6 +5,7 @@ import { Heart, Eye, MessageCircle, MapPin, BadgeCheck, Sparkles, Zap, Music, Pl
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { isOnline } from '../../utils/formatters';
 import { haptic } from '../../utils/haptics';
+import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 import DateEnergyBadge from '../ui/DateEnergyBadge';
 
 const stagger = (delay) => ({
@@ -101,7 +102,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
             />
           ) : photos.length > 0 ? (
             <img
-              src={photos[0]}
+              src={optimizeCloudinaryUrl(photos[0], { width: 800 })}
               alt={profile.displayName}
               loading="lazy"
               className={`w-full h-full object-cover transition-transform duration-[8000ms] ease-out ${
@@ -249,7 +250,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
               isVisible ? (
                 <motion.div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit" {...stagger(0.2)}>
                   {profile.songArtworkUrl ? (
-                    <img src={profile.songArtworkUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+                    <img src={optimizeCloudinaryUrl(profile.songArtworkUrl, { width: 80 })} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
                   ) : (
                     <Music size={14} className="text-purple-400 flex-shrink-0" />
                   )}
@@ -267,7 +268,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
               ) : (
                 <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 mb-3 w-fit">
                   {profile.songArtworkUrl ? (
-                    <img src={profile.songArtworkUrl} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
+                    <img src={optimizeCloudinaryUrl(profile.songArtworkUrl, { width: 80 })} alt="" className="w-7 h-7 rounded-md object-cover flex-shrink-0" />
                   ) : (
                     <Music size={14} className="text-purple-400 flex-shrink-0" />
                   )}

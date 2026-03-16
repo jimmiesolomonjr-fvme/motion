@@ -14,6 +14,7 @@ import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_
 import DateEnergyBadge from '../components/ui/DateEnergyBadge';
 import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
+import { optimizeCloudinaryUrl } from '../utils/cloudinaryUrl';
 import CreateStory from '../components/stories/CreateStory';
 import SongSearchModal from '../components/profile/SongSearchModal';
 import ImageCropper from '../components/ui/ImageCropper';
@@ -610,7 +611,7 @@ export default function Profile() {
                 loop
               />
             ) : photos.length > 0 ? (
-              <img src={selectedMedia} alt="" className="w-full aspect-[3/4] object-cover" />
+              <img src={optimizeCloudinaryUrl(selectedMedia, { width: 1000 })} alt="" className="w-full aspect-[3/4] object-cover" />
             ) : (
               <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
                 <span className="text-6xl">👤</span>
@@ -665,7 +666,7 @@ export default function Profile() {
                       </span>
                     </>
                   ) : (
-                    <img src={p} alt="" className="w-full h-full object-cover" />
+                    <img src={optimizeCloudinaryUrl(p, { width: 160 })} alt="" className="w-full h-full object-cover" />
                   )}
                 </div>
               ))}
@@ -967,7 +968,7 @@ export default function Profile() {
             {profile.songTitle && (
               <div className="flex items-center gap-2 bg-dark-50 rounded-full px-3 py-2 w-fit">
                 {profile.songArtworkUrl ? (
-                  <img src={profile.songArtworkUrl} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
+                  <img src={optimizeCloudinaryUrl(profile.songArtworkUrl, { width: 80 })} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0" />
                 ) : (
                   <Music size={14} className="text-purple-400 flex-shrink-0" />
                 )}

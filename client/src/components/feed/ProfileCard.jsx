@@ -5,6 +5,7 @@ import { Heart, MapPin, BadgeCheck, Sparkles, Zap, Play } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { haptic } from '../../utils/haptics';
+import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 import DateEnergyBadge from '../ui/DateEnergyBadge';
 
 function getVideoThumbnail(url) {
@@ -16,7 +17,9 @@ function getVideoThumbnail(url) {
 
 export default memo(function ProfileCard({ user, onLike, onUnlike }) {
   const rawPhoto = user.profile?.photos?.[0];
-  const photo = rawPhoto && isVideoUrl(rawPhoto) ? (getVideoThumbnail(rawPhoto) || null) : rawPhoto;
+  const photo = rawPhoto && isVideoUrl(rawPhoto)
+    ? optimizeCloudinaryUrl(getVideoThumbnail(rawPhoto))
+    : optimizeCloudinaryUrl(rawPhoto, { width: 500 });
 
   return (
     <div className="card-elevated overflow-hidden group">

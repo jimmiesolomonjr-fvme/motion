@@ -1,4 +1,5 @@
 import { User } from 'lucide-react';
+import { avatarUrl } from '../../utils/cloudinaryUrl';
 
 export default function Avatar({ src, name, size = 'md', online, className = '' }) {
   const sizes = {
@@ -8,7 +9,8 @@ export default function Avatar({ src, name, size = 'md', online, className = '' 
     xl: 'w-32 h-32',
   };
 
-  const photo = Array.isArray(src) ? src[0] : src;
+  const raw = Array.isArray(src) ? src[0] : src;
+  const photo = avatarUrl(raw, size);
 
   return (
     <div className={`relative ${className}`}>

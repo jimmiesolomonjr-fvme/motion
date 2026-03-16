@@ -1,5 +1,6 @@
 import { useState, useRef, memo } from 'react';
 import { Check, CheckCheck, Mic, X, Reply } from 'lucide-react';
+import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 
 const REACTION_EMOJIS = ['\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDE2E', '\uD83D\uDE22', '\uD83D\uDD25', '\uD83D\uDC4D'];
 
@@ -57,7 +58,7 @@ export default memo(function ChatBubble({ message, isOwn, onReact, currentUserId
           )}
           {isImage ? (
             <img
-              src={message.content}
+              src={optimizeCloudinaryUrl(message.content, { width: 500 })}
               alt=""
               className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer"
               onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
@@ -126,7 +127,7 @@ export default memo(function ChatBubble({ message, isOwn, onReact, currentUserId
         <button className="absolute top-4 right-4 text-white" onClick={() => setLightbox(false)}>
           <X size={24} />
         </button>
-        <img src={message.content} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
+        <img src={optimizeCloudinaryUrl(message.content)} alt="" className="max-w-full max-h-full object-contain rounded-lg" />
       </div>
     )}
     </>

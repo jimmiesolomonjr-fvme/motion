@@ -2,6 +2,7 @@ import { MapPin, Calendar, Users, BadgeCheck, Check, Trash2, Bookmark, Clock, Al
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import { formatDate } from '../../utils/formatters';
+import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 
 const CATEGORY_LABELS = {
   DINNER: 'Dinner',
@@ -24,7 +25,7 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
       {/* Move Photo */}
       {move.photo && (
         <div className="relative -mx-4 -mt-4 mb-4 rounded-t-xl overflow-hidden">
-          <img src={move.photo} alt={move.title} className="w-full h-44 object-cover" />
+          <img src={optimizeCloudinaryUrl(move.photo, { width: 600 })} alt={move.title} className="w-full h-44 object-cover" />
           {move.status === 'CONFIRMED' && (
             <span className="absolute top-2 left-2 px-2.5 py-1 bg-green-500/90 text-white text-xs font-semibold rounded-full">
               Confirmed
@@ -150,7 +151,7 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
       {interestedUsers.length === 1 && (
         <div className="flex items-center gap-2 mb-4">
           <img
-            src={interestedUsers[0].photo}
+            src={optimizeCloudinaryUrl(interestedUsers[0].photo, { width: 64, crop: 'fill' })}
             alt={interestedUsers[0].displayName}
             className="w-7 h-7 rounded-full object-cover border-2 border-dark"
           />
@@ -165,7 +166,7 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
             {interestedUsers.map((u) => (
               <img
                 key={u.id}
-                src={u.photo}
+                src={optimizeCloudinaryUrl(u.photo, { width: 64, crop: 'fill' })}
                 alt={u.displayName}
                 className="w-7 h-7 rounded-full object-cover border-2 border-dark ring-0"
               />
