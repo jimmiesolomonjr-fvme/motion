@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic, KeyRound, WifiOff, Image } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic, KeyRound, WifiOff, Image, Bot } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -459,6 +459,25 @@ const FEATURE_UPDATES = {
         bg: 'bg-gold/10',
         title: 'Your Turn / Sent Tabs',
         description: 'Messages are now split into "Your Turn" and "Sent" so you never miss a reply.',
+      },
+    ],
+  },
+  '2.21.0': {
+    subtitle: 'SMF notifications, upgraded.',
+    features: [
+      {
+        icon: Bot,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'SMF Messages from Motion',
+        description: 'Smash & Marry picks now send a notification from Motion telling you who picked you and what they chose.',
+      },
+      {
+        icon: Mail,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'SMF Email Alerts',
+        description: 'Get an email when someone picks Smash or Marry on you while you\'re away.',
       },
     ],
   },

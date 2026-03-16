@@ -44,10 +44,15 @@ function notificationEmailHtml(type, triggerName, triggerPhoto, unsubscribeUrl) 
     profile_view: `${triggerName} viewed your profile`,
     like: `${triggerName} liked you`,
     message: `${triggerName} sent you a message`,
+    smf_pick: `${triggerName} picked you in Smash Marry Friendzone`,
   };
   const headline = headlines[type] || `${triggerName} wants to connect`;
 
-  const ctaText = type === 'message' ? 'Read Message' : 'View Profile';
+  const ctaTexts = {
+    message: 'Read Message',
+    smf_pick: 'Open Motion',
+  };
+  const ctaText = ctaTexts[type] || 'View Profile';
   const appUrl = config.clientUrl || 'https://motionapp.up.railway.app';
 
   const photoHtml = triggerPhoto
@@ -175,6 +180,7 @@ export async function sendNotificationEmail(recipientId, type, triggerUserId) {
       profile_view: `${triggerName} viewed your profile on Motion`,
       like: `${triggerName} liked you on Motion`,
       message: `${triggerName} sent you a message on Motion`,
+      smf_pick: `${triggerName} rated you in SMF on Motion`,
     };
 
     await sendEmail({

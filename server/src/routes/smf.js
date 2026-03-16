@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
+import { sendNotificationEmail } from '../utils/emailNotifications.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -37,18 +38,8 @@ const SMF_NOTIFICATION = {
 };
 
 const SMF_INBOX_MESSAGES = {
-  smash: [
-    "I picked Smash on you in SMF... so yeah, I think you're fine 😏🔥",
-    "You got my Smash vote in SMF... just saying, you caught my eye 👀✨",
-    "Not gonna lie, you were my easiest Smash pick yet 😅🔥",
-    "Blame SMF but I had to pick Smash... your profile is dangerous 😂👀",
-  ],
-  marry: [
-    "I picked Marry on you in SMF... ring shopping might be premature, but hi 💍😂",
-    "You got my Marry vote. I see long-term vibes here 💒✨",
-    "SMF said Marry — I don't play about that one. Let's chat 💍😏",
-    "You just got a Marry in SMF... no pressure but save me a plus one 😂💍",
-  ],
+  smash: (name) => `${name} picked Smash on you in SMF 🔥`,
+  marry: (name) => `${name} picked Marry on you in SMF 💍`,
 };
 
 function randomNotification(pick, name) {
@@ -59,9 +50,8 @@ function randomNotification(pick, name) {
   return { title, body };
 }
 
-function randomInboxMessage(pick) {
-  const msgs = SMF_INBOX_MESSAGES[pick];
-  return msgs[Math.floor(Math.random() * msgs.length)];
+function getInboxMessage(pick, name) {
+  return SMF_INBOX_MESSAGES[pick](name);
 }
 
 function windowStart() {
@@ -211,8 +201,15 @@ router.post('/round', authenticate, async (req, res) => {
     const pickerPhoto = Array.isArray(pickerProfile?.photos) && pickerProfile.photos.length > 0
       ? pickerProfile.photos[0] : null;
 
+    // Fetch admin user (messages come from "Motion")
+    const adminUser = await prisma.user.findUnique({ where: { email: 'admin@motion.app' } });
+    if (!adminUser) {
+      return res.status(500).json({ error: 'Platform account not found' });
+    }
+
     // Create round + picks + inbox messages for Smash/Marry in a transaction
     const socketPayloads = []; // { targetId, notification?, message? }
+    const emailTargets = []; // { targetId, pickerId } for email notifications
     const round = await prisma.$transaction(async (tx) => {
       const r = await tx.smfRound.create({
         data: {
@@ -230,20 +227,20 @@ router.post('/round', authenticate, async (req, res) => {
       for (const p of picks) {
         if (p.pick === 'friendzone') continue;
 
-        // Upsert conversation (sort IDs for unique constraint)
-        const [user1Id, user2Id] = [req.userId, p.userId].sort();
+        // Upsert conversation between admin and target (sort IDs for unique constraint)
+        const [user1Id, user2Id] = [adminUser.id, p.userId].sort();
         const conversation = await tx.conversation.upsert({
           where: { user1Id_user2Id: { user1Id, user2Id } },
           create: { user1Id, user2Id },
           update: {},
         });
 
-        // Create inbox message from picker
-        const messageContent = randomInboxMessage(p.pick);
+        // Create inbox message from Motion (admin) with picker's name
+        const messageContent = getInboxMessage(p.pick, pickerName);
         const message = await tx.message.create({
           data: {
             conversationId: conversation.id,
-            senderId: req.userId,
+            senderId: adminUser.id,
             content: messageContent,
             contentType: 'TEXT',
           },
@@ -270,8 +267,10 @@ router.post('/round', authenticate, async (req, res) => {
         socketPayloads.push({
           targetId: p.userId,
           notification: { type: 'smf_pick', title, body, data: { pickerId: req.userId, pickerName, pickerPhoto, conversationId: conversation.id } },
-          message: { id: message.id, conversationId: conversation.id, senderId: req.userId, content: messageContent, contentType: 'TEXT', createdAt: message.createdAt },
+          message: { id: message.id, conversationId: conversation.id, senderId: adminUser.id, content: messageContent, contentType: 'TEXT', createdAt: message.createdAt },
         });
+
+        emailTargets.push({ targetId: p.userId, pickerId: req.userId });
       }
 
       return r;
@@ -289,6 +288,11 @@ router.post('/round', authenticate, async (req, res) => {
       }
     } catch (socketErr) {
       console.error('SMF socket emit error:', socketErr);
+    }
+
+    // Fire-and-forget email notifications
+    for (const { targetId, pickerId } of emailTargets) {
+      sendNotificationEmail(targetId, 'smf_pick', pickerId).catch(() => {});
     }
 
     const roundsLeft = MAX_ROUNDS_PER_WINDOW - (roundsInWindow + 1);

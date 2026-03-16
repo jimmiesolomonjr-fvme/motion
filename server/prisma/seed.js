@@ -1,7 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { jasminePhotos } from './jasmine-photos.js';
 import { uploadToCloud } from '../src/middleware/upload.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const prisma = new PrismaClient();
 
@@ -247,7 +253,7 @@ async function main() {
     console.log(`Vibe questions: seeded ${vibeQuestions.length} questions`);
   }
 
-  // Create test admin user
+  // Create test admin user (displays as "Motion" in conversations)
   const adminHash = await bcrypt.hash('admin12345', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@motion.app' },
@@ -261,19 +267,44 @@ async function main() {
     },
   });
 
+  // Upload icon-192.png as admin profile photo (check if already on Cloudinary)
+  const existingAdminProfile = await prisma.profile.findUnique({
+    where: { userId: admin.id },
+    select: { photos: true },
+  });
+  const existingAdminPhotos = Array.isArray(existingAdminProfile?.photos) ? existingAdminProfile.photos : [];
+  const adminAlreadyOnCloud = existingAdminPhotos.length > 0 && existingAdminPhotos.every(
+    (p) => typeof p === 'string' && p.includes('res.cloudinary.com')
+  );
+
+  let adminPhotoUrls = existingAdminPhotos;
+  if (!adminAlreadyOnCloud) {
+    try {
+      const iconPath = path.resolve(__dirname, '../../client/public/icon-192.png');
+      const iconBuffer = fs.readFileSync(iconPath);
+      const iconBase64 = `data:image/png;base64,${iconBuffer.toString('base64')}`;
+      const iconUrl = await uploadToCloud(iconBase64, 'motion/profiles');
+      adminPhotoUrls = [iconUrl];
+    } catch (err) {
+      console.error('Failed to upload admin icon:', err.message);
+      adminPhotoUrls = [];
+    }
+  }
+
   await prisma.profile.upsert({
     where: { userId: admin.id },
-    update: {},
+    update: { displayName: 'Motion', photos: adminPhotoUrls },
     create: {
       userId: admin.id,
-      displayName: 'Admin',
+      displayName: 'Motion',
       age: 25,
       city: 'Newark, NJ',
-      bio: 'Platform admin',
+      bio: 'Official Motion platform account',
+      photos: adminPhotoUrls,
     },
   });
 
-  console.log('Created admin user: admin@motion.app / admin12345');
+  console.log('Created admin user: admin@motion.app / admin12345 (displays as "Motion")');
 
   // Create Jasmine W dummy user
   const dummyPassword = await bcrypt.hash('motion123', 12);
