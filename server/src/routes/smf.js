@@ -296,8 +296,20 @@ router.post('/round', authenticate, async (req, res) => {
       console.error('SMF socket emit error:', socketErr);
     }
 
-    // Fire-and-forget email notifications
+    // Fire-and-forget email notifications (30-day cooldown per picker→target pair)
+    const smfCooldownDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     for (const { targetId, pickerId } of emailTargets) {
+      // Check for a previous smf_pick notification from this picker within 30 days
+      // (count > 1 because the transaction above already created one for this round)
+      const recentCount = await prisma.notification.count({
+        where: {
+          userId: targetId,
+          type: 'smf_pick',
+          data: { path: ['pickerId'], equals: pickerId },
+          createdAt: { gte: smfCooldownDate },
+        },
+      });
+      if (recentCount > 1) continue;
       sendNotificationEmail(targetId, 'smf_pick', pickerId).catch(() => {});
     }
 
