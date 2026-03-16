@@ -11,6 +11,15 @@ import { sendNotificationEmail } from '../utils/emailNotifications.js';
 const router = Router();
 const prisma = new PrismaClient();
 
+const DATE_ENERGY_TTL_MS = 24 * 60 * 60 * 1000;
+const ALLOWED_ENERGIES = ['Low-key tonight', 'Ready to go out', 'Just vibing', 'Looking for my person', 'Down for whatever'];
+
+function getActiveEnergy(user) {
+  if (!user.dateEnergy || !user.dateEnergySetAt) return null;
+  return (Date.now() - new Date(user.dateEnergySetAt).getTime()) < DATE_ENERGY_TTL_MS
+    ? user.dateEnergy : null;
+}
+
 const PROFILE_PROMPTS = [
   'My idea of motion is…',
   'A Stepper should always…',
@@ -278,6 +287,7 @@ router.get('/profile/:userId', authenticate, async (req, res) => {
       lastOnline: user.lastOnline,
       profilePrompts: user.profilePrompts,
       isPlug: referralCount > 0,
+      dateEnergy: getActiveEnergy(user),
     });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -301,12 +311,12 @@ router.put('/location', authenticate, async (req, res) => {
 // Browse feed
 router.get('/feed', authenticate, async (req, res) => {
   try {
-    const { sort = 'active', maxDistance, minAge, maxAge, tags, page: pageStr = '0', limit: limitStr = '12' } = req.query;
+    const { sort = 'active', maxDistance, minAge, maxAge, tags, energy, page: pageStr = '0', limit: limitStr = '12' } = req.query;
     const page = Math.max(0, parseInt(pageStr) || 0);
     const limit = Math.min(50, Math.max(1, parseInt(limitStr) || 12));
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, role: true, locationLat: true, locationLng: true },
+      select: { id: true, role: true, locationLat: true, locationLng: true, dateEnergy: true, dateEnergySetAt: true },
     });
 
     // Get blocked user IDs (both directions)
@@ -321,7 +331,13 @@ router.get('/feed', authenticate, async (req, res) => {
     });
     const hiddenIds = hiddenPairs.map((h) => (h.user1Id === req.userId ? h.user2Id : h.user1Id));
 
-    const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds])];
+    // Get user-hidden IDs (one-directional)
+    const userHides = await prisma.userHide.findMany({
+      where: { hiderId: req.userId },
+    });
+    const userHiddenIds = userHides.map((h) => h.hiddenId);
+
+    const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds, ...userHiddenIds])];
 
     // Check if dummy users should be shown
     const showDummySetting = await prisma.appSetting.findUnique({ where: { key: 'showDummyUsers' } });
@@ -420,6 +436,7 @@ router.get('/feed', authenticate, async (req, res) => {
         vibeScore,
         hasLiked: likedIds.has(user.id),
         isPlug: (referralCountMap.get(user.id) || 0) > 0,
+        dateEnergy: getActiveEnergy(user),
       };
     });
 
@@ -429,6 +446,16 @@ router.get('/feed', authenticate, async (req, res) => {
         const userTags = Array.isArray(u.profile?.lookingForTags) ? u.profile.lookingForTags : [];
         return parsedTags.some(tag => userTags.includes(tag));
       });
+    }
+
+    // Filter by energy
+    if (energy) {
+      const currentEnergy = getActiveEnergy(currentUser);
+      if (energy === 'same' && currentEnergy) {
+        results = results.filter((u) => u.dateEnergy === currentEnergy);
+      } else if (energy !== 'same') {
+        results = results.filter((u) => u.dateEnergy === energy);
+      }
     }
 
     // Filter by distance
@@ -442,6 +469,13 @@ router.get('/feed', authenticate, async (req, res) => {
       results.sort((a, b) => (a.distance ?? 9999) - (b.distance ?? 9999));
     } else if (sort === 'vibe') {
       results.sort((a, b) => (b.vibeScore ?? 0) - (a.vibeScore ?? 0));
+    } else if (sort === 'energy') {
+      const currentEnergy = getActiveEnergy(currentUser);
+      results.sort((a, b) => {
+        const aMatch = a.dateEnergy && a.dateEnergy === currentEnergy ? 1 : 0;
+        const bMatch = b.dateEnergy && b.dateEnergy === currentEnergy ? 1 : 0;
+        return bMatch - aMatch;
+      });
     }
     // 'active' and 'newest' are handled by the DB orderBy
 
@@ -636,6 +670,45 @@ router.get('/preferences', authenticate, async (req, res) => {
   }
 });
 
+// Set date energy
+router.put('/energy', authenticate, async (req, res) => {
+  try {
+    const { energy } = req.body;
+    if (energy === null || energy === undefined) {
+      await prisma.user.update({
+        where: { id: req.userId },
+        data: { dateEnergy: null, dateEnergySetAt: null },
+      });
+      return res.json({ dateEnergy: null });
+    }
+    if (!ALLOWED_ENERGIES.includes(energy)) {
+      return res.status(400).json({ error: 'Invalid energy value' });
+    }
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { dateEnergy: energy, dateEnergySetAt: new Date() },
+    });
+    res.json({ dateEnergy: energy });
+  } catch (error) {
+    console.error('Set energy error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get date energy
+router.get('/energy', authenticate, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { dateEnergy: true, dateEnergySetAt: true },
+    });
+    res.json({ dateEnergy: getActiveEnergy(user) });
+  } catch (error) {
+    console.error('Get energy error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Update vibe preferences
 router.put('/preferences', authenticate, async (req, res) => {
   try {
@@ -676,12 +749,12 @@ router.delete('/profile-song', authenticate, async (req, res) => {
 // Vertical discovery feed (richer data, smaller pages)
 router.get('/feed/vertical', authenticate, async (req, res) => {
   try {
-    const { sort = 'active', maxDistance, minAge, maxAge, tags, page: pageStr = '0', limit: limitStr = '5' } = req.query;
+    const { sort = 'active', maxDistance, minAge, maxAge, tags, energy, page: pageStr = '0', limit: limitStr = '5' } = req.query;
     const page = Math.max(0, parseInt(pageStr) || 0);
     const limit = Math.min(20, Math.max(1, parseInt(limitStr) || 5));
     const currentUser = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, role: true, locationLat: true, locationLng: true, showVibeInFeed: true },
+      select: { id: true, role: true, locationLat: true, locationLng: true, showVibeInFeed: true, dateEnergy: true, dateEnergySetAt: true },
     });
 
     const blocks = await prisma.block.findMany({
@@ -694,7 +767,13 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
     });
     const hiddenIds = hiddenPairs.map((h) => (h.user1Id === req.userId ? h.user2Id : h.user1Id));
 
-    const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds])];
+    // Get user-hidden IDs (one-directional)
+    const vertUserHides = await prisma.userHide.findMany({
+      where: { hiderId: req.userId },
+    });
+    const vertUserHiddenIds = vertUserHides.map((h) => h.hiddenId);
+
+    const excludeIds = [...new Set([req.userId, ...blockedIds, ...hiddenIds, ...vertUserHiddenIds])];
 
     const showDummySetting = await prisma.appSetting.findUnique({ where: { key: 'showDummyUsers' } });
     const hideDummies = showDummySetting?.value !== 'true';
@@ -801,6 +880,7 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
         recentVibe,
         hasLiked: likedIds.has(user.id),
         isPlug: (referralCountMap.get(user.id) || 0) > 0,
+        dateEnergy: getActiveEnergy(user),
       };
     });
 
@@ -813,6 +893,16 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       });
     }
 
+    // Filter by energy
+    if (energy) {
+      const currentEnergy = getActiveEnergy(currentUser);
+      if (energy === 'same' && currentEnergy) {
+        results = results.filter((u) => u.dateEnergy === currentEnergy);
+      } else if (energy !== 'same') {
+        results = results.filter((u) => u.dateEnergy === energy);
+      }
+    }
+
     if (maxDistance && currentUser.locationLat) {
       const maxDist = parseInt(maxDistance);
       results = results.filter((u) => u.distance !== null && u.distance <= maxDist);
@@ -822,6 +912,13 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       results.sort((a, b) => (a.distance ?? 9999) - (b.distance ?? 9999));
     } else if (sort === 'vibe') {
       results.sort((a, b) => (b.vibeScore ?? 0) - (a.vibeScore ?? 0));
+    } else if (sort === 'energy') {
+      const currentEnergy = getActiveEnergy(currentUser);
+      results.sort((a, b) => {
+        const aMatch = a.dateEnergy && a.dateEnergy === currentEnergy ? 1 : 0;
+        const bMatch = b.dateEnergy && b.dateEnergy === currentEnergy ? 1 : 0;
+        return bMatch - aMatch;
+      });
     }
 
     const start = page * limit;

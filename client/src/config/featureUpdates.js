@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, Mic, KeyRound, WifiOff, Image, Bot } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -478,6 +478,30 @@ const FEATURE_UPDATES = {
         bg: 'bg-blue-400/10',
         title: 'SMF Email Alerts',
         description: 'Get an email when someone picks Smash or Marry on you while you\'re away.',
+      },
+    ],
+  },
+  '2.22.0': {
+    subtitle: 'Your feed, your rules.',
+    features: [
+      {
+        icon: EyeOff,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Hide Users',
+        description: 'Not interested? Hide anyone from your feed, SMF, and matches without blocking them. Manage hidden users in Settings.',
+      },
+    ],
+  },
+  '2.23.0': {
+    subtitle: 'Show your vibe before you swipe.',
+    features: [
+      {
+        icon: Activity,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Date Energy',
+        description: 'Set your mood — "Low-key tonight," "Ready to go out," and more. It shows on your card so people know where your head is at.',
       },
     ],
   },

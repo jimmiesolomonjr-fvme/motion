@@ -8,6 +8,7 @@ import Landing from './pages/Landing';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import FeatureUpdatesOverlay from './components/ui/FeatureUpdatesOverlay';
+import DateEnergyOverlay from './components/ui/DateEnergyOverlay';
 
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
@@ -69,6 +70,7 @@ function AppRoutes() {
   return (
     <>
     <FeatureUpdatesOverlay />
+    <DateEnergyOverlay />
     <Suspense fallback={<FullScreenSpinner />}>
     <Routes>
       {/* Public */}

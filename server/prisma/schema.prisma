@@ -60,6 +60,8 @@ model User {
   showVibeInFeed            Boolean @default(true)
   afterDarkEnabled     Boolean @default(false)
   autoplayMusic        Boolean @default(true)
+  dateEnergy      String?
+  dateEnergySetAt DateTime?
   referralCode String?  @unique
   referredBy   String?
   lastOnline   DateTime @default(now())
@@ -93,6 +95,8 @@ model User {
   savedMoves        SavedMove[]
   hiddenFrom    HiddenPair[] @relation("HiddenUser1")
   hiddenTo      HiddenPair[] @relation("HiddenUser2")
+  hiddenByMe    UserHide[]   @relation("Hider")
+  hiddenToMe    UserHide[]   @relation("Hidden")
   profileViews     ProfileView[] @relation("Viewer")
   profileViewedBy  ProfileView[] @relation("Viewed")
   notifications    Notification[]
@@ -214,6 +218,18 @@ model Block {
   blocked User @relation("Blocked", fields: [blockedId], references: [id])
 
   @@unique([blockerId, blockedId])
+}
+
+model UserHide {
+  id        String   @id @default(uuid())
+  hiderId   String
+  hiddenId  String
+  createdAt DateTime @default(now())
+
+  hider  User @relation("Hider", fields: [hiderId], references: [id])
+  hidden User @relation("Hidden", fields: [hiddenId], references: [id])
+
+  @@unique([hiderId, hiddenId])
 }
 
 model VibeQuestion {

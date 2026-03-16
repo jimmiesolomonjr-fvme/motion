@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { LOOKING_FOR_TAGS } from '../../utils/constants';
+import { LOOKING_FOR_TAGS, DATE_ENERGY_OPTIONS } from '../../utils/constants';
 
-export default function FeedFilters({ sort, setSort, ageRange, maxDistance, selectedTags, onApply, externalOpen, onExternalClose }) {
+export default function FeedFilters({ sort, setSort, ageRange, maxDistance, selectedTags, energyFilter, onApply, externalOpen, onExternalClose }) {
   const [showOverlay, setShowOverlay] = useState(false);
   const [pendingAge, setPendingAge] = useState(ageRange);
   const [pendingDistance, setPendingDistance] = useState(maxDistance);
   const [pendingTags, setPendingTags] = useState(selectedTags || []);
+  const [pendingEnergy, setPendingEnergy] = useState(energyFilter || '');
 
   // Sync overlay state with parent open/close
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
       setPendingAge(ageRange);
       setPendingDistance(maxDistance);
       setPendingTags(selectedTags || []);
+      setPendingEnergy(energyFilter || '');
       setShowOverlay(true);
     } else {
       setShowOverlay(false);
@@ -26,9 +28,10 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
     { value: 'newest', label: 'Newest' },
     { value: 'distance', label: 'Nearest' },
     { value: 'vibe', label: 'Best Vibe' },
+    { value: 'energy', label: 'Energy Match' },
   ];
 
-  const hasActiveFilters = ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100 || (selectedTags && selectedTags.length > 0);
+  const hasActiveFilters = ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100 || (selectedTags && selectedTags.length > 0) || !!energyFilter;
 
   const closeOverlay = () => {
     setShowOverlay(false);
@@ -36,7 +39,7 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
   };
 
   const handleApply = () => {
-    onApply({ ageRange: pendingAge, maxDistance: pendingDistance, tags: pendingTags });
+    onApply({ ageRange: pendingAge, maxDistance: pendingDistance, tags: pendingTags, energy: pendingEnergy });
     closeOverlay();
   };
 
@@ -44,7 +47,8 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
     setPendingAge([18, 99]);
     setPendingDistance(100);
     setPendingTags([]);
-    onApply({ ageRange: [18, 99], maxDistance: 100, tags: [] });
+    setPendingEnergy('');
+    onApply({ ageRange: [18, 99], maxDistance: 100, tags: [], energy: '' });
     closeOverlay();
   };
 
@@ -171,6 +175,41 @@ export default function FeedFilters({ sort, setSort, ageRange, maxDistance, sele
                       }`}
                     >
                       {tag}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Date Energy */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                Date Energy {pendingEnergy && <span className="text-gold">(1)</span>}
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setPendingEnergy(pendingEnergy === 'same' ? '' : 'same')}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    pendingEnergy === 'same'
+                      ? 'bg-gold text-dark'
+                      : 'bg-dark-50 text-gray-400 border border-dark-100 hover:text-white'
+                  }`}
+                >
+                  Same as mine
+                </button>
+                {DATE_ENERGY_OPTIONS.map((opt) => {
+                  const isSelected = pendingEnergy === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setPendingEnergy(isSelected ? '' : opt.value)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        isSelected
+                          ? `${opt.bg} ${opt.color} border ${opt.border}`
+                          : 'bg-dark-50 text-gray-400 border border-dark-100 hover:text-white'
+                      }`}
+                    >
+                      {opt.emoji} {opt.value}
                     </button>
                   );
                 })}

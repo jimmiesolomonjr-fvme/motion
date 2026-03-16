@@ -21,6 +21,7 @@ export default function Feed() {
   const [ageRange, setAgeRange] = useState([18, 99]);
   const [maxDistance, setMaxDistance] = useState(100);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [energyFilter, setEnergyFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [matchModal, setMatchModal] = useState(null);
   const [page, setPage] = useState(0);
@@ -48,6 +49,7 @@ export default function Feed() {
       if (ageRange[1] !== 99) params.maxAge = ageRange[1];
       if (maxDistance < 100) params.maxDistance = maxDistance;
       if (selectedTags.length > 0) params.tags = selectedTags.join(',');
+      if (energyFilter) params.energy = energyFilter;
 
       const { data } = await api.get('/users/feed', { params });
       if (pageNum === 0) {
@@ -62,7 +64,7 @@ export default function Feed() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [sort, ageRange, maxDistance, selectedTags]);
+  }, [sort, ageRange, maxDistance, selectedTags, energyFilter]);
 
   const fetchVerticalFeed = useCallback(async (pageNum) => {
     if (pageNum === 0) setVerticalLoading(true);
@@ -73,6 +75,7 @@ export default function Feed() {
       if (ageRange[1] !== 99) params.maxAge = ageRange[1];
       if (maxDistance < 100) params.maxDistance = maxDistance;
       if (selectedTags.length > 0) params.tags = selectedTags.join(',');
+      if (energyFilter) params.energy = energyFilter;
 
       const { data } = await api.get('/users/feed/vertical', { params });
       if (pageNum === 0) {
@@ -87,7 +90,7 @@ export default function Feed() {
       setVerticalLoading(false);
       setVerticalLoadingMore(false);
     }
-  }, [sort, ageRange, maxDistance, selectedTags]);
+  }, [sort, ageRange, maxDistance, selectedTags, energyFilter]);
 
   // Reset to page 0 when filters change
   useEffect(() => {
@@ -98,7 +101,7 @@ export default function Feed() {
     } else {
       fetchVerticalFeed(0);
     }
-  }, [sort, ageRange[0], ageRange[1], maxDistance, selectedTags]);
+  }, [sort, ageRange[0], ageRange[1], maxDistance, selectedTags, energyFilter]);
 
   // Fetch when switching view modes
   useEffect(() => {
@@ -137,10 +140,11 @@ export default function Feed() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loading, viewMode]);
 
-  const handleApplyFilters = ({ ageRange: newAge, maxDistance: newDist, tags: newTags }) => {
+  const handleApplyFilters = ({ ageRange: newAge, maxDistance: newDist, tags: newTags, energy: newEnergy }) => {
     setAgeRange(newAge);
     setMaxDistance(newDist);
     if (newTags !== undefined) setSelectedTags(newTags);
+    if (newEnergy !== undefined) setEnergyFilter(newEnergy);
   };
 
   const handleUnlike = async (userId) => {
@@ -193,6 +197,7 @@ export default function Feed() {
         sort={sort} setSort={setSort}
         ageRange={ageRange} maxDistance={maxDistance}
         selectedTags={selectedTags}
+        energyFilter={energyFilter}
         onApply={handleApplyFilters}
         externalOpen={showFilters}
         onExternalClose={() => setShowFilters(false)}
@@ -218,7 +223,7 @@ export default function Feed() {
       <button
         onClick={() => setShowFilters(true)}
         className={`fixed bottom-[9.5rem] right-4 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform ${
-          ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100 || selectedTags.length > 0
+          ageRange[0] !== 18 || ageRange[1] !== 99 || maxDistance !== 100 || selectedTags.length > 0 || energyFilter
             ? 'bg-purple-500 text-white'
             : 'bg-dark-100 text-gray-300 border border-dark-50'
         }`}

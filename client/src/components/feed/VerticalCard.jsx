@@ -5,6 +5,7 @@ import { Heart, Eye, MessageCircle, MapPin, BadgeCheck, Sparkles, Zap, Music, Pl
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { isOnline } from '../../utils/formatters';
 import { haptic } from '../../utils/haptics';
+import DateEnergyBadge from '../ui/DateEnergyBadge';
 
 const stagger = (delay) => ({
   initial: { opacity: 0, y: 12 },
@@ -205,6 +206,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
                   {[profile.height, profile.occupation].filter(Boolean).join(' \u00b7 ')}
                 </p>
               )}
+              {user.dateEnergy && <div className="mt-1"><DateEnergyBadge energy={user.dateEnergy} size="sm" /></div>}
             </motion.div>
           ) : (
             <div className="absolute bottom-4 left-4 right-4 z-10">
@@ -233,6 +235,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
                   {[profile.height, profile.occupation].filter(Boolean).join(' \u00b7 ')}
                 </p>
               )}
+              {user.dateEnergy && <div className="mt-1"><DateEnergyBadge energy={user.dateEnergy} size="sm" /></div>}
             </div>
           )}
         </div>

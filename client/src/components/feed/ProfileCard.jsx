@@ -5,6 +5,7 @@ import { Heart, MapPin, BadgeCheck, Sparkles, Zap, Play } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { haptic } from '../../utils/haptics';
+import DateEnergyBadge from '../ui/DateEnergyBadge';
 
 function getVideoThumbnail(url) {
   if (url && url.includes('/video/upload/')) {
@@ -66,6 +67,7 @@ export default memo(function ProfileCard({ user, onLike, onUnlike }) {
               <span>{user.profile?.city}</span>
               {user.distance !== null && <span>· {user.distance}mi</span>}
             </div>
+            {user.dateEnergy && <DateEnergyBadge energy={user.dateEnergy} size="sm" />}
           </div>
         </div>
       </Link>

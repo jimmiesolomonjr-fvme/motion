@@ -71,4 +71,12 @@ export const LOOKING_FOR_TAGS = [
 
 export const MAX_LOOKING_FOR_TAGS = 5;
 
-export const APP_VERSION = '2.21.0';
+export const APP_VERSION = '2.23.0';
+
+export const DATE_ENERGY_OPTIONS = [
+  { value: 'Low-key tonight', emoji: '🌙', color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },
+  { value: 'Ready to go out', emoji: '🔥', color: 'text-orange-400', bg: 'bg-orange-400/10', border: 'border-orange-400/20' },
+  { value: 'Just vibing', emoji: '😎', color: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/20' },
+  { value: 'Looking for my person', emoji: '❤️', color: 'text-pink-400', bg: 'bg-pink-400/10', border: 'border-pink-400/20' },
+  { value: 'Down for whatever', emoji: '⚡', color: 'text-gold', bg: 'bg-gold/10', border: 'border-gold/20' },
+];

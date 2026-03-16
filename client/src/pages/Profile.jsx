@@ -8,9 +8,10 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase, Mic, Square, Loader } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, EyeOff, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase, Mic, Square, Loader } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
 import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_OPTIONS, LOOKING_FOR_TAGS, MAX_LOOKING_FOR_TAGS } from '../utils/constants';
+import DateEnergyBadge from '../components/ui/DateEnergyBadge';
 import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
 import CreateStory from '../components/stories/CreateStory';
@@ -299,6 +300,15 @@ export default function Profile() {
       navigate('/feed');
     } catch (err) {
       console.error('Block error:', err);
+    }
+  };
+
+  const handleHide = async () => {
+    try {
+      await api.post('/reports/hide', { hiddenId: userId });
+      navigate('/feed');
+    } catch (err) {
+      console.error('Hide error:', err);
     }
   };
 
@@ -923,6 +933,7 @@ export default function Profile() {
                       <Zap size={10} /> The Plug
                     </span>
                   )}
+                  {!isOwnProfile && profile.dateEnergy && <DateEnergyBadge energy={profile.dateEnergy} size="sm" />}
                   <span className="flex items-center gap-1 text-sm text-gray-400">
                     <MapPin size={14} /> {profile.city}
                   </span>
@@ -1151,6 +1162,9 @@ export default function Profile() {
                 <div className="flex gap-2">
                   <Button variant="ghost" className="flex-1 text-sm" onClick={() => setReportModal(true)}>
                     <Flag size={14} className="inline mr-1" /> Report
+                  </Button>
+                  <Button variant="ghost" className="flex-1 text-sm" onClick={handleHide}>
+                    <EyeOff size={14} className="inline mr-1" /> Hide
                   </Button>
                   <Button variant="ghost" className="flex-1 text-sm text-red-400" onClick={handleBlock}>
                     <Ban size={14} className="inline mr-1" /> Block
