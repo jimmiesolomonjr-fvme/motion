@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { MapPin, Calendar, Users, BadgeCheck, Check, Trash2, Bookmark, Clock, AlertTriangle, Edit3, Sparkles } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
@@ -147,16 +148,21 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
         </div>
       )}
 
-      {/* Interested users (visible to creator) */}
+      {/* Interested users */}
       {interestedUsers.length === 1 && (
         <div className="flex items-center gap-2 mb-4">
-          <img
-            src={optimizeCloudinaryUrl(interestedUsers[0].photo, { width: 64, crop: 'fill' })}
-            alt={interestedUsers[0].displayName}
-            className="w-7 h-7 rounded-full object-cover border-2 border-dark"
-          />
+          <Link to={`/profile/${interestedUsers[0].id}`}>
+            <img
+              src={optimizeCloudinaryUrl(interestedUsers[0].photo, { width: 64, crop: 'fill' })}
+              alt={interestedUsers[0].displayName}
+              className="w-7 h-7 rounded-full object-cover border-2 border-dark"
+            />
+          </Link>
           <span className="text-xs text-gray-300">
-            <span className="text-white font-medium">{interestedUsers[0].displayName}</span> is interested
+            <Link to={`/profile/${interestedUsers[0].id}`} className="text-white font-medium hover:underline">
+              {interestedUsers[0].displayName}
+            </Link>
+            {isCommunityMove ? ' wants to go' : ' is interested'}
           </span>
         </div>
       )}
@@ -164,16 +170,19 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
         <div className="flex items-center gap-2 mb-4">
           <div className="flex -space-x-2">
             {interestedUsers.map((u) => (
-              <img
-                key={u.id}
-                src={optimizeCloudinaryUrl(u.photo, { width: 64, crop: 'fill' })}
-                alt={u.displayName}
-                className="w-7 h-7 rounded-full object-cover border-2 border-dark ring-0"
-              />
+              <Link key={u.id} to={`/profile/${u.id}`}>
+                <img
+                  src={optimizeCloudinaryUrl(u.photo, { width: 64, crop: 'fill' })}
+                  alt={u.displayName}
+                  className="w-7 h-7 rounded-full object-cover border-2 border-dark ring-0"
+                />
+              </Link>
             ))}
           </div>
           <span className="text-xs text-gray-400">
-            {move.interestCount} interested
+            {isCommunityMove
+              ? `${interestedUsers.length} ${userRole === 'STEPPER' ? 'Baddies' : 'Steppers'} want to go`
+              : `${move.interestCount} interested`}
           </span>
         </div>
       )}

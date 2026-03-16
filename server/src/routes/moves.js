@@ -214,8 +214,8 @@ router.get('/', authenticate, async (req, res) => {
         stepper: { include: { profile: true } },
         _count: { select: { interests: true } },
         interests: {
-          take: 3,
-          include: { user: { include: { profile: { select: { photos: true, displayName: true } } } } },
+          take: 5,
+          include: { user: { select: { id: true, role: true, profile: { select: { photos: true, displayName: true } } } } },
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -262,11 +262,28 @@ router.get('/', authenticate, async (req, res) => {
         isSaved: savedMoveIds.has(m.id),
         interestClosingSoon: hoursUntil <= 4 && hoursUntil > 2,
         interestClosed: hoursUntil <= 2,
-        interestedUsers: isCreator(m) ? m.interests.map((i) => ({
-          id: i.user.id,
-          displayName: i.user.profile?.displayName,
-          photo: Array.isArray(i.user.profile?.photos) ? i.user.profile.photos[0] : null,
-        })) : [],
+        interestedUsers: (() => {
+          if (isCreator(m)) {
+            // Creator sees all interested users
+            return m.interests.map((i) => ({
+              id: i.user.id,
+              displayName: i.user.profile?.displayName,
+              photo: Array.isArray(i.user.profile?.photos) ? i.user.profile.photos[0] : null,
+            }));
+          }
+          if (m.creator.isDummy) {
+            // Community Move: show opposite-role interested users (excluding self)
+            const oppositeRole = req.userRole === 'STEPPER' ? 'BADDIE' : 'STEPPER';
+            return m.interests
+              .filter((i) => i.user.role === oppositeRole && i.user.id !== req.userId)
+              .map((i) => ({
+                id: i.user.id,
+                displayName: i.user.profile?.displayName,
+                photo: Array.isArray(i.user.profile?.photos) ? i.user.profile.photos[0] : null,
+              }));
+          }
+          return [];
+        })(),
         creator: {
           id: m.creator.id,
           role: m.creator.role,
