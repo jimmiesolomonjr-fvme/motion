@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { APP_VERSION, DATE_ENERGY_OPTIONS } from '../../utils/constants';
 import api from '../../services/api';
 
-const SESSION_KEY = 'motion_date_energy_set';
+const STORAGE_KEY = 'motion_date_energy_ts';
+const COOLDOWN_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 export default function DateEnergyOverlay() {
   const { user } = useAuth();
@@ -16,10 +17,16 @@ export default function DateEnergyOverlay() {
     // Don't show if FeatureUpdatesOverlay hasn't been dismissed for this version yet
     const lastSeen = localStorage.getItem('motion_last_seen_version');
     if (lastSeen !== APP_VERSION) return;
-    // Once per session
-    if (sessionStorage.getItem(SESSION_KEY)) return;
+    // Only show every 4 hours
+    const lastAsked = parseInt(localStorage.getItem(STORAGE_KEY) || '0', 10);
+    if (Date.now() - lastAsked < COOLDOWN_MS) return;
     setShow(true);
   }, [user]);
+
+  const dismiss = () => {
+    localStorage.setItem(STORAGE_KEY, String(Date.now()));
+    setShow(false);
+  };
 
   const selectEnergy = async (value) => {
     setSaving(true);
@@ -28,14 +35,12 @@ export default function DateEnergyOverlay() {
     } catch (err) {
       console.error('Set energy error:', err);
     }
-    sessionStorage.setItem(SESSION_KEY, '1');
     setSaving(false);
-    setShow(false);
+    dismiss();
   };
 
   const skip = () => {
-    sessionStorage.setItem(SESSION_KEY, '1');
-    setShow(false);
+    dismiss();
   };
 
   if (!show) return null;
