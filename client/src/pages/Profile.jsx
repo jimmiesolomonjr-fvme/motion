@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/layout/AppLayout';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -8,9 +9,9 @@ import Input, { Textarea } from '../components/ui/Input';
 import LocationAutocomplete from '../components/ui/LocationAutocomplete';
 import Modal from '../components/ui/Modal';
 import VibeScore from '../components/vibe-check/VibeScore';
-import { BadgeCheck, MapPin, Heart, Flag, Ban, EyeOff, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase, Mic, Square, Loader } from 'lucide-react';
+import { BadgeCheck, MapPin, Heart, Flag, Ban, EyeOff, Edit3, Camera, Crown, Sparkles, X, MessageCircle, Plus, Trash2, Check, Zap, Flame, Calendar, VolumeX, Volume2, Music, Play, Pause, Ruler, Briefcase, Mic, Square, Loader, Activity } from 'lucide-react';
 import { isOnline } from '../utils/formatters';
-import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_OPTIONS, LOOKING_FOR_TAGS, MAX_LOOKING_FOR_TAGS } from '../utils/constants';
+import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_OPTIONS, LOOKING_FOR_TAGS, MAX_LOOKING_FOR_TAGS, DATE_ENERGY_OPTIONS } from '../utils/constants';
 import DateEnergyBadge from '../components/ui/DateEnergyBadge';
 import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
@@ -75,6 +76,10 @@ export default function Profile() {
   const voicePlayerRef = useRef(null);
   const voiceTimerRef = useRef(null);
   const [voiceRecordTime, setVoiceRecordTime] = useState(0);
+
+  // Date Energy picker state
+  const [energyPickerOpen, setEnergyPickerOpen] = useState(false);
+  const [energySaving, setEnergySaving] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -485,6 +490,18 @@ export default function Profile() {
     } catch (err) {
       console.error('Song delete error:', err);
     }
+  };
+
+  const handleEnergySelect = async (value) => {
+    setEnergySaving(true);
+    try {
+      await api.put('/users/energy', { energy: value });
+      setProfile({ ...profile, dateEnergy: value });
+    } catch (err) {
+      console.error('Set energy error:', err);
+    }
+    setEnergySaving(false);
+    setEnergyPickerOpen(false);
   };
 
   const addPromptSlot = () => {
@@ -934,7 +951,7 @@ export default function Profile() {
                       <Zap size={10} /> The Plug
                     </span>
                   )}
-                  {!isOwnProfile && profile.dateEnergy && <DateEnergyBadge energy={profile.dateEnergy} size="sm" />}
+                  {profile.dateEnergy && <DateEnergyBadge energy={profile.dateEnergy} size="sm" />}
                   <span className="flex items-center gap-1 text-sm text-gray-400">
                     <MapPin size={14} /> {profile.city}
                   </span>
@@ -1292,6 +1309,70 @@ export default function Profile() {
           onClose={() => setShowCreateStory(false)}
         />
       )}
+
+      {/* Date Energy FAB (own profile, view mode) */}
+      {isOwnProfile && !editing && (
+        <button
+          onClick={() => setEnergyPickerOpen(true)}
+          className="fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full bg-dark-100 border border-dark-50 shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          title="Change your energy"
+        >
+          {profile.dateEnergy ? (
+            <span className="text-xl">{DATE_ENERGY_OPTIONS.find((o) => o.value === profile.dateEnergy)?.emoji || '⚡'}</span>
+          ) : (
+            <Activity size={20} className="text-gold" />
+          )}
+        </button>
+      )}
+
+      {/* Date Energy Picker Sheet */}
+      <AnimatePresence>
+        {energyPickerOpen && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-end justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEnergyPickerOpen(false)} />
+            <motion.div
+              className="relative w-full max-w-lg bg-dark-100/95 backdrop-blur-xl rounded-t-3xl p-6 pb-8"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            >
+              <div className="w-10 h-1 bg-gray-600 rounded-full mx-auto mb-5" />
+              <div className="text-center mb-6">
+                <h2 className="text-xl font-bold text-white mb-1">What's your energy?</h2>
+                <p className="text-sm text-gray-400">Let people know your vibe right now</p>
+              </div>
+              <div className="space-y-2.5 mb-6">
+                {DATE_ENERGY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleEnergySelect(opt.value)}
+                    disabled={energySaving}
+                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border ${opt.border} ${opt.bg} transition-all active:scale-[0.98] disabled:opacity-50 ${
+                      profile.dateEnergy === opt.value ? 'ring-2 ring-white/30' : ''
+                    }`}
+                  >
+                    <span className="text-2xl">{opt.emoji}</span>
+                    <span className={`font-semibold text-sm ${opt.color}`}>{opt.value}</span>
+                    {profile.dateEnergy === opt.value && <Check size={16} className="ml-auto text-white" />}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setEnergyPickerOpen(false)}
+                className="w-full text-center text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppLayout>
   );
 }
