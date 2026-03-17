@@ -306,6 +306,11 @@ router.get('/', authenticate, async (req, res) => {
     // User-created moves always show before Motion (community/dummy) moves
     const userMoves = result.filter((m) => !m.creator.isDummy);
     const communityMoves = result.filter((m) => m.creator.isDummy);
+    // Community moves: most interest first, then soonest expiration
+    communityMoves.sort((a, b) => {
+      if (b.interestCount !== a.interestCount) return b.interestCount - a.interestCount;
+      return new Date(a.date) - new Date(b.date);
+    });
     result = [...userMoves, ...communityMoves];
 
     res.json(result);
