@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -6,17 +6,25 @@ import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 import StoryViewer from './StoryViewer';
 import CreateStory from './CreateStory';
 
+const FILTERS = [
+  { label: 'All', value: '' },
+  { label: 'Baddies', value: 'BADDIE' },
+  { label: 'Steppers', value: 'STEPPER' },
+];
+
 export default function StoryBar() {
   const { user } = useAuth();
   const [storyGroups, setStoryGroups] = useState([]);
   const [viewerIndex, setViewerIndex] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [roleFilter, setRoleFilter] = useState('');
 
-  const fetchStories = () => {
-    api.get('/stories').then(({ data }) => setStoryGroups(data)).catch(() => {});
-  };
+  const fetchStories = useCallback(() => {
+    const params = roleFilter ? `?role=${roleFilter}` : '';
+    api.get(`/stories${params}`).then(({ data }) => setStoryGroups(data)).catch(() => {});
+  }, [roleFilter]);
 
-  useEffect(() => { fetchStories(); }, []);
+  useEffect(() => { fetchStories(); }, [fetchStories]);
 
   const handleAvatarClick = (index) => {
     const group = storyGroups[index];
@@ -38,6 +46,23 @@ export default function StoryBar() {
 
   return (
     <>
+      {/* Filter chips */}
+      <div className="flex gap-1.5 mb-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            onClick={() => setRoleFilter(f.value)}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+              roleFilter === f.value
+                ? 'bg-gold text-dark'
+                : 'bg-dark-50 text-gray-400 hover:text-white'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex gap-3 overflow-x-auto pb-2 mb-3 scrollbar-hide">
         {/* Own story slot (always first) */}
         {!ownGroup && (
@@ -73,7 +98,7 @@ export default function StoryBar() {
                   />
                 ) : (
                   <div className={`w-14 h-14 rounded-full bg-dark-100 ring-2 ${ringColor} flex items-center justify-center`}>
-                    <span className="text-lg">👤</span>
+                    <span className="text-lg">&#x1f464;</span>
                   </div>
                 )}
                 {isOwn && group.stories.length < 3 && (

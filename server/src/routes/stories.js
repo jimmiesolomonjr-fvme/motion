@@ -47,26 +47,23 @@ router.post('/', authenticate, uploadMedia.single('photo'), async (req, res) => 
   }
 });
 
-// Get active stories grouped by user (cross-role: Steppers see Baddies' stories & vice versa)
+// Get active stories grouped by user (default: all roles, optional ?role=STEPPER|BADDIE filter)
 router.get('/', authenticate, async (req, res) => {
   try {
-    const currentUser = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { role: true },
-    });
-    const oppositeRole = currentUser.role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
+    const roleFilter = req.query.role; // optional: 'STEPPER' or 'BADDIE'
 
     const hiddenIds = await getHiddenIds(req.userId);
     const excludeIds = hiddenIds.size > 0 ? [...hiddenIds] : [];
+
+    const roleCondition = roleFilter
+      ? [{ userId: req.userId }, { user: { role: roleFilter } }]
+      : [{ userId: req.userId }, { user: { role: 'STEPPER' } }, { user: { role: 'BADDIE' } }];
 
     const stories = await prisma.story.findMany({
       where: {
         expiresAt: { gt: new Date() },
         ...(excludeIds.length > 0 && { userId: { notIn: excludeIds } }),
-        OR: [
-          { userId: req.userId },
-          { user: { role: oppositeRole } },
-        ],
+        OR: roleCondition,
       },
       include: {
         user: { include: { profile: { select: { photos: true, displayName: true } } } },
