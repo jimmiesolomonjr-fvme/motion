@@ -5,6 +5,17 @@ import Avatar from '../ui/Avatar';
 import { isOnline, timeAgo } from '../../utils/formatters';
 import { Mic, Trash2, ImageIcon, MessageCircle } from 'lucide-react';
 
+// Strip [smf:uuid] prefix from message content for display
+function stripSmfPrefix(content) {
+  if (!content) return content;
+  // Multi-line SMF bundle — show count
+  if (content.includes('\n') && content.startsWith('[smf:')) {
+    const count = content.split('\n').filter((l) => l.startsWith('[smf:')).length;
+    return `${count} new SMF picks`;
+  }
+  return content.replace(/^\[smf:[a-f0-9-]+\]/, '');
+}
+
 const SwipeableConversation = memo(function SwipeableConversation({ conv, onDelete, currentUserId }) {
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-100, -60], [1, 0]);
@@ -80,7 +91,7 @@ const SwipeableConversation = memo(function SwipeableConversation({ conv, onDele
               ) : conv.lastMessage?.contentType === 'IMAGE' ? (
                 <span className="flex items-center gap-1"><ImageIcon size={12} /> Photo</span>
               ) : (
-                conv.lastMessage?.content || 'Start a conversation'
+                stripSmfPrefix(conv.lastMessage?.content) || 'Start a conversation'
               )}
             </p>
           </div>
@@ -136,7 +147,7 @@ export default function ConversationList({ conversations, onDelete, currentUserI
                 {conv.lastMessage?.contentType === 'VOICE' ? (
                   <span className="flex items-center gap-1"><Mic size={12} /> Voice note</span>
                 ) : (
-                  conv.lastMessage?.content || 'Start a conversation'
+                  stripSmfPrefix(conv.lastMessage?.content) || 'Start a conversation'
                 )}
               </p>
             </div>

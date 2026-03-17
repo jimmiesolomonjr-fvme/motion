@@ -33,6 +33,7 @@ router.get('/conversations', authenticate, async (req, res) => {
           otherUser: {
             id: other.id,
             role: other.role,
+            isAdmin: !!other.isAdmin,
             lastOnline: other.lastOnline,
             profile: other.profile,
           },
@@ -78,6 +79,7 @@ router.get('/conversations/:conversationId/info', authenticate, async (req, res)
       otherUser: {
         id: other.id,
         role: other.role,
+        isAdmin: !!other.isAdmin,
         lastOnline: other.lastOnline,
         profile: other.profile,
       },

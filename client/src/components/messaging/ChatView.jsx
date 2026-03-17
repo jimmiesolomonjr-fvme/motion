@@ -368,41 +368,53 @@ export default function ChatView({ conversationId, otherUser }) {
         <Link to="/messages" className="text-gray-400 hover:text-white">
           <ArrowLeft size={20} />
         </Link>
-        <Link to={`/profile/${otherUser?.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-          <Avatar src={otherUser?.profile?.photos} name={otherUser?.profile?.displayName} size="sm" online={isOnline(otherUser?.lastOnline)} />
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-white text-sm">{otherUser?.profile?.displayName}</h3>
-          {typing ? (
-            <p className="text-xs text-gold">typing...</p>
-          ) : (
-            <p className="text-xs text-gray-500">{isOnline(otherUser?.lastOnline) ? 'Online' : 'Offline'}</p>
-          )}
+        {otherUser?.isAdmin ? (
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <Avatar src={otherUser?.profile?.photos} name="Motion" size="sm" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-white text-sm">Motion</h3>
+              <p className="text-xs text-gray-500">System notifications</p>
+            </div>
           </div>
-        </Link>
-        {/* Three-dot menu */}
-        <div className="relative" ref={menuRef}>
-          <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 text-gray-400 hover:text-white transition-colors">
-            <MoreVertical size={20} />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-dark-100 border border-dark-50 rounded-xl overflow-hidden shadow-xl z-50">
-              {isMatched && (
+        ) : (
+          <Link to={`/profile/${otherUser?.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+            <Avatar src={otherUser?.profile?.photos} name={otherUser?.profile?.displayName} size="sm" online={isOnline(otherUser?.lastOnline)} />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-white text-sm">{otherUser?.profile?.displayName}</h3>
+            {typing ? (
+              <p className="text-xs text-gold">typing...</p>
+            ) : (
+              <p className="text-xs text-gray-500">{isOnline(otherUser?.lastOnline) ? 'Online' : 'Offline'}</p>
+            )}
+            </div>
+          </Link>
+        )}
+        {/* Three-dot menu — hidden for system conversations */}
+        {!otherUser?.isAdmin && (
+          <div className="relative" ref={menuRef}>
+            <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 text-gray-400 hover:text-white transition-colors">
+              <MoreVertical size={20} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-dark-100 border border-dark-50 rounded-xl overflow-hidden shadow-xl z-50">
+                {isMatched && (
+                  <button
+                    onClick={() => { setMenuOpen(false); setShowUnmatchModal(true); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
+                  >
+                    <UserX size={16} /> Unmatch
+                  </button>
+                )}
                 <button
-                  onClick={() => { setMenuOpen(false); setShowUnmatchModal(true); }}
+                  onClick={() => { setMenuOpen(false); setShowDeleteModal(true); }}
                   className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
                 >
-                  <UserX size={16} /> Unmatch
+                  <Trash2 size={16} /> Delete Conversation
                 </button>
-              )}
-              <button
-                onClick={() => { setMenuOpen(false); setShowDeleteModal(true); }}
-                className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
-              >
-                <Trash2 size={16} /> Delete Conversation
-              </button>
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Reconnecting banner */}
@@ -439,9 +451,13 @@ export default function ChatView({ conversationId, otherUser }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
+      {/* Input — hidden for system conversations */}
       <div className="px-3 pt-2 border-t border-dark-50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' }}>
-        {needsPremium ? (
+        {otherUser?.isAdmin ? (
+          <div className="text-center py-3">
+            <p className="text-xs text-gray-500">System messages from Motion</p>
+          </div>
+        ) : needsPremium ? (
           <div className="text-center py-2 space-y-2">
             <p className="text-sm text-gray-400">Steppers need Premium to send messages</p>
             <button

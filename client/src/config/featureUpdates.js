@@ -517,6 +517,18 @@ const FEATURE_UPDATES = {
       },
     ],
   },
+  '2.25.0': {
+    subtitle: 'SMF messages got a glow-up.',
+    features: [
+      {
+        icon: Bot,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'System Messages Redesign',
+        description: 'SMF picks now appear as system messages from Motion with a "View Profile" link to see who picked you.',
+      },
+    ],
+  },
 };
 
 export default FEATURE_UPDATES;

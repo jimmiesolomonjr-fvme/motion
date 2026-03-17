@@ -1,5 +1,6 @@
 import { useState, useRef, memo } from 'react';
-import { Check, CheckCheck, Mic, X, Reply } from 'lucide-react';
+import { Check, CheckCheck, Mic, X, Reply, UserCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 
 const REACTION_EMOJIS = ['\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDE2E', '\uD83D\uDE22', '\uD83D\uDD25', '\uD83D\uDC4D'];
@@ -9,6 +10,14 @@ export default memo(function ChatBubble({ message, isOwn, onReact, currentUserId
   const isImage = message.contentType === 'IMAGE';
   const [lightbox, setLightbox] = useState(false);
   const lastTapRef = useRef(0);
+
+  // Parse SMF system messages — single or bundled (multi-line)
+  const smfLines = !isVoice && !isImage && message.content?.startsWith('[smf:')
+    ? message.content.split('\n').map((line) => {
+        const m = line.match(/^\[smf:([a-f0-9-]+)\](.*)$/);
+        return m ? { pickerId: m[1], text: m[2] } : null;
+      }).filter(Boolean)
+    : null;
 
   const handleTap = (e) => {
     const now = Date.now();
@@ -65,6 +74,21 @@ export default memo(function ChatBubble({ message, isOwn, onReact, currentUserId
             />
           ) : isVoice ? (
             <VoicePlayer src={message.content} isOwn={isOwn} />
+          ) : smfLines ? (
+            <div className="space-y-2">
+              {smfLines.map((entry, i) => (
+                <div key={i} className={i > 0 ? `border-t ${isOwn ? 'border-dark/10' : 'border-white/5'} pt-2` : ''}>
+                  <p className="text-sm">{entry.text}</p>
+                  <Link
+                    to={`/profile/${entry.pickerId}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className={`inline-flex items-center gap-1 mt-1 text-xs font-medium ${isOwn ? 'text-dark/80 hover:text-dark' : 'text-gold hover:text-gold/80'}`}
+                  >
+                    <UserCircle size={12} /> View Profile
+                  </Link>
+                </div>
+              ))}
+            </div>
           ) : (
             <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
           )}

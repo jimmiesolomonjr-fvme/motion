@@ -200,6 +200,7 @@ router.post('/round', authenticate, async (req, res) => {
 
     // Create round + picks + notifications for Smash/Marry in a transaction
     const socketPayloads = []; // { targetId, notification }
+    const messagePayloads = []; // { targetId, conversationId, message }
     const emailTargets = []; // { targetId, pickerId } for email notifications
     const round = await prisma.$transaction(async (tx) => {
       const r = await tx.smfRound.create({
@@ -214,7 +215,13 @@ router.post('/round', authenticate, async (req, res) => {
         },
       });
 
-      // Only Smash and Marry get notifications (no inbox messages)
+      // Find admin user for inbox messages
+      const adminUser = await tx.user.findFirst({
+        where: { email: 'admin@motion.app' },
+        select: { id: true },
+      });
+
+      // Smash and Marry get notifications + inbox messages
       for (const p of picks) {
         if (p.pick === 'friendzone') continue;
 
@@ -235,16 +242,80 @@ router.post('/round', authenticate, async (req, res) => {
         });
 
         emailTargets.push({ targetId: p.userId, pickerId: req.userId });
+
+        // Send inbox message from system account — bundle with existing unread SMF message
+        if (adminUser) {
+          let conv = await tx.conversation.findFirst({
+            where: {
+              OR: [
+                { user1Id: adminUser.id, user2Id: p.userId },
+                { user1Id: p.userId, user2Id: adminUser.id },
+              ],
+            },
+          });
+          if (!conv) {
+            conv = await tx.conversation.create({
+              data: { user1Id: adminUser.id, user2Id: p.userId },
+            });
+          }
+
+          const newLine = `[smf:${req.userId}]${title}`;
+
+          // Look for existing unread SMF message to bundle with
+          const existingSmf = await tx.message.findFirst({
+            where: {
+              conversationId: conv.id,
+              senderId: adminUser.id,
+              content: { startsWith: '[smf:' },
+              readAt: null,
+            },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          let msg;
+          if (existingSmf) {
+            msg = await tx.message.update({
+              where: { id: existingSmf.id },
+              data: { content: existingSmf.content + '\n' + newLine },
+            });
+          } else {
+            msg = await tx.message.create({
+              data: {
+                conversationId: conv.id,
+                senderId: adminUser.id,
+                content: newLine,
+                contentType: 'TEXT',
+              },
+            });
+          }
+
+          await tx.conversation.update({
+            where: { id: conv.id },
+            data: { lastMessageAt: new Date() },
+          });
+
+          messagePayloads.push({
+            targetId: p.userId,
+            conversationId: conv.id,
+            message: msg,
+          });
+        }
       }
 
       return r;
     });
 
-    // Emit real-time notifications via Socket.io
+    // Emit real-time notifications + inbox message alerts via Socket.io
     try {
       const { io } = await import('../../server.js');
       for (const payload of socketPayloads) {
         io.to(payload.targetId).emit('notification', payload.notification);
+      }
+      for (const payload of messagePayloads) {
+        io.to(payload.targetId).emit('message-notification', {
+          conversationId: payload.conversationId,
+          message: payload.message,
+        });
       }
     } catch (socketErr) {
       console.error('SMF socket emit error:', socketErr);

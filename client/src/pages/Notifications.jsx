@@ -117,7 +117,8 @@ export default function Notifications() {
                 {getIcon(notif.type)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm ${notif.readAt ? 'text-gray-400' : 'text-white font-medium'}`}>{notif.body}</p>
+                <p className={`text-sm ${notif.readAt ? 'text-gray-400' : 'text-white font-medium'}`}>{notif.title || notif.body}</p>
+                {notif.title && notif.body && <p className="text-xs text-gray-500 mt-0.5">{notif.body}</p>}
                 <p className="text-xs text-gray-600 mt-0.5">{timeAgo(notif.createdAt)}</p>
               </div>
               {!notif.readAt && (
