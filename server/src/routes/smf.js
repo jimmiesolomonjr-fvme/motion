@@ -18,9 +18,9 @@ const SMF_NOTIFICATION = {
       `${name} said Smash — no hesitation 🫣`,
     ],
     bodies: [
-      'They sent you a message — go see it 👀',
-      'The attraction is real. Check your inbox.',
-      'You caught their eye. They slid in your DMs.',
+      'The attraction is real 👀',
+      'You caught their eye.',
+      'Tap to see their profile.',
     ],
   },
   marry: {
@@ -30,16 +30,11 @@ const SMF_NOTIFICATION = {
       `${name} sees wifey/hubby material 💍`,
     ],
     bodies: [
-      'They sent you a message — go see it 💍',
-      'Ring energy. Check your inbox.',
-      'You\'re giving long-term vibes. They slid in your DMs.',
+      'Ring energy 💍',
+      'You\'re giving long-term vibes.',
+      'Tap to see their profile.',
     ],
   },
-};
-
-const SMF_INBOX_MESSAGES = {
-  smash: (name) => `${name} picked Smash on you in SMF 🔥`,
-  marry: (name) => `${name} picked Marry on you in SMF 💍`,
 };
 
 function randomNotification(pick, name) {
@@ -48,10 +43,6 @@ function randomNotification(pick, name) {
   const title = titles[Math.floor(Math.random() * titles.length)];
   const body = msgs.bodies[Math.floor(Math.random() * msgs.bodies.length)];
   return { title, body };
-}
-
-function getInboxMessage(pick, name) {
-  return SMF_INBOX_MESSAGES[pick](name);
 }
 
 function windowStart() {
@@ -207,14 +198,8 @@ router.post('/round', authenticate, async (req, res) => {
     const pickerPhoto = Array.isArray(pickerProfile?.photos) && pickerProfile.photos.length > 0
       ? pickerProfile.photos[0] : null;
 
-    // Fetch admin user (messages come from "Motion")
-    const adminUser = await prisma.user.findUnique({ where: { email: 'admin@motion.app' } });
-    if (!adminUser) {
-      return res.status(500).json({ error: 'Platform account not found' });
-    }
-
-    // Create round + picks + inbox messages for Smash/Marry in a transaction
-    const socketPayloads = []; // { targetId, notification?, message? }
+    // Create round + picks + notifications for Smash/Marry in a transaction
+    const socketPayloads = []; // { targetId, notification }
     const emailTargets = []; // { targetId, pickerId } for email notifications
     const round = await prisma.$transaction(async (tx) => {
       const r = await tx.smfRound.create({
@@ -229,51 +214,24 @@ router.post('/round', authenticate, async (req, res) => {
         },
       });
 
-      // Only Smash and Marry get notifications + inbox messages
+      // Only Smash and Marry get notifications (no inbox messages)
       for (const p of picks) {
         if (p.pick === 'friendzone') continue;
 
-        // Upsert conversation between admin and target (sort IDs for unique constraint)
-        const [user1Id, user2Id] = [adminUser.id, p.userId].sort();
-        const conversation = await tx.conversation.upsert({
-          where: { user1Id_user2Id: { user1Id, user2Id } },
-          create: { user1Id, user2Id },
-          update: {},
-        });
-
-        // Create inbox message from Motion (admin) with picker's name
-        const messageContent = getInboxMessage(p.pick, pickerName);
-        const message = await tx.message.create({
-          data: {
-            conversationId: conversation.id,
-            senderId: adminUser.id,
-            content: messageContent,
-            contentType: 'TEXT',
-          },
-        });
-
-        // Update conversation timestamp
-        await tx.conversation.update({
-          where: { id: conversation.id },
-          data: { lastMessageAt: new Date() },
-        });
-
-        // Create notification with conversationId
         const { title, body } = randomNotification(p.pick, pickerName);
-        const notification = await tx.notification.create({
+        await tx.notification.create({
           data: {
             userId: p.userId,
             type: 'smf_pick',
             title,
             body,
-            data: { pickerId: req.userId, pickerName, pickerPhoto, conversationId: conversation.id },
+            data: { pickerId: req.userId, pickerName, pickerPhoto },
           },
         });
 
         socketPayloads.push({
           targetId: p.userId,
-          notification: { type: 'smf_pick', title, body, data: { pickerId: req.userId, pickerName, pickerPhoto, conversationId: conversation.id } },
-          message: { id: message.id, conversationId: conversation.id, senderId: adminUser.id, content: messageContent, contentType: 'TEXT', createdAt: message.createdAt },
+          notification: { type: 'smf_pick', title, body, data: { pickerId: req.userId, pickerName, pickerPhoto } },
         });
 
         emailTargets.push({ targetId: p.userId, pickerId: req.userId });
@@ -282,15 +240,11 @@ router.post('/round', authenticate, async (req, res) => {
       return r;
     });
 
-    // Emit real-time notifications + message events via Socket.io
+    // Emit real-time notifications via Socket.io
     try {
       const { io } = await import('../../server.js');
       for (const payload of socketPayloads) {
         io.to(payload.targetId).emit('notification', payload.notification);
-        io.to(payload.targetId).emit('message-notification', {
-          conversationId: payload.message.conversationId,
-          message: payload.message,
-        });
       }
     } catch (socketErr) {
       console.error('SMF socket emit error:', socketErr);

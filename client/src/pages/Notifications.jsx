@@ -52,8 +52,7 @@ export default function Notifications() {
     } else if (notif.type === 'story_reply' && notif.data?.conversationId) {
       navigate(`/chat/${notif.data.conversationId}`);
     } else if (notif.type === 'smf_pick') {
-      if (notif.data?.conversationId) navigate(`/chat/${notif.data.conversationId}`);
-      else if (notif.data?.pickerId) navigate(`/profile/${notif.data.pickerId}`);
+      if (notif.data?.pickerId) navigate(`/profile/${notif.data.pickerId}`);
     } else if (notif.type === 'new_version') {
       navigate('/');
     }

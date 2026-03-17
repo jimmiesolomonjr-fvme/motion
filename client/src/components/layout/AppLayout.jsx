@@ -47,8 +47,7 @@ export default function AppLayout({ children }) {
     if (toast.type === 'profile_view' && toast.data?.viewerId) {
       navigate(`/profile/${toast.data.viewerId}`);
     } else if (toast.type === 'smf_pick') {
-      if (toast.data?.conversationId) navigate(`/chat/${toast.data.conversationId}`);
-      else if (toast.data?.pickerId) navigate(`/profile/${toast.data.pickerId}`);
+      if (toast.data?.pickerId) navigate(`/profile/${toast.data.pickerId}`);
     } else if (toast.type === 'match') {
       navigate('/messages');
     }
