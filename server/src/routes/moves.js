@@ -303,6 +303,11 @@ router.get('/', authenticate, async (req, res) => {
       result.sort((a, b) => b.interestCount - a.interestCount);
     }
 
+    // User-created moves always show before Motion (community/dummy) moves
+    const userMoves = result.filter((m) => !m.creator.isDummy);
+    const communityMoves = result.filter((m) => m.creator.isDummy);
+    result = [...userMoves, ...communityMoves];
+
     res.json(result);
   } catch (error) {
     console.error('Get moves error:', error);
