@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Settings, MessageCircle, Users, FileText } from 'lucide-react';
+import { Settings, MessageCircle, Users, FileText, Mail, Eye, Heart, Clock, Gamepad2 } from 'lucide-react';
 
 const DEFAULT_STEPPER_MSG = `Welcome to Motion, King! 👑\n\nYou're officially a Stepper. Here's how to get started:\n\n• Browse Baddies in the Feed and send a Like\n• Post a Move to invite Baddies to link up\n• Complete your profile to stand out\n\nLet's get it! 🚀`;
 const DEFAULT_BADDIE_MSG = `Welcome to Motion, Queen! ✨\n\nYou're officially a Baddie. Here's how to get started:\n\n• Browse the Feed and Like a Stepper you're feeling\n• Check out Moves to see what Steppers are planning\n• Complete your profile so they notice you\n\nTime to shine! 💅`;
@@ -103,6 +103,47 @@ export default function AdminSettings() {
           </button>
         </div>
       </div>
+
+      {/* Email Notification Toggles */}
+      <div className="flex items-center gap-2 mt-6 mb-2">
+        <Mail size={16} className="text-gold" />
+        <h3 className="text-sm font-bold text-white uppercase tracking-wide">Email Notifications</h3>
+      </div>
+
+      {[
+        { key: 'email_profile_view', label: 'Profile View Emails', desc: 'Notify users when someone views their profile', icon: Eye, color: 'text-blue-400', bg: 'bg-blue-500/20' },
+        { key: 'email_like', label: 'Like Emails', desc: 'Notify users when someone likes them', icon: Heart, color: 'text-pink-400', bg: 'bg-pink-500/20' },
+        { key: 'email_message', label: 'Message Emails', desc: 'Notify users when they receive a message', icon: MessageCircle, color: 'text-green-400', bg: 'bg-green-500/20' },
+        { key: 'email_smf_pick', label: 'SMF Pick Emails', desc: 'Notify users when picked in Smash Marry Friendzone', icon: Gamepad2, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
+        { key: 'email_reengagement_3day', label: '3-Day Reengagement', desc: 'Email inactive users after 3 days', icon: Clock, color: 'text-orange-400', bg: 'bg-orange-500/20' },
+        { key: 'email_reengagement_7day', label: '7-Day Reengagement', desc: 'Email inactive users after 7 days', icon: Clock, color: 'text-red-400', bg: 'bg-red-500/20' },
+      ].map(({ key, label, desc, icon: Icon, color, bg }) => (
+        <div key={key} className="bg-dark-100 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center`}>
+                <Icon size={18} className={color} />
+              </div>
+              <div>
+                <p className="font-semibold text-white text-sm">{label}</p>
+                <p className="text-xs text-gray-400">{desc}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => toggleSetting(key)}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                settings[key] !== 'false' ? 'bg-green-500' : 'bg-dark-50'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                  settings[key] !== 'false' ? 'translate-x-6' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      ))}
 
       {/* Welcome Message — Steppers */}
       <div className="bg-dark-100 rounded-xl p-4">
