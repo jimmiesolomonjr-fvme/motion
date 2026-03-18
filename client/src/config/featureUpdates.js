@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -526,6 +526,25 @@ const FEATURE_UPDATES = {
         bg: 'bg-gold/10',
         title: 'System Messages Redesign',
         description: 'SMF picks now appear as system messages from Motion with a "View Profile" link to see who picked you.',
+      },
+    ],
+  },
+  '2.26.0': {
+    subtitle: 'We want you to stay.',
+    features: [
+      {
+        icon: PauseCircle,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Pause Your Profile',
+        description: 'Need a break? Pause your profile to hide from discovery without losing your matches or messages.',
+      },
+      {
+        icon: Bell,
+        color: 'text-blue-400',
+        bg: 'bg-blue-400/10',
+        title: 'Notification Controls',
+        description: 'Too many emails? Turn off all notifications with one tap — no need to leave.',
       },
     ],
   },

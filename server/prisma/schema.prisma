@@ -489,6 +489,8 @@ model DeletionLog {
   displayName String?
   city        String?
   photos      Json     @default("[]")
+  reason      String?
+  reasonText  String?
   signedUpAt  DateTime
   deletedAt   DateTime @default(now())
 }

@@ -46,6 +46,16 @@ export default function DeletionLog() {
                       <span>Joined {new Date(log.signedUpAt).toLocaleDateString()}</span>
                       <span className="text-red-400">Deleted {new Date(log.deletedAt).toLocaleDateString()}</span>
                     </div>
+                    {log.reason && (
+                      <div className="mt-1">
+                        <span className="inline-block px-2 py-0.5 text-[10px] font-medium rounded-full bg-orange-500/20 text-orange-400">
+                          {log.reason.replace(/_/g, ' ')}
+                        </span>
+                        {log.reasonText && (
+                          <p className="text-xs text-gray-400 mt-1 italic">"{log.reasonText}"</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
                 {photos.length > 0 && (

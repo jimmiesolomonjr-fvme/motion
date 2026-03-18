@@ -932,10 +932,25 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
   }
 });
 
+// Pause / unpause profile (self-serve hide from discovery)
+router.put('/pause', authenticate, async (req, res) => {
+  try {
+    const { paused } = req.body;
+    const user = await prisma.user.update({
+      where: { id: req.userId },
+      data: { isHidden: !!paused },
+    });
+    res.json({ isHidden: user.isHidden });
+  } catch (error) {
+    console.error('Pause profile error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete account
 router.delete('/account', authenticate, async (req, res) => {
   try {
-    const { password } = req.body;
+    const { password, reason, reasonText } = req.body;
     if (!password) return res.status(400).json({ error: 'Password required' });
 
     const user = await prisma.user.findUnique({ where: { id: req.userId } });
@@ -955,6 +970,8 @@ router.delete('/account', authenticate, async (req, res) => {
         displayName: profile?.displayName,
         city: profile?.city,
         photos: profile?.photos || [],
+        reason: reason || null,
+        reasonText: reasonText || null,
         signedUpAt: user.createdAt,
       },
     });

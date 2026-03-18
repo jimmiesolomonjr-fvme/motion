@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Mail, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap, EyeOff } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Mail, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap, EyeOff, UserX, HeartCrack, BellOff, ShieldAlert, PauseCircle, MessageSquare, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
@@ -37,11 +37,15 @@ export default function Settings() {
   const [referralCount, setReferralCount] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  // Delete account state
+  // Delete account / churn-save state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteStep, setDeleteStep] = useState('reason'); // 'reason' | 'save' | 'confirm'
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleteReasonText, setDeleteReasonText] = useState('');
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.get('/reports/blocked').then(({ data }) => setBlocked(data)).catch(() => {});
@@ -153,6 +157,90 @@ export default function Settings() {
     }
   };
 
+  const DELETE_REASONS = [
+    { key: 'not_enough_users', label: 'Not enough users', icon: UserX, color: 'text-blue-400', bg: 'bg-blue-500/20' },
+    { key: 'not_enough_matches', label: "I'm not getting enough matches", icon: HeartCrack, color: 'text-pink-400', bg: 'bg-pink-500/20' },
+    { key: 'too_many_notifications', label: 'Too many notifications', icon: BellOff, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
+    { key: 'unwanted_attention', label: "I'm getting unwanted attention", icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/20' },
+    { key: 'need_a_break', label: 'I just need a break', icon: PauseCircle, color: 'text-purple-400', bg: 'bg-purple-500/20' },
+    { key: 'other', label: 'Other', icon: MessageSquare, color: 'text-gray-400', bg: 'bg-gray-500/20' },
+  ];
+
+  const SAVE_OFFERS = {
+    not_enough_users: {
+      title: "We're growing fast",
+      message: "New people join Motion every day. Instead of deleting, you can pause your profile and come back when there are more people in your area.",
+      action: 'Pause My Profile',
+      actionType: 'pause',
+    },
+    not_enough_matches: {
+      title: "Let's fix that",
+      message: "A complete profile gets way more attention. Try adding more photos, updating your bio, or answering Vibe questions before you go.",
+      action: 'Edit My Profile',
+      actionType: 'edit_profile',
+    },
+    too_many_notifications: {
+      title: 'We can fix that right now',
+      message: "You don't have to leave — we'll turn off all email notifications so you only hear from us when you open the app.",
+      action: 'Turn Off Notifications & Stay',
+      actionType: 'disable_notifications',
+    },
+    unwanted_attention: {
+      title: 'Your safety matters',
+      message: "You can hide your profile from discovery so no one new can find you, while keeping your existing matches and conversations.",
+      action: 'Hide My Profile',
+      actionType: 'pause',
+    },
+    need_a_break: {
+      title: 'No need to delete',
+      message: "Take all the time you need. Pausing hides your profile from everyone — your matches and messages will be here when you're ready.",
+      action: 'Pause My Profile',
+      actionType: 'pause',
+    },
+  };
+
+  const openDeleteFlow = () => {
+    setShowDeleteModal(true);
+    setDeleteStep('reason');
+    setDeleteReason('');
+    setDeleteReasonText('');
+    setDeletePassword('');
+    setDeleteError('');
+  };
+
+  const handleReasonSelect = (key) => {
+    setDeleteReason(key);
+    if (key === 'other') {
+      setDeleteStep('confirm');
+    } else {
+      setDeleteStep('save');
+    }
+  };
+
+  const handleSaveAction = async (actionType) => {
+    setSaving(true);
+    try {
+      if (actionType === 'pause') {
+        await api.put('/users/pause', { paused: true });
+        setShowDeleteModal(false);
+        navigate('/feed');
+      } else if (actionType === 'disable_notifications') {
+        await api.put('/users/notifications', { enabled: false, emailEnabled: false });
+        setNotificationsEnabled(false);
+        setEmailNotificationsEnabled(false);
+        setShowDeleteModal(false);
+      } else if (actionType === 'edit_profile') {
+        setShowDeleteModal(false);
+        navigate('/profile');
+      }
+    } catch {
+      // If save action fails, let them continue to delete
+      setDeleteStep('confirm');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDeleteAccount = async () => {
     setDeleteError('');
     if (!deletePassword) {
@@ -161,7 +249,13 @@ export default function Settings() {
     }
     setDeleting(true);
     try {
-      await api.delete('/users/account', { data: { password: deletePassword } });
+      await api.delete('/users/account', {
+        data: {
+          password: deletePassword,
+          reason: deleteReason || undefined,
+          reasonText: deleteReasonText || undefined,
+        },
+      });
       logout();
       navigate('/');
     } catch (err) {
@@ -456,7 +550,7 @@ export default function Settings() {
         <h2 className="text-sm font-semibold text-red-400 mb-2">Danger Zone</h2>
         <p className="text-xs text-gray-500 mb-3">Permanently delete your account and all data. This cannot be undone.</p>
         <button
-          onClick={() => { setShowDeleteModal(true); setDeletePassword(''); setDeleteError(''); }}
+          onClick={openDeleteFlow}
           className="flex items-center gap-2 px-4 py-2 bg-red-500/10 text-red-400 rounded-xl text-sm font-medium hover:bg-red-500/20 transition-colors"
         >
           <Trash2 size={16} /> Delete Account
@@ -470,29 +564,101 @@ export default function Settings() {
         </Button>
       </div>
 
-      {/* Delete Account Modal */}
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
-        <p className="text-sm text-gray-400 mb-4">
-          This will permanently delete your account, matches, messages, and all data. Enter your password to confirm.
-        </p>
-        <input
-          type="password"
-          placeholder="Enter your password"
-          value={deletePassword}
-          onChange={(e) => setDeletePassword(e.target.value)}
-          className="input-field w-full mb-3"
-        />
-        {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
-        <div className="flex gap-3">
-          <Button variant="ghost" className="flex-1" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
-          <button
-            onClick={handleDeleteAccount}
-            disabled={deleting}
-            className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
-          >
-            {deleting ? 'Deleting...' : 'Delete Account'}
-          </button>
-        </div>
+      {/* Delete Account — Churn Save Flow */}
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title={
+        deleteStep === 'reason' ? 'Why are you leaving?' :
+        deleteStep === 'save' ? 'Before you go...' : 'Delete Account'
+      }>
+        {/* Step 1: Reason Picker */}
+        {deleteStep === 'reason' && (
+          <div className="space-y-2">
+            <p className="text-sm text-gray-400 mb-3">We'd love to know why so we can improve Motion.</p>
+            {DELETE_REASONS.map(({ key, label, icon: Icon, color, bg }) => (
+              <button
+                key={key}
+                onClick={() => handleReasonSelect(key)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-dark-100 hover:bg-dark-50 transition-colors text-left"
+              >
+                <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center flex-shrink-0`}>
+                  <Icon size={16} className={color} />
+                </div>
+                <span className="text-sm text-white font-medium">{label}</span>
+                <ChevronRight size={16} className="text-gray-600 ml-auto" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Step 2: Save Offer (tailored to reason) */}
+        {deleteStep === 'save' && SAVE_OFFERS[deleteReason] && (
+          <div>
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 rounded-full bg-gold/20 flex items-center justify-center mx-auto mb-3">
+                {(() => { const r = DELETE_REASONS.find(r => r.key === deleteReason); const Icon = r?.icon; return Icon ? <Icon size={24} className="text-gold" /> : null; })()}
+              </div>
+              <h4 className="text-white font-bold text-base mb-2">{SAVE_OFFERS[deleteReason].title}</h4>
+              <p className="text-sm text-gray-400 leading-relaxed">{SAVE_OFFERS[deleteReason].message}</p>
+            </div>
+            <button
+              onClick={() => handleSaveAction(SAVE_OFFERS[deleteReason].actionType)}
+              disabled={saving}
+              className="w-full py-3 bg-gold text-dark font-bold rounded-xl text-sm hover:bg-gold/90 disabled:opacity-50 transition-colors mb-3"
+            >
+              {saving ? 'Saving...' : SAVE_OFFERS[deleteReason].action}
+            </button>
+            <button
+              onClick={() => setDeleteStep('confirm')}
+              className="w-full py-2.5 text-gray-500 text-sm hover:text-gray-300 transition-colors"
+            >
+              I still want to delete my account
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Password Confirmation */}
+        {deleteStep === 'confirm' && (
+          <div>
+            <button
+              onClick={() => setDeleteStep(deleteReason === 'other' ? 'reason' : 'save')}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-300 mb-3 transition-colors"
+            >
+              <ArrowLeft size={14} /> Back
+            </button>
+            {deleteReason === 'other' && (
+              <div className="mb-4">
+                <p className="text-xs text-gray-400 mb-2">Tell us why you're leaving (optional)</p>
+                <textarea
+                  value={deleteReasonText}
+                  onChange={(e) => setDeleteReasonText(e.target.value)}
+                  placeholder="What could we have done better?"
+                  rows={3}
+                  className="w-full bg-dark-100 text-white text-sm rounded-xl px-3 py-2.5 border border-dark-50 focus:border-gold/50 outline-none resize-none"
+                />
+              </div>
+            )}
+            <p className="text-sm text-gray-400 mb-4">
+              This will permanently delete your account, matches, messages, and all data. Enter your password to confirm.
+            </p>
+            <input
+              type="password"
+              placeholder="Enter your password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              className="input-field w-full mb-3"
+            />
+            {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
+            <div className="flex gap-3">
+              <Button variant="ghost" className="flex-1" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? 'Deleting...' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </AppLayout>
   );
