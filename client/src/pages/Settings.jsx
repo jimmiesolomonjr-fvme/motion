@@ -162,7 +162,7 @@ export default function Settings() {
     { key: 'not_enough_matches', label: "I'm not getting enough matches", icon: HeartCrack, color: 'text-pink-400', bg: 'bg-pink-500/20' },
     { key: 'too_many_notifications', label: 'Too many notifications', icon: BellOff, color: 'text-yellow-400', bg: 'bg-yellow-500/20' },
     { key: 'unwanted_attention', label: "I'm getting unwanted attention", icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/20' },
-    { key: 'need_a_break', label: 'I just need a break', icon: PauseCircle, color: 'text-purple-400', bg: 'bg-purple-500/20' },
+    { key: 'not_my_vibe', label: 'This is not my vibe', icon: PauseCircle, color: 'text-purple-400', bg: 'bg-purple-500/20' },
     { key: 'other', label: 'Other', icon: MessageSquare, color: 'text-gray-400', bg: 'bg-gray-500/20' },
   ];
 
@@ -191,9 +191,9 @@ export default function Settings() {
       action: 'Hide My Profile',
       actionType: 'pause',
     },
-    need_a_break: {
-      title: 'No need to delete',
-      message: "Take all the time you need. Pausing hides your profile from everyone — your matches and messages will be here when you're ready.",
+    not_my_vibe: {
+      title: 'We hear you',
+      message: "Motion isn't for everyone — but your data doesn't have to go. Pause your profile and if things change, everything will be right where you left it.",
       action: 'Pause My Profile',
       actionType: 'pause',
     },
