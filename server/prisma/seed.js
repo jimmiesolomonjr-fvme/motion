@@ -355,6 +355,25 @@ async function main() {
     update: {},
     create: { key: 'showDummyUsers', value: 'true' },
   });
+
+  // Email notification toggles (seeded as 'false' = disabled)
+  await prisma.appSetting.upsert({
+    where: { key: 'email_profile_view' },
+    update: {},
+    create: { key: 'email_profile_view', value: 'false' },
+  });
+  await prisma.appSetting.upsert({
+    where: { key: 'email_smf_pick' },
+    update: {},
+    create: { key: 'email_smf_pick', value: 'false' },
+  });
+  await prisma.appSetting.upsert({
+    where: { key: 'email_reengagement_3day' },
+    update: {},
+    create: { key: 'email_reengagement_3day', value: 'false' },
+  });
+  // email_like, email_message, email_reengagement_7day — no row = enabled
+
   console.log('Seeded app settings');
 
   // Migrate existing base64 photos to Cloudinary (idempotent — skips URLs)

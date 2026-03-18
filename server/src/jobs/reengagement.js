@@ -34,6 +34,16 @@ async function runReengagement() {
   const emailCooldown = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   try {
+    // Check admin-level toggles for each reengagement tier
+    const [toggle3day, toggle7day] = await Promise.all([
+      prisma.appSetting.findUnique({ where: { key: 'email_reengagement_3day' } }),
+      prisma.appSetting.findUnique({ where: { key: 'email_reengagement_7day' } }),
+    ]);
+    const send3day = toggle3day?.value !== 'false';
+    const send7day = toggle7day?.value !== 'false';
+
+    if (!send3day && !send7day) return; // Both disabled — nothing to do
+
     const users = await prisma.user.findMany({
       where: {
         lastOnline: { lt: threeDaysAgo },
@@ -51,6 +61,10 @@ async function runReengagement() {
     for (const user of users) {
       const name = user.profile?.displayName;
       const isDay7 = user.lastOnline < sevenDaysAgo;
+
+      // Skip if this tier is disabled
+      if (isDay7 && !send7day) continue;
+      if (!isDay7 && !send3day) continue;
 
       const html = isDay7 ? day7Email(name) : day3Email(name);
       const subject = isDay7 ? 'We miss you on Motion' : 'You have new activity on Motion';

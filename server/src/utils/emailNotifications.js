@@ -140,6 +140,12 @@ function notificationEmailHtml(type, triggerName, triggerPhoto, unsubscribeUrl) 
  */
 export async function sendNotificationEmail(recipientId, type, triggerUserId) {
   try {
+    // 0. Check admin-level email toggle (email_<type> AppSetting)
+    const emailToggle = await prisma.appSetting.findUnique({
+      where: { key: `email_${type}` },
+    });
+    if (emailToggle?.value === 'false') return;
+
     // 1. Fetch recipient — check email pref
     const recipient = await prisma.user.findUnique({
       where: { id: recipientId },
