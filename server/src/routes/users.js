@@ -1001,7 +1001,11 @@ router.delete('/account', authenticate, async (req, res) => {
       await tx.moveInterest.deleteMany({ where: { userId } });
       // Delete hidden pairs
       await tx.hiddenPair.deleteMany({ where: { OR: [{ user1Id: userId }, { user2Id: userId }] } });
-      // Delete user (Profile, VibeAnswer, Subscription cascade automatically)
+      // Delete user hides
+      await tx.userHide.deleteMany({ where: { OR: [{ hiderId: userId }, { hiddenId: userId }] } });
+      // Delete move participations (as baddie on someone else's move)
+      await tx.moveParticipant.deleteMany({ where: { baddieId: userId } });
+      // Delete user (Profile, VibeAnswer, Subscription, etc. cascade automatically)
       await tx.user.delete({ where: { id: userId } });
     });
 
