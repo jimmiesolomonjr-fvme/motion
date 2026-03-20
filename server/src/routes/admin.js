@@ -691,13 +691,33 @@ router.get('/users/:userId/messages', authenticate, requireAdmin, async (req, re
   }
 });
 
-// Deletion log
+// Deletion log (deduplicates on fetch — keeps newest per email+signedUpAt)
 router.get('/deletion-log', authenticate, requireAdmin, async (req, res) => {
   try {
     const logs = await prisma.deletionLog.findMany({
       orderBy: { deletedAt: 'desc' },
     });
-    res.json(logs);
+
+    // Deduplicate: keep only the first (newest) entry per email+signedUpAt
+    const seen = new Set();
+    const unique = [];
+    const dupeIds = [];
+    for (const log of logs) {
+      const key = `${log.email}|${log.signedUpAt?.toISOString()}`;
+      if (seen.has(key)) {
+        dupeIds.push(log.id);
+      } else {
+        seen.add(key);
+        unique.push(log);
+      }
+    }
+
+    // Clean up duplicate rows in the background
+    if (dupeIds.length > 0) {
+      prisma.deletionLog.deleteMany({ where: { id: { in: dupeIds } } }).catch(() => {});
+    }
+
+    res.json(unique);
   } catch (error) {
     console.error('Deletion log error:', error);
     res.status(500).json({ error: 'Server error' });

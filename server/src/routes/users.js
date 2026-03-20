@@ -961,22 +961,24 @@ router.delete('/account', authenticate, async (req, res) => {
 
     const userId = req.userId;
 
-    // Log deletion before wiping data
+    // Snapshot profile before deletion (needed for log)
     const profile = await prisma.profile.findUnique({ where: { userId }, select: { displayName: true, city: true, photos: true } });
-    await prisma.deletionLog.create({
-      data: {
-        email: user.email,
-        role: user.role,
-        displayName: profile?.displayName,
-        city: profile?.city,
-        photos: profile?.photos || [],
-        reason: reason || null,
-        reasonText: reasonText || null,
-        signedUpAt: user.createdAt,
-      },
-    });
 
     await prisma.$transaction(async (tx) => {
+      // Log deletion inside transaction so duplicates are impossible
+      await tx.deletionLog.create({
+        data: {
+          email: user.email,
+          role: user.role,
+          displayName: profile?.displayName,
+          city: profile?.city,
+          photos: profile?.photos || [],
+          reason: reason || null,
+          reasonText: reasonText || null,
+          signedUpAt: user.createdAt,
+        },
+      });
+
       // Delete messages sent by user
       await tx.message.deleteMany({ where: { senderId: userId } });
       // Delete conversations (remaining messages cascade)
