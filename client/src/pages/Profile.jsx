@@ -59,6 +59,8 @@ export default function Profile() {
   const [autoplayMusic, setAutoplayMusic] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const unlockListenersRef = useRef(null);
+  const brokenUrlsRef = useRef(new Set());
+  const [, forceRender] = useState(0);
   const [deletePhotoIndex, setDeletePhotoIndex] = useState(null);
   const [cropQueue, setCropQueue] = useState([]); // images waiting to be cropped
   const [croppedFiles, setCroppedFiles] = useState([]); // cropped blobs ready to upload
@@ -627,8 +629,16 @@ export default function Profile() {
                 muted={videoMuted}
                 loop
               />
-            ) : photos.length > 0 ? (
-              <img src={optimizeCloudinaryUrl(selectedMedia, { width: 1000 })} alt="" className="w-full aspect-[3/4] object-cover" />
+            ) : photos.length > 0 && !brokenUrlsRef.current.has(selectedMedia) ? (
+              <img src={optimizeCloudinaryUrl(selectedMedia, { width: 1000 })} alt="" className="w-full aspect-[3/4] object-cover" onError={() => {
+                brokenUrlsRef.current.add(selectedMedia);
+                const nextIdx = photos.findIndex((p, i) => i !== selectedPhotoIndex && !brokenUrlsRef.current.has(p));
+                if (nextIdx >= 0) {
+                  setSelectedPhotoIndex(nextIdx);
+                } else {
+                  forceRender(n => n + 1);
+                }
+              }} />
             ) : (
               <div className="w-full aspect-[3/4] bg-dark-50 flex items-center justify-center">
                 <span className="text-6xl">👤</span>

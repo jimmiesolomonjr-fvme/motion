@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -545,6 +545,18 @@ const FEATURE_UPDATES = {
         bg: 'bg-blue-400/10',
         title: 'Notification Controls',
         description: 'Too many emails? Turn off all notifications with one tap — no need to leave.',
+      },
+    ],
+  },
+  '2.26.1': {
+    subtitle: 'Quick fix for broken photos.',
+    features: [
+      {
+        icon: ImageOff,
+        color: 'text-green-400',
+        bg: 'bg-green-400/10',
+        title: 'Broken Photo Fallback',
+        description: 'Profile photos that fail to load now gracefully show a placeholder instead of a broken image icon.',
       },
     ],
   },

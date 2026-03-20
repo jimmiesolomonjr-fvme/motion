@@ -429,7 +429,7 @@ router.get('/feed', authenticate, async (req, res) => {
         lastOnline: user.lastOnline,
         profile: {
           ...user.profile,
-          photos: userPhotos[0] ? [userPhotos[0]] : [],
+          photos: userPhotos,
         },
         hasVideo: userPhotos.some(isVideoUrl),
         distance,

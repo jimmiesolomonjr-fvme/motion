@@ -1,5 +1,5 @@
 import { useState, useRef, memo } from 'react';
-import { Check, CheckCheck, Mic, X, Reply, UserCircle } from 'lucide-react';
+import { Check, CheckCheck, Mic, X, Reply, UserCircle, ImageOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 
@@ -9,6 +9,7 @@ export default memo(function ChatBubble({ message, isOwn, onReact, currentUserId
   const isVoice = message.contentType === 'VOICE';
   const isImage = message.contentType === 'IMAGE';
   const [lightbox, setLightbox] = useState(false);
+  const [imgBroken, setImgBroken] = useState(false);
   const lastTapRef = useRef(0);
 
   // Parse SMF system messages — single or bundled (multi-line)
@@ -66,12 +67,20 @@ export default memo(function ChatBubble({ message, isOwn, onReact, currentUserId
             </div>
           )}
           {isImage ? (
-            <img
-              src={optimizeCloudinaryUrl(message.content, { width: 500 })}
-              alt=""
-              className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer"
-              onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
-            />
+            imgBroken ? (
+              <div className="flex items-center gap-2 px-3 py-4 text-gray-500">
+                <ImageOff size={16} />
+                <span className="text-xs">Image unavailable</span>
+              </div>
+            ) : (
+              <img
+                src={optimizeCloudinaryUrl(message.content, { width: 500 })}
+                alt=""
+                className="rounded-xl max-w-full max-h-64 object-cover cursor-pointer"
+                onClick={(e) => { e.stopPropagation(); setLightbox(true); }}
+                onError={() => setImgBroken(true)}
+              />
+            )
           ) : isVoice ? (
             <VoicePlayer src={message.content} isOwn={isOwn} />
           ) : smfLines ? (

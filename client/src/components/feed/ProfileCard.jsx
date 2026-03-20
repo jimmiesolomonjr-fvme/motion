@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Heart, MapPin, BadgeCheck, Sparkles, Zap, Play } from 'lucide-react';
@@ -16,7 +16,11 @@ function getVideoThumbnail(url) {
 }
 
 export default memo(function ProfileCard({ user, onLike, onUnlike }) {
-  const rawPhoto = user.profile?.photos?.[0];
+  const allPhotos = user.profile?.photos || [];
+  const [photoIndex, setPhotoIndex] = useState(0);
+  const [allBroken, setAllBroken] = useState(false);
+
+  const rawPhoto = allPhotos[photoIndex];
   const photo = rawPhoto && isVideoUrl(rawPhoto)
     ? optimizeCloudinaryUrl(getVideoThumbnail(rawPhoto))
     : optimizeCloudinaryUrl(rawPhoto, { width: 500 });
@@ -25,8 +29,14 @@ export default memo(function ProfileCard({ user, onLike, onUnlike }) {
     <div className="card-elevated overflow-hidden group">
       <Link to={`/profile/${user.id}`}>
         <div className="relative aspect-[3/4] rounded-xl overflow-hidden mb-3">
-          {photo ? (
-            <img src={photo} alt={user.profile?.displayName} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          {photo && !allBroken ? (
+            <img src={photo} alt={user.profile?.displayName} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={() => {
+              if (photoIndex < allPhotos.length - 1) {
+                setPhotoIndex(prev => prev + 1);
+              } else {
+                setAllBroken(true);
+              }
+            }} />
           ) : (
             <div className="w-full h-full bg-dark-100 flex items-center justify-center">
               <span className="text-4xl">&#x1f464;</span>

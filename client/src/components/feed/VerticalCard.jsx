@@ -23,10 +23,12 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
   const [songPlaying, setSongPlaying] = useState(false);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
 
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [allBroken, setAllBroken] = useState(false);
   const profile = user.profile || {};
   const photos = profile.photos || [];
   const prompts = user.profilePrompts || [];
-  const hasVideo = isVideoUrl(photos[0]);
+  const hasVideo = isVideoUrl(photos[heroIndex]);
   const online = isOnline(user.lastOnline);
 
   // Auto-play/pause video based on visibility
@@ -90,7 +92,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
           {hasVideo ? (
             <video
               ref={videoRef}
-              src={photos[0]}
+              src={photos[heroIndex]}
               className="w-full h-full object-cover"
               playsInline
               muted={videoMuted}
@@ -100,15 +102,22 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
                 if (videoRef.current) videoRef.current.muted = !videoMuted;
               }}
             />
-          ) : photos.length > 0 ? (
+          ) : photos.length > 0 && !allBroken ? (
             <img
-              src={optimizeCloudinaryUrl(photos[0], { width: 800 })}
+              src={optimizeCloudinaryUrl(photos[heroIndex], { width: 800 })}
               alt={profile.displayName}
               loading="lazy"
               className={`w-full h-full object-cover transition-transform duration-[8000ms] ease-out ${
                 isVisible ? 'scale-110' : 'scale-100'
               }`}
               onClick={handlePhotoTap}
+              onError={() => {
+                if (heroIndex < photos.length - 1) {
+                  setHeroIndex(prev => prev + 1);
+                } else {
+                  setAllBroken(true);
+                }
+              }}
             />
           ) : (
             <div className="w-full h-full bg-dark-100 flex items-center justify-center">
