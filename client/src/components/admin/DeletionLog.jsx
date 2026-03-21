@@ -6,6 +6,21 @@ export default function DeletionLog() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this entry and its photos from Cloudinary?')) return;
+    setDeletingId(id);
+    try {
+      await api.delete(`/admin/deletion-log/${id}`);
+      setLogs((prev) => prev.filter((l) => l.id !== id));
+    } catch (err) {
+      console.error('Delete log error:', err);
+      alert('Failed to delete entry');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     api.get('/admin/deletion-log')
@@ -57,6 +72,14 @@ export default function DeletionLog() {
                       </div>
                     )}
                   </div>
+                  <button
+                    onClick={() => handleDelete(log.id)}
+                    disabled={deletingId === log.id}
+                    className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 flex-shrink-0"
+                    title="Delete entry & photos"
+                  >
+                    <Trash2 size={16} className={deletingId === log.id ? 'animate-spin' : ''} />
+                  </button>
                 </div>
                 {photos.length > 0 && (
                   <div className="flex gap-2 overflow-x-auto pb-1">

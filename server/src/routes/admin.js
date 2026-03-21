@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
 import { sendEmail, sendBulkEmails, brandedTemplate } from '../services/email.js';
+import { deleteFromCloud } from '../middleware/upload.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -720,6 +721,26 @@ router.get('/deletion-log', authenticate, requireAdmin, async (req, res) => {
     res.json(unique);
   } catch (error) {
     console.error('Deletion log error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a deletion-log entry and its Cloudinary photos
+router.delete('/deletion-log/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const log = await prisma.deletionLog.findUnique({ where: { id: req.params.id } });
+    if (!log) {
+      return res.status(404).json({ error: 'Deletion log entry not found' });
+    }
+
+    // Clean up Cloudinary photos
+    const photos = Array.isArray(log.photos) ? log.photos : [];
+    await Promise.all(photos.map((url) => deleteFromCloud(url).catch(() => {})));
+
+    await prisma.deletionLog.delete({ where: { id: req.params.id } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete deletion-log error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
