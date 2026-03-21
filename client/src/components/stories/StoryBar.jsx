@@ -46,22 +46,24 @@ export default function StoryBar() {
 
   return (
     <>
-      {/* Filter chips */}
-      <div className="flex gap-1.5 mb-2">
-        {FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setRoleFilter(f.value)}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-              roleFilter === f.value
-                ? 'bg-gold text-dark'
-                : 'bg-dark-50 text-gray-400 hover:text-white'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      {/* Filter chips — only show when stories exist */}
+      {storyGroups.some((g) => g.stories.length > 0) && (
+        <div className="flex gap-1.5 mb-2">
+          {FILTERS.map((f) => (
+            <button
+              key={f.value}
+              onClick={() => setRoleFilter(f.value)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                roleFilter === f.value
+                  ? 'bg-gold text-dark'
+                  : 'bg-dark-50 text-gray-400 hover:text-white'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex gap-3 overflow-x-auto pb-2 mb-3 scrollbar-hide">
         {/* Own story slot (always first) */}
