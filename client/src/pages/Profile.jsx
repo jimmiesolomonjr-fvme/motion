@@ -15,7 +15,7 @@ import { REPORT_REASONS, HEIGHT_FEET, HEIGHT_INCHES, WEIGHT_OPTIONS, OCCUPATION_
 import DateEnergyBadge from '../components/ui/DateEnergyBadge';
 import { detectFace } from '../utils/faceDetection';
 import { isVideoUrl, getVideoDuration } from '../utils/mediaUtils';
-import { optimizeCloudinaryUrl } from '../utils/cloudinaryUrl';
+import { optimizeCloudinaryUrl, getVideoThumbnailUrl } from '../utils/cloudinaryUrl';
 import CreateStory from '../components/stories/CreateStory';
 import SongSearchModal from '../components/profile/SongSearchModal';
 import ImageCropper from '../components/ui/ImageCropper';
@@ -687,8 +687,12 @@ export default function Profile() {
                 >
                   {isVideoUrl(p) ? (
                     <>
-                      <video src={p} className="w-full h-full object-cover" preload="metadata" muted />
-                      <span className="absolute inset-0 flex items-center justify-center">
+                      <img
+                        src={getVideoThumbnailUrl(p, { width: 160, height: 160 }) || p}
+                        alt=""
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/20">
                         <Play size={12} className="text-white drop-shadow" fill="currentColor" />
                       </span>
                     </>

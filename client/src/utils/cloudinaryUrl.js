@@ -29,6 +29,19 @@ export function optimizeCloudinaryUrl(url, { width, height, quality, crop } = {}
 }
 
 /**
+ * Generate a JPEG thumbnail URL from a Cloudinary video URL.
+ * Extracts the first frame (so_0) as a JPEG. Returns null for non-Cloudinary videos.
+ */
+export function getVideoThumbnailUrl(url, { width, height } = {}) {
+  if (!url || typeof url !== 'string' || !url.includes('/video/upload/')) return null;
+  const parts = ['so_0', 'f_jpg'];
+  if (width) parts.push(`w_${width}`);
+  if (height) parts.push(`h_${height}`);
+  parts.push('c_fill');
+  return url.replace('/video/upload/', `/video/upload/${parts.join(',')}/`);
+}
+
+/**
  * Convenience for Avatar sizes -> pixel widths at 2x density.
  * sm=64, md=96, lg=160, xl=256
  */

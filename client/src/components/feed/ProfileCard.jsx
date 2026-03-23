@@ -5,15 +5,8 @@ import { Heart, MapPin, BadgeCheck, Sparkles, Zap, Play } from 'lucide-react';
 import { isOnline } from '../../utils/formatters';
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { haptic } from '../../utils/haptics';
-import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
+import { optimizeCloudinaryUrl, getVideoThumbnailUrl } from '../../utils/cloudinaryUrl';
 import DateEnergyBadge from '../ui/DateEnergyBadge';
-
-function getVideoThumbnail(url) {
-  if (url && url.includes('/video/upload/')) {
-    return url.replace('/video/upload/', '/video/upload/so_0,f_jpg/');
-  }
-  return null;
-}
 
 export default memo(function ProfileCard({ user, onLike, onUnlike }) {
   const allPhotos = user.profile?.photos || [];
@@ -22,7 +15,7 @@ export default memo(function ProfileCard({ user, onLike, onUnlike }) {
 
   const rawPhoto = allPhotos[photoIndex];
   const photo = rawPhoto && isVideoUrl(rawPhoto)
-    ? optimizeCloudinaryUrl(getVideoThumbnail(rawPhoto))
+    ? getVideoThumbnailUrl(rawPhoto, { width: 500 })
     : optimizeCloudinaryUrl(rawPhoto, { width: 500 });
 
   return (
