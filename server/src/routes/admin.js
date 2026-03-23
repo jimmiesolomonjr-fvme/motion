@@ -95,6 +95,8 @@ router.get('/reports', authenticate, requireAdmin, async (req, res) => {
       },
       orderBy: { createdAt: 'desc' },
     });
+    // Attach conversationId to each report for admin context
+    reports.forEach((r) => { r.conversationId = r.conversationId || null; });
     res.json(reports);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -199,12 +201,15 @@ router.put('/users/:userId/verify', authenticate, requireAdmin, async (req, res)
 // Mute/unmute user
 router.put('/users/:userId/mute', authenticate, requireAdmin, async (req, res) => {
   try {
-    const { muted } = req.body;
+    const { muted, reason } = req.body;
     const user = await prisma.user.update({
       where: { id: req.params.userId },
-      data: { isMuted: !!muted },
+      data: {
+        isMuted: !!muted,
+        muteReason: muted ? (reason || null) : null,
+      },
     });
-    res.json({ id: user.id, isMuted: user.isMuted });
+    res.json({ id: user.id, isMuted: user.isMuted, muteReason: user.muteReason });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -732,6 +737,93 @@ router.post('/email/send-newest-members', authenticate, requireAdmin, async (req
     });
   } catch (error) {
     console.error('Newest members send error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== Referral Leaderboard =====
+
+// Get referral leaderboard
+router.get('/referrals', authenticate, requireAdmin, async (req, res) => {
+  try {
+    // Find all users who were referred (have a referredBy value)
+    const referredUsers = await prisma.user.findMany({
+      where: { referredBy: { not: null } },
+      select: { id: true, email: true, referredBy: true, createdAt: true, profile: { select: { displayName: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Group by referredBy (which is the referralCode of the referrer)
+    const codeMap = {};
+    for (const u of referredUsers) {
+      if (!codeMap[u.referredBy]) codeMap[u.referredBy] = [];
+      codeMap[u.referredBy].push({ id: u.id, email: u.email, displayName: u.profile?.displayName, createdAt: u.createdAt });
+    }
+
+    // Look up the referrer user for each code
+    const codes = Object.keys(codeMap);
+    const referrers = codes.length > 0
+      ? await prisma.user.findMany({
+          where: { referralCode: { in: codes } },
+          include: { profile: { select: { displayName: true, photos: true } } },
+        })
+      : [];
+
+    const referrerMap = {};
+    for (const r of referrers) {
+      referrerMap[r.referralCode] = r;
+    }
+
+    const leaderboard = codes.map((code) => {
+      const referrer = referrerMap[code];
+      return {
+        user: referrer
+          ? { id: referrer.id, email: referrer.email, displayName: referrer.profile?.displayName, photos: referrer.profile?.photos, referralCode: referrer.referralCode }
+          : { id: null, email: null, displayName: `Unknown (${code})`, photos: [], referralCode: code },
+        referrals: codeMap[code],
+        count: codeMap[code].length,
+      };
+    });
+
+    leaderboard.sort((a, b) => b.count - a.count);
+
+    res.json(leaderboard);
+  } catch (error) {
+    console.error('Referral leaderboard error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Set custom referral code for a user
+router.put('/users/:userId/referral-code', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Code is required' });
+    }
+
+    const cleaned = code.trim().toUpperCase();
+    if (cleaned.length < 3 || cleaned.length > 20) {
+      return res.status(400).json({ error: 'Code must be 3-20 characters' });
+    }
+    if (!/^[A-Z0-9-]+$/.test(cleaned)) {
+      return res.status(400).json({ error: 'Code can only contain letters, numbers, and hyphens' });
+    }
+
+    // Check uniqueness
+    const existing = await prisma.user.findFirst({ where: { referralCode: cleaned, id: { not: req.params.userId } } });
+    if (existing) {
+      return res.status(409).json({ error: 'This code is already taken' });
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.params.userId },
+      data: { referralCode: cleaned },
+    });
+
+    res.json({ id: user.id, referralCode: user.referralCode });
+  } catch (error) {
+    console.error('Set referral code error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

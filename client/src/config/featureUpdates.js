@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -557,6 +557,44 @@ const FEATURE_UPDATES = {
         bg: 'bg-green-400/10',
         title: 'Broken Photo Fallback',
         description: 'Profile photos that fail to load now gracefully show a placeholder instead of a broken image icon.',
+      },
+    ],
+  },
+  '2.27.0': {
+    subtitle: 'Safety first, always.',
+    features: [
+      {
+        icon: MessageSquareOff,
+        color: 'text-yellow-400',
+        bg: 'bg-yellow-400/10',
+        title: 'Mute Transparency',
+        description: 'If your messaging is suspended, you\'ll now see the reason why instead of a generic error.',
+      },
+      {
+        icon: Flag,
+        color: 'text-orange-400',
+        bg: 'bg-orange-400/10',
+        title: 'Report from Chat',
+        description: 'Report someone directly from a conversation via the 3-dot menu — no need to visit their profile.',
+      },
+    ],
+  },
+  '2.28.0': {
+    subtitle: 'Referrals just leveled up.',
+    features: [
+      {
+        icon: Share2,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Custom Promo Codes',
+        description: 'Promoters can now get vanity referral codes (e.g. "KINGJO") set by admins.',
+      },
+      {
+        icon: Trophy,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Referral Leaderboard',
+        description: 'Admins can track who\'s driving the most signups from a dedicated Referrals tab.',
       },
     ],
   },

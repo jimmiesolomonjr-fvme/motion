@@ -10,8 +10,9 @@ import AdminSettings from '../components/admin/AdminSettings';
 import Broadcast from '../components/admin/Broadcast';
 import EmailCampaign from '../components/admin/EmailCampaign';
 import DeletionLog from '../components/admin/DeletionLog';
+import Referrals from '../components/admin/Referrals';
 import { useAuth } from '../context/AuthContext';
-import { BarChart3, AlertTriangle, Users, Sparkles, EyeOff, Settings, Megaphone, Mail, Trash2 } from 'lucide-react';
+import { BarChart3, AlertTriangle, Users, Sparkles, EyeOff, Settings, Megaphone, Mail, Trash2, Share2 } from 'lucide-react';
 
 export default function Admin() {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ export default function Admin() {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'reports', label: 'Reports', icon: AlertTriangle },
     { id: 'users', label: 'Users', icon: Users },
+    { id: 'referrals', label: 'Referrals', icon: Share2 },
     { id: 'vibe', label: 'Vibe', icon: Sparkles },
     { id: 'hidden', label: 'Hidden', icon: EyeOff },
     { id: 'broadcast', label: 'Broadcast', icon: Megaphone },
@@ -53,6 +55,7 @@ export default function Admin() {
       {tab === 'dashboard' && <Dashboard />}
       {tab === 'reports' && <ReportsList />}
       {tab === 'users' && <UserManagement />}
+      {tab === 'referrals' && <Referrals />}
       {tab === 'vibe' && <VibeQuestions />}
       {tab === 'hidden' && <HiddenPairs />}
       {tab === 'broadcast' && <Broadcast />}
