@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import api from '../../services/api';
-import { Mail, Send, CheckCircle, AlertCircle, Eye, Zap, FlaskConical } from 'lucide-react';
+import { Mail, Send, CheckCircle, AlertCircle, Eye, Zap, FlaskConical, Users } from 'lucide-react';
 
 const WELCOME_BACK_TEMPLATE = {
   subject: "We fixed signup — come finish your profile!",
@@ -75,10 +75,22 @@ export default function EmailCampaign() {
     setConfirming(false);
     setResult(null);
     try {
-      const payload = { subject, bodyHtml };
-      if (targetRole) payload.targetRole = targetRole;
-      if (targetFilter) payload.targetFilter = targetFilter;
-      const { data } = await api.post('/admin/email/send', payload);
+      let data;
+      if (newestMembersData) {
+        // Role-aware send: Steppers see Baddies, Baddies see Steppers
+        const res = await api.post('/admin/email/send-newest-members', {
+          subject: newestMembersData.subject,
+          baddieBodyHtml: newestMembersData.baddieBodyHtml,
+          stepperBodyHtml: newestMembersData.stepperBodyHtml,
+        });
+        data = res.data;
+      } else {
+        const payload = { subject, bodyHtml };
+        if (targetRole) payload.targetRole = targetRole;
+        if (targetFilter) payload.targetFilter = targetFilter;
+        const res = await api.post('/admin/email/send', payload);
+        data = res.data;
+      }
       setResult({
         success: data.sent > 0,
         message: `Sent ${data.sent} email${data.sent !== 1 ? 's' : ''}${data.failed ? `, ${data.failed} failed` : ''}`,
@@ -90,11 +102,67 @@ export default function EmailCampaign() {
     }
   };
 
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+  // When set, the send button uses the dedicated role-aware endpoint
+  const [newestMembersData, setNewestMembersData] = useState(null);
+
   const applyTemplate = (template) => {
     setSubject(template.subject);
     setBodyHtml(template.body);
+    setNewestMembersData(null);
     resetConfirm();
     setShowPreview(false);
+  };
+
+  const buildMembersGridHtml = (cards) => {
+    const gridHtml = cards.map((c) => {
+      const photo = c.photoUrl
+        ? `<img src="${c.photoUrl}" alt="${c.name}" width="100" height="100" style="width:100px;height:100px;border-radius:12px;object-fit:cover;display:block;margin:0 auto 8px;" />`
+        : `<div style="width:100px;height:100px;border-radius:12px;background:#333;margin:0 auto 8px;"></div>`;
+      return `<td align="center" valign="top" style="padding:8px;width:33%;">
+        ${photo}
+        <p style="margin:0;color:#fff;font-size:14px;font-weight:600;">${c.name}</p>
+        ${c.city ? `<p style="margin:2px 0 0;color:#999;font-size:12px;">${c.city}</p>` : ''}
+      </td>`;
+    });
+    const rows = [];
+    for (let i = 0; i < gridHtml.length; i += 3) {
+      rows.push(`<tr>${gridHtml.slice(i, i + 3).join('')}</tr>`);
+    }
+    return `<h2 style="margin:0 0 8px;color:#D4AF37;font-size:20px;">New faces just joined! 👀</h2>
+<p style="margin:0 0 20px;color:#ccc;">Check out the newest members in your area — don't miss out.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;">
+  ${rows.join('')}
+</table>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px;">
+  <tr>
+    <td align="center" style="background-color:#D4AF37;border-radius:10px;">
+      <a href="https://motion.up.railway.app/feed" target="_blank" style="display:inline-block;padding:14px 36px;color:#0A0A0A;font-size:15px;font-weight:700;text-decoration:none;">See Who's New</a>
+    </td>
+  </tr>
+</table>
+<p style="margin:0;color:#999;font-size:13px;">Your next match could be one tap away ✨</p>`;
+  };
+
+  const loadNewestMembersTemplate = async () => {
+    setLoadingTemplate(true);
+    try {
+      const { data } = await api.get('/admin/email/newest-members');
+      const baddieBodyHtml = buildMembersGridHtml(data.baddieCards || []);
+      const stepperBodyHtml = buildMembersGridHtml(data.stepperCards || []);
+      const subj = "New members just joined Motion — come see who's here!";
+
+      setSubject(subj);
+      // Show the Baddie version in the editor (what Steppers will see)
+      setBodyHtml(baddieBodyHtml);
+      setNewestMembersData({ baddieBodyHtml, stepperBodyHtml, subject: subj });
+      resetConfirm();
+      setShowPreview(false);
+    } catch (err) {
+      setResult({ success: false, message: 'Failed to load newest members' });
+    } finally {
+      setLoadingTemplate(false);
+    }
   };
 
   // Build branded HTML for iframe preview
@@ -125,13 +193,27 @@ export default function EmailCampaign() {
         {/* Quick Templates */}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">Quick Templates</label>
-          <button
-            onClick={() => applyTemplate(WELCOME_BACK_TEMPLATE)}
-            className="flex items-center gap-2 px-3 py-2 bg-dark-50 text-gold text-sm rounded-lg hover:bg-dark-50/70 transition-colors border border-dark-50 hover:border-gold/30"
-          >
-            <Zap size={14} />
-            Welcome Back (Signup Fix)
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => applyTemplate(WELCOME_BACK_TEMPLATE)}
+              className="flex items-center gap-2 px-3 py-2 bg-dark-50 text-gold text-sm rounded-lg hover:bg-dark-50/70 transition-colors border border-dark-50 hover:border-gold/30"
+            >
+              <Zap size={14} />
+              Welcome Back (Signup Fix)
+            </button>
+            <button
+              onClick={loadNewestMembersTemplate}
+              disabled={loadingTemplate}
+              className="flex items-center gap-2 px-3 py-2 bg-dark-50 text-gold text-sm rounded-lg hover:bg-dark-50/70 transition-colors border border-dark-50 hover:border-gold/30 disabled:opacity-50"
+            >
+              {loadingTemplate ? (
+                <div className="w-3.5 h-3.5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Users size={14} />
+              )}
+              Newest Members
+            </button>
+          </div>
         </div>
 
         {/* Target Audience */}
@@ -180,7 +262,7 @@ export default function EmailCampaign() {
           </label>
           <textarea
             value={bodyHtml}
-            onChange={(e) => { setBodyHtml(e.target.value); resetConfirm(); setShowPreview(false); }}
+            onChange={(e) => { setBodyHtml(e.target.value); setNewestMembersData(null); resetConfirm(); setShowPreview(false); }}
             placeholder="<p>Your email content here...</p>"
             rows={8}
             className="w-full bg-dark-50 text-white rounded-lg px-3 py-2 text-sm border border-dark-50 focus:border-gold focus:outline-none resize-none font-mono"
@@ -236,11 +318,23 @@ export default function EmailCampaign() {
           </div>
         )}
 
+        {/* Role-aware info banner */}
+        {newestMembersData && (
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+            <p className="text-blue-400 text-sm">
+              <strong>Role-aware send:</strong> Steppers will see newest Baddies, Baddies will see newest Steppers. Preview shows the Baddie version (what Steppers receive).
+            </p>
+          </div>
+        )}
+
         {/* Confirmation Warning */}
         {confirming && (
           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
             <p className="text-yellow-400 text-sm">
-              Send <strong>&ldquo;{subject}&rdquo;</strong> to <strong>{previewCount ?? '?'} {roleLabel}{filterLabel}</strong>? This cannot be undone.
+              {newestMembersData
+                ? <>Send <strong>&ldquo;{subject}&rdquo;</strong> to <strong>all Steppers &amp; Baddies</strong> (role-aware)? This cannot be undone.</>
+                : <>Send <strong>&ldquo;{subject}&rdquo;</strong> to <strong>{previewCount ?? '?'} {roleLabel}{filterLabel}</strong>? This cannot be undone.</>
+              }
             </p>
           </div>
         )}

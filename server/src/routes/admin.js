@@ -647,6 +647,95 @@ router.post('/email/send', authenticate, requireAdmin, async (req, res) => {
   }
 });
 
+// ===== Re-engagement: newest members email template =====
+
+// Preview newest members (returns both role sets for admin preview)
+router.get('/email/newest-members', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const [newestBaddies, newestSteppers] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: 'BADDIE', isBanned: false, isAdmin: false, isDummy: false },
+        include: { profile: { select: { displayName: true, photos: true, city: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      }),
+      prisma.user.findMany({
+        where: { role: 'STEPPER', isBanned: false, isAdmin: false, isDummy: false },
+        include: { profile: { select: { displayName: true, photos: true, city: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      }),
+    ]);
+
+    const toCards = (members) => members.map((m) => {
+      const name = m.profile?.displayName || 'New Member';
+      const city = m.profile?.city || '';
+      const photos = m.profile?.photos || [];
+      let photoUrl = '';
+      if (photos.length > 0) {
+        const p = photos[0];
+        if (p.includes('/video/upload/')) {
+          photoUrl = p.replace('/video/upload/', '/video/upload/so_0,w_200,h_200,c_fill,f_jpg/');
+        } else if (p.includes('/upload/')) {
+          photoUrl = p.replace('/upload/', '/upload/w_200,h_200,c_fill,f_auto,q_auto/');
+        } else {
+          photoUrl = p;
+        }
+      }
+      return { name, city, photoUrl };
+    });
+
+    res.json({
+      baddieCards: toCards(newestBaddies),
+      stepperCards: toCards(newestSteppers),
+    });
+  } catch (error) {
+    console.error('Newest members email error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Send newest-members re-engagement emails (role-aware: Steppers see Baddies, Baddies see Steppers)
+router.post('/email/send-newest-members', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { baddieBodyHtml, stepperBodyHtml, subject } = req.body;
+    if (!subject?.trim() || !baddieBodyHtml?.trim() || !stepperBodyHtml?.trim()) {
+      return res.status(400).json({ error: 'Subject and both email bodies are required' });
+    }
+
+    const [steppers, baddies] = await Promise.all([
+      prisma.user.findMany({
+        where: { role: 'STEPPER', isBanned: false, isAdmin: false, isDummy: false },
+        select: { id: true, email: true },
+      }),
+      prisma.user.findMany({
+        where: { role: 'BADDIE', isBanned: false, isAdmin: false, isDummy: false },
+        select: { id: true, email: true },
+      }),
+    ]);
+
+    // Steppers receive the email showing newest Baddies
+    // Baddies receive the email showing newest Steppers
+    const [stepperResult, baddieResult] = await Promise.all([
+      steppers.length > 0
+        ? sendBulkEmails({ users: steppers, subject, bodyHtml: baddieBodyHtml })
+        : { sent: 0, failed: 0, errors: [] },
+      baddies.length > 0
+        ? sendBulkEmails({ users: baddies, subject, bodyHtml: stepperBodyHtml })
+        : { sent: 0, failed: 0, errors: [] },
+    ]);
+
+    res.json({
+      sent: stepperResult.sent + baddieResult.sent,
+      failed: stepperResult.failed + baddieResult.failed,
+      errors: [...stepperResult.errors, ...baddieResult.errors],
+    });
+  } catch (error) {
+    console.error('Newest members send error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ===== User Messages (admin debug) =====
 
 // Get all messages for a user

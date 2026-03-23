@@ -1328,13 +1328,13 @@ export default function Profile() {
       {isOwnProfile && !editing && (
         <button
           onClick={() => setEnergyPickerOpen(true)}
-          className="fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full bg-dark-100 border border-dark-50 shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          className="fixed bottom-20 right-4 z-40 w-12 h-12 rounded-full bg-gold shadow-lg flex items-center justify-center active:scale-95 transition-transform"
           title="Change your energy"
         >
           {profile.dateEnergy ? (
             <span className="text-xl">{DATE_ENERGY_OPTIONS.find((o) => o.value === profile.dateEnergy)?.emoji || '⚡'}</span>
           ) : (
-            <Activity size={20} className="text-gold" />
+            <Activity size={20} className="text-dark" />
           )}
         </button>
       )}
