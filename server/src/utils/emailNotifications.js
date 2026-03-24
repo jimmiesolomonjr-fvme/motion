@@ -21,7 +21,7 @@ function generateUnsubscribeToken(userId) {
  */
 export function generateUnsubscribeUrl(userId) {
   const token = generateUnsubscribeToken(userId);
-  const baseUrl = config.clientUrl || 'https://motionapp.up.railway.app';
+  const baseUrl = config.clientUrl || 'https://yourmotion.app';
   // Point at the server API, not the client
   const serverUrl = baseUrl.replace(/:\d+$/, ':' + config.port);
   const prodUrl = config.nodeEnv === 'production' ? baseUrl : serverUrl;
@@ -53,7 +53,7 @@ function notificationEmailHtml(type, triggerName, triggerPhoto, unsubscribeUrl) 
     smf_pick: 'Open Motion',
   };
   const ctaText = ctaTexts[type] || 'View Profile';
-  const appUrl = config.clientUrl || 'https://motionapp.up.railway.app';
+  const appUrl = config.clientUrl || 'https://yourmotion.app';
 
   const photoHtml = triggerPhoto
     ? `<div style="text-align:center;margin-bottom:20px;">

@@ -10,7 +10,7 @@ function day3Email(name) {
     <p>Hey ${name || 'there'},</p>
     <p>People have been active on Motion while you were away. Come back and see who's been checking you out.</p>
     <p style="text-align:center;margin:24px 0;">
-      <a href="${process.env.CLIENT_URL || 'https://motion-app.up.railway.app'}" style="display:inline-block;background:#D4AF37;color:#0A0A0A;padding:12px 32px;border-radius:12px;text-decoration:none;font-weight:700;">Open Motion</a>
+      <a href="${process.env.CLIENT_URL || 'https://yourmotion.app'}" style="display:inline-block;background:#D4AF37;color:#0A0A0A;padding:12px 32px;border-radius:12px;text-decoration:none;font-weight:700;">Open Motion</a>
     </p>
   `, 'You have new activity on Motion');
 }
@@ -22,7 +22,7 @@ function day7Email(name) {
     <p>It's been a minute since you've been on Motion. New profiles, new moves, and new connections are waiting for you.</p>
     <p>Don't let someone special slip away.</p>
     <p style="text-align:center;margin:24px 0;">
-      <a href="${process.env.CLIENT_URL || 'https://motion-app.up.railway.app'}" style="display:inline-block;background:#D4AF37;color:#0A0A0A;padding:12px 32px;border-radius:12px;text-decoration:none;font-weight:700;">Come Back</a>
+      <a href="${process.env.CLIENT_URL || 'https://yourmotion.app'}" style="display:inline-block;background:#D4AF37;color:#0A0A0A;padding:12px 32px;border-radius:12px;text-decoration:none;font-weight:700;">Come Back</a>
     </p>
   `, 'We miss you on Motion');
 }

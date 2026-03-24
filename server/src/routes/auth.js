@@ -238,7 +238,7 @@ router.post('/forgot-password', async (req, res) => {
       },
     });
 
-    const clientUrl = config.clientUrl || 'https://motionapp.up.railway.app';
+    const clientUrl = config.clientUrl || 'https://yourmotion.app';
     const resetLink = `${clientUrl}/reset-password?token=${rawToken}`;
 
     const bodyHtml = `

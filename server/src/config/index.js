@@ -4,7 +4,7 @@ dotenv.config();
 export default {
   port: parseInt(process.env.PORT || '3001'),
   nodeEnv: process.env.NODE_ENV || 'development',
-  clientUrl: process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5173'),
+  clientUrl: process.env.CLIENT_URL || (process.env.NODE_ENV === 'production' ? 'https://yourmotion.app' : 'http://localhost:5173'),
   jwt: {
     secret: process.env.JWT_SECRET,
     refreshSecret: process.env.JWT_REFRESH_SECRET,
