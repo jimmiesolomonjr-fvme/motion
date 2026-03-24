@@ -84,11 +84,11 @@ export function setupSocketHandlers(io) {
         // Muted check
         const senderUser = await prisma.user.findUnique({
           where: { id: socket.userId },
-          select: { isPremium: true, isMuted: true, isAdmin: true },
+          select: { isPremium: true, isMuted: true, muteReason: true, isAdmin: true },
         });
 
         if (senderUser?.isMuted) {
-          socket.emit('send-message-error', { conversationId, error: 'Your messaging privileges have been suspended' });
+          socket.emit('send-message-error', { conversationId, error: 'Your messaging privileges have been suspended', muteReason: senderUser.muteReason });
           return;
         }
 
@@ -215,6 +215,13 @@ export function setupSocketHandlers(io) {
     socket.on('viewing-profile', async (data) => {
       if (!data?.viewedId || data.viewedId === socket.userId) return;
       try {
+        // Admin views are silent — no pulse
+        const viewerUser = await prisma.user.findUnique({
+          where: { id: socket.userId },
+          select: { isAdmin: true },
+        });
+        if (viewerUser?.isAdmin) return;
+
         const viewer = await prisma.profile.findUnique({
           where: { userId: socket.userId },
           select: { displayName: true, photos: true },
