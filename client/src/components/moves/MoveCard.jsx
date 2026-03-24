@@ -17,7 +17,7 @@ const CATEGORY_LABELS = {
 export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete, onSave, onUnsave, currentUserId, onEdit }) {
   const interestedUsers = move.interestedUsers || [];
   const creator = move.creator || move.stepper;
-  const isCommunityMove = creator?.isDummy === true;
+  const isCommunityMove = creator?.isDummy === true || creator?.isAdmin === true;
   const isCreatorBaddie = creator?.role === 'BADDIE';
   const canExpress = isCommunityMove || (isCreatorBaddie && userRole === 'STEPPER') || (!isCreatorBaddie && userRole === 'BADDIE');
 
