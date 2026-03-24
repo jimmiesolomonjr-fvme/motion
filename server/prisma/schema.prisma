@@ -52,6 +52,7 @@ model User {
   isVerified   Boolean  @default(false)
   isBanned     Boolean  @default(false)
   isMuted      Boolean  @default(false)
+  muteReason   String?
   isHidden     Boolean  @default(false)
   isDummy      Boolean  @default(false)
   isAdmin      Boolean  @default(false)
@@ -150,6 +151,7 @@ model Conversation {
   user1    User      @relation("ConvUser1", fields: [user1Id], references: [id])
   user2    User      @relation("ConvUser2", fields: [user2Id], references: [id])
   messages Message[]
+  reports  Report[]
 
   @@unique([user1Id, user2Id])
 }
@@ -196,16 +198,18 @@ model Match {
 }
 
 model Report {
-  id         String       @id @default(uuid())
-  reporterId String
-  reportedId String
-  reason     String
-  details    String?
-  status     ReportStatus @default(PENDING)
-  createdAt  DateTime     @default(now())
+  id             String       @id @default(uuid())
+  reporterId     String
+  reportedId     String
+  reason         String
+  details        String?
+  conversationId String?
+  status         ReportStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
 
-  reporter User @relation("Reporter", fields: [reporterId], references: [id])
-  reported User @relation("Reported", fields: [reportedId], references: [id])
+  reporter     User          @relation("Reporter", fields: [reporterId], references: [id])
+  reported     User          @relation("Reported", fields: [reportedId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
 }
 
 model Block {
@@ -398,12 +402,13 @@ model ProfilePrompt {
 }
 
 model Story {
-  id        String    @id @default(uuid())
-  userId    String
-  photo     String
-  caption   String?
-  expiresAt DateTime
-  createdAt DateTime  @default(now())
+  id          String    @id @default(uuid())
+  userId      String
+  photo       String
+  caption     String?
+  textOverlay Json?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
 
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   views StoryView[]

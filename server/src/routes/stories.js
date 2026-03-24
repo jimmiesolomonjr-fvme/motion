@@ -28,11 +28,30 @@ router.post('/', authenticate, uploadMedia.single('photo'), async (req, res) => 
       : await uploadToCloud(req.file, 'motion/stories');
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+    // Parse optional text overlay
+    let textOverlay = null;
+    if (req.body.textOverlay) {
+      try {
+        const parsed = JSON.parse(req.body.textOverlay);
+        if (parsed.text && typeof parsed.text === 'string' && parsed.text.trim()) {
+          textOverlay = {
+            text: parsed.text.trim().slice(0, 200),
+            hasBackground: !!parsed.hasBackground,
+            style: ['light-on-dark', 'dark-on-light'].includes(parsed.style) ? parsed.style : 'light-on-dark',
+            yPercent: Math.max(0, Math.min(100, Number(parsed.yPercent) || 50)),
+          };
+        }
+      } catch {
+        // Invalid JSON — ignore
+      }
+    }
+
     const story = await prisma.story.create({
       data: {
         userId: req.userId,
         photo,
         caption: req.body.caption || null,
+        textOverlay,
         expiresAt,
       },
       include: {
@@ -91,6 +110,7 @@ router.get('/', authenticate, async (req, res) => {
         id: story.id,
         photo: story.photo,
         caption: story.caption,
+        textOverlay: story.textOverlay || null,
         createdAt: story.createdAt,
         expiresAt: story.expiresAt,
         viewed,

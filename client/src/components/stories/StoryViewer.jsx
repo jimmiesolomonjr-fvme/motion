@@ -317,6 +317,26 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
           <img src={optimizeCloudinaryUrl(story.photo, { width: 1000 })} alt="" className="w-full h-full object-cover" />
         )}
 
+        {/* Text overlay */}
+        {story.textOverlay?.text && (
+          <div
+            className="absolute left-0 right-0 flex justify-center pointer-events-none px-4 z-10"
+            style={{ top: `${story.textOverlay.yPercent ?? 50}%`, transform: 'translateY(-50%)' }}
+          >
+            <span className={`text-lg font-semibold text-center max-w-[90%] inline-block ${
+              story.textOverlay.hasBackground
+                ? story.textOverlay.style === 'dark-on-light'
+                  ? 'text-gray-900 bg-white/80 px-4 py-2 rounded-xl'
+                  : 'text-white bg-black/70 px-4 py-2 rounded-xl'
+                : story.textOverlay.style === 'dark-on-light'
+                  ? 'text-gray-900 [text-shadow:_0_1px_4px_rgba(255,255,255,0.8),_0_0_8px_rgba(255,255,255,0.5)]'
+                  : 'text-white [text-shadow:_0_1px_4px_rgba(0,0,0,0.8),_0_0_8px_rgba(0,0,0,0.5)]'
+            }`}>
+              {story.textOverlay.text}
+            </span>
+          </div>
+        )}
+
         {/* Bottom area */}
         <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-16 pb-6 px-4">
           {/* Caption */}

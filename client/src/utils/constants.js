@@ -71,7 +71,7 @@ export const LOOKING_FOR_TAGS = [
 
 export const MAX_LOOKING_FOR_TAGS = 5;
 
-export const APP_VERSION = '2.28.0';
+export const APP_VERSION = '2.29.0';
 
 export const DATE_ENERGY_OPTIONS = [
   { value: 'Low-key tonight', emoji: '🌙', color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },

@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy, Type } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -595,6 +595,18 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Referral Leaderboard',
         description: 'Admins can track who\'s driving the most signups from a dedicated Referrals tab.',
+      },
+    ],
+  },
+  '2.29.0': {
+    subtitle: 'Stories just got expressive.',
+    features: [
+      {
+        icon: Type,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Story Text Overlays',
+        description: 'Add styled text directly on your story photos and videos. Choose background or transparent, light or dark — drag to position anywhere.',
       },
     ],
   },
