@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useNotifications } from '../context/SocketContext';
 import api from '../services/api';
-import { Eye, Heart, Sparkles, CheckCheck, UserCircle, Download, Gift, MapPin, Flame } from 'lucide-react';
+import { Eye, Heart, Sparkles, CheckCheck, UserCircle, Download, Gift, MapPin, Flame, DollarSign, MessageCircle } from 'lucide-react';
 
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || window.navigator.standalone === true;
@@ -53,6 +53,16 @@ export default function Notifications() {
       navigate(`/chat/${notif.data.conversationId}`);
     } else if (notif.type === 'smf_pick') {
       if (notif.data?.pickerId) navigate(`/profile/${notif.data.pickerId}`);
+    } else if (notif.type === 'like' && notif.data?.likerId) {
+      navigate(`/profile/${notif.data.likerId}`);
+    } else if (notif.type === 'story_like' && notif.data?.likerId) {
+      navigate(`/profile/${notif.data.likerId}`);
+    } else if (notif.type === 'tip_received' && notif.data?.tipperId) {
+      navigate(`/profile/${notif.data.tipperId}`);
+    } else if (notif.type === 'tip_held') {
+      navigate('/settings');
+    } else if (notif.type === 'tip_ready' && notif.data?.tipId) {
+      navigate(`/stories?completeTip=${notif.data.tipId}`);
     } else if (notif.type === 'new_version') {
       navigate('/');
     }
@@ -69,6 +79,12 @@ export default function Notifications() {
       case 'move_interest': return <MapPin className="text-green-400" size={18} />;
       case 'move_selected': return <MapPin className="text-gold" size={18} />;
       case 'smf_pick': return <Flame className="text-orange-400" size={18} />;
+      case 'like': return <Heart className="text-pink-400" size={18} fill="currentColor" />;
+      case 'story_like': return <Heart className="text-pink-400" size={18} fill="currentColor" />;
+      case 'story_reply': return <MessageCircle className="text-blue-400" size={18} />;
+      case 'tip_received': return <DollarSign className="text-green-400" size={18} />;
+      case 'tip_held': return <DollarSign className="text-amber-400" size={18} />;
+      case 'tip_ready': return <DollarSign className="text-green-400" size={18} />;
       default: return <Sparkles className="text-gold" size={18} />;
     }
   };

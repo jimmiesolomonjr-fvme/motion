@@ -45,6 +45,26 @@ router.post('/:userId', authenticate, async (req, res) => {
       data: { likerId: req.userId, likedId },
     });
 
+    // In-app notification for the liked user
+    try {
+      const likerProfile = await prisma.profile.findUnique({ where: { userId: req.userId } });
+      const displayName = likerProfile?.displayName || 'Someone';
+      await prisma.notification.create({
+        data: {
+          userId: likedId,
+          type: 'like',
+          title: `${displayName} liked you`,
+          body: 'Tap to see their profile.',
+          data: { likerId: req.userId },
+        },
+      });
+      const { io } = await import('../../server.js');
+      const unread = await prisma.notification.count({ where: { userId: likedId, readAt: null } });
+      io.to(likedId).emit('notification', { type: 'like', count: unread });
+    } catch {
+      // Notification is best-effort
+    }
+
     // Fire-and-forget email notification
     sendNotificationEmail(likedId, 'like', req.userId).catch(() => {});
 

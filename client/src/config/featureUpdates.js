@@ -639,6 +639,20 @@ const FEATURE_UPDATES = {
         title: 'Story Tips',
         description: 'Tip your favorite stories with $1, $3, $5, or $10. Tips go directly to the creator via Stripe.',
       },
+      {
+        icon: Heart,
+        color: 'text-pink-400',
+        bg: 'bg-pink-400/10',
+        title: 'Like Notifications',
+        description: 'Get notified when someone likes you. Tap to view their profile instantly.',
+      },
+      {
+        icon: Bell,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Tappable Notifications',
+        description: 'Likes, story likes, and tip notifications now navigate to the right place when tapped.',
+      },
     ],
   },
 };
