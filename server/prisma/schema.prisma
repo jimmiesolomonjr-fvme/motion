@@ -102,10 +102,13 @@ model User {
   profileViewedBy  ProfileView[] @relation("Viewed")
   notifications    Notification[]
   profilePrompts   ProfilePrompt[]
+  stripeConnectAccountId String?
   stories          Story[]
   storyViews       StoryView[] @relation("storyViews")
   storyLikes       StoryLike[] @relation("storyLikes")
   smfRounds        SmfRound[]
+  tipsSent         Tip[]      @relation("TipsSent")
+  tipsReceived     Tip[]      @relation("TipsReceived")
 
   vibeStreak           Int       @default(0)
   vibeLastAnsweredDate DateTime?
@@ -413,6 +416,7 @@ model Story {
   user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   views StoryView[]
   likes StoryLike[]
+  tips  Tip[]
 }
 
 model StoryView {
@@ -485,6 +489,27 @@ model SmfPick {
 
   @@unique([roundId, targetId])
   @@index([targetId, pick])
+}
+
+model Tip {
+  id                    String   @id @default(uuid())
+  storyId               String
+  tipperId              String
+  creatorId             String
+  amount                Int      // cents
+  platformFee           Int      @default(0) // cents
+  stripeSessionId       String?
+  stripePaymentIntentId String?
+  status                String   @default("pending") // pending, completed, failed
+  createdAt             DateTime @default(now())
+
+  story   Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  tipper  User  @relation("TipsSent", fields: [tipperId], references: [id])
+  creator User  @relation("TipsReceived", fields: [creatorId], references: [id])
+
+  @@index([storyId])
+  @@index([tipperId])
+  @@index([creatorId])
 }
 
 model DeletionLog {

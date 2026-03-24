@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Mail, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap, EyeOff, UserX, HeartCrack, BellOff, ShieldAlert, PauseCircle, MessageSquare, ArrowLeft } from 'lucide-react';
+import { LogOut, Crown, Shield, Users, ChevronRight, ChevronDown, Lock, Bell, Mail, Trash2, Share2, Copy, Check, Sparkles, Moon, Music, Zap, EyeOff, UserX, HeartCrack, BellOff, ShieldAlert, PauseCircle, MessageSquare, ArrowLeft, DollarSign, ExternalLink, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Settings() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [blocked, setBlocked] = useState([]);
   const [hiddenUsers, setHiddenUsers] = useState([]);
+
+  // Tips / Stripe Connect state
+  const [connectStatus, setConnectStatus] = useState({ connected: false, chargesEnabled: false });
+  const [connectLoading, setConnectLoading] = useState(false);
 
   // Change password state
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -63,7 +68,19 @@ export default function Settings() {
       setReferralCode(data.referralCode || '');
       setReferralCount(data.referralCount || 0);
     }).catch(() => {});
+    api.get('/payments/connect/status').then(({ data }) => {
+      setConnectStatus(data);
+    }).catch(() => {});
   }, []);
+
+  // Re-fetch connect status when returning from Stripe onboarding
+  useEffect(() => {
+    if (searchParams.get('connect') === 'success' || searchParams.get('connect') === 'refresh') {
+      api.get('/payments/connect/status').then(({ data }) => {
+        setConnectStatus(data);
+      }).catch(() => {});
+    }
+  }, [searchParams]);
 
   const handleLogout = () => {
     logout();
@@ -155,6 +172,23 @@ export default function Settings() {
     } catch {
       setAutoplayMusic(!newVal);
     }
+  };
+
+  const handleSetupTips = async () => {
+    setConnectLoading(true);
+    try {
+      const { data } = await api.post('/payments/connect/onboard');
+      if (data.url) window.location.href = data.url;
+    } catch {
+      setConnectLoading(false);
+    }
+  };
+
+  const handleOpenDashboard = async () => {
+    try {
+      const { data } = await api.get('/payments/connect/dashboard');
+      if (data.url) window.open(data.url, '_blank');
+    } catch {}
   };
 
   const DELETE_REASONS = [
@@ -509,6 +543,59 @@ export default function Settings() {
             />
           </button>
         </div>
+      </div>
+
+      {/* Tips */}
+      <div className="mb-6">
+        <h2 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2 px-4">
+          <DollarSign size={16} /> Tips
+        </h2>
+        {connectStatus.connected && connectStatus.chargesEnabled ? (
+          <div className="px-4">
+            <div className="flex items-center justify-between p-4 bg-dark-50 rounded-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <DollarSign size={16} className="text-green-400" />
+                </div>
+                <div>
+                  <span className="text-white font-medium">Tips Enabled</span>
+                  <p className="text-xs text-gray-500">You can receive tips on your stories</p>
+                </div>
+              </div>
+              <button
+                onClick={handleOpenDashboard}
+                className="flex items-center gap-1 text-sm text-green-400 hover:text-green-300 transition-colors"
+              >
+                Dashboard <ExternalLink size={14} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="px-4">
+            <div className="p-4 bg-dark-50 rounded-xl">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <DollarSign size={20} className="text-green-400" />
+                </div>
+                <div>
+                  <p className="text-white font-medium">Earn tips on your stories</p>
+                  <p className="text-xs text-gray-500">Set up Stripe to receive tips directly to your bank account</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSetupTips}
+                disabled={connectLoading}
+                className="w-full py-2.5 bg-green-500 text-white font-semibold rounded-xl text-sm hover:bg-green-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {connectLoading ? (
+                  <><Loader2 size={16} className="animate-spin" /> Redirecting...</>
+                ) : (
+                  'Set Up Tips'
+                )}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Blocked Users */}

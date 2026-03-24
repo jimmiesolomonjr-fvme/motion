@@ -71,7 +71,7 @@ export const LOOKING_FOR_TAGS = [
 
 export const MAX_LOOKING_FOR_TAGS = 5;
 
-export const APP_VERSION = '2.30.0';
+export const APP_VERSION = '2.31.0';
 
 // Story text overlay constants
 export const STORY_FONT_STYLES = [

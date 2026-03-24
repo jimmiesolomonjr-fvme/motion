@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy, Type, Palette } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy, Type, Palette, DollarSign } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -626,6 +626,18 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Color Picker & Font Size',
         description: '12 text colors, adjustable font size, text alignment, and full X+Y drag positioning.',
+      },
+    ],
+  },
+  '2.31.0': {
+    subtitle: 'Support your favorite creators.',
+    features: [
+      {
+        icon: DollarSign,
+        color: 'text-green-400',
+        bg: 'bg-green-400/10',
+        title: 'Story Tips',
+        description: 'Tip your favorite stories with $1, $3, $5, or $10. Tips go directly to the creator via Stripe.',
       },
     ],
   },

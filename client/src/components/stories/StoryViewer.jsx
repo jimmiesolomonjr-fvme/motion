@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Eye, Heart, Send, MoreVertical, Trash2 } from 'lucide-react';
+import { X, Eye, Heart, Send, MoreVertical, Trash2, DollarSign } from 'lucide-react';
 import api from '../../services/api';
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 import { STORY_FONT_STYLES } from '../../utils/constants';
+import TipModal from './TipModal';
 
 // W3C brightness formula
 function isColorLight(hex) {
@@ -52,6 +53,7 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
   const [isPaused, setIsPaused] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showTipModal, setShowTipModal] = useState(false);
   const pausedAtRef = useRef(0); // elapsed ms when paused
   const replyAreaRef = useRef(null);
 
@@ -135,6 +137,7 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
     setIsPaused(false);
     setShowMenu(false);
     setShowDeleteConfirm(false);
+    setShowTipModal(false);
     pausedAtRef.current = 0;
   }, [groupIdx, storyIdx]);
 
@@ -330,6 +333,15 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
           </div>
         )}
 
+        {/* Tip modal */}
+        {showTipModal && (
+          <TipModal
+            storyId={story.id}
+            creatorName={group.displayName}
+            onClose={() => { setShowTipModal(false); resumeTimer(); }}
+          />
+        )}
+
         {/* Story media */}
         {storyIsVideo ? (
           <video
@@ -426,16 +438,24 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
                       <Send size={18} />
                     </button>
                   ) : (
-                    <button
-                      onClick={handleLike}
-                      className="w-10 h-10 flex items-center justify-center shrink-0"
-                    >
-                      <Heart
-                        size={24}
-                        className={hasLiked ? 'text-red-500' : 'text-white/80'}
-                        fill={hasLiked ? 'currentColor' : 'none'}
-                      />
-                    </button>
+                    <>
+                      <button
+                        onClick={handleLike}
+                        className="w-10 h-10 flex items-center justify-center shrink-0"
+                      >
+                        <Heart
+                          size={24}
+                          className={hasLiked ? 'text-red-500' : 'text-white/80'}
+                          fill={hasLiked ? 'currentColor' : 'none'}
+                        />
+                      </button>
+                      <button
+                        onClick={() => { setShowTipModal(true); pauseTimer(); }}
+                        className="w-10 h-10 flex items-center justify-center shrink-0"
+                      >
+                        <DollarSign size={22} className="text-green-400" />
+                      </button>
+                    </>
                   )}
                 </div>
               )}
