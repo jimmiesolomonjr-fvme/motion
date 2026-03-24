@@ -71,7 +71,26 @@ export const LOOKING_FOR_TAGS = [
 
 export const MAX_LOOKING_FOR_TAGS = 5;
 
-export const APP_VERSION = '2.29.0';
+export const APP_VERSION = '2.30.0';
+
+// Story text overlay constants
+export const STORY_FONT_STYLES = [
+  { id: 'classic', label: 'Classic', fontFamily: "'Inter', sans-serif", fontWeight: 600 },
+  { id: 'modern', label: 'Modern', fontFamily: "'Inter', sans-serif", fontWeight: 800, textTransform: 'uppercase' },
+  { id: 'handwritten', label: 'Handwritten', fontFamily: "'Pacifico', cursive", fontWeight: 400 },
+  { id: 'typewriter', label: 'Typewriter', fontFamily: "'Courier New', monospace", fontWeight: 400 },
+  { id: 'bold', label: 'Bold', fontFamily: "'Impact', sans-serif", fontWeight: 400, textTransform: 'uppercase' },
+];
+
+export const STORY_TEXT_COLORS = [
+  '#FFFFFF', '#000000', '#EF4444', '#F97316', '#EAB308',
+  '#22C55E', '#3B82F6', '#A855F7', '#EC4899', '#F59E0B',
+  '#14B8A6', '#9CA3AF',
+];
+
+export const STORY_FONT_SIZE_MIN = 16;
+export const STORY_FONT_SIZE_MAX = 48;
+export const STORY_FONT_SIZE_DEFAULT = 24;
 
 export const DATE_ENERGY_OPTIONS = [
   { value: 'Low-key tonight', emoji: '🌙', color: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/20' },

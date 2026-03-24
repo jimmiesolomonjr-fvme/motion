@@ -34,12 +34,22 @@ router.post('/', authenticate, uploadMedia.single('photo'), async (req, res) => 
       try {
         const parsed = JSON.parse(req.body.textOverlay);
         if (parsed.text && typeof parsed.text === 'string' && parsed.text.trim()) {
+          const validFonts = ['classic', 'modern', 'handwritten', 'typewriter', 'bold'];
+          const validAligns = ['left', 'center', 'right'];
           textOverlay = {
             text: parsed.text.trim().slice(0, 200),
             hasBackground: !!parsed.hasBackground,
-            style: ['light-on-dark', 'dark-on-light'].includes(parsed.style) ? parsed.style : 'light-on-dark',
+            fontStyle: validFonts.includes(parsed.fontStyle) ? parsed.fontStyle : 'classic',
+            color: /^#[0-9A-Fa-f]{6}$/.test(parsed.color) ? parsed.color : '#FFFFFF',
+            fontSize: Math.max(16, Math.min(48, Number(parsed.fontSize) || 24)),
+            align: validAligns.includes(parsed.align) ? parsed.align : 'center',
+            xPercent: Math.max(0, Math.min(100, Number(parsed.xPercent) || 50)),
             yPercent: Math.max(0, Math.min(100, Number(parsed.yPercent) || 50)),
           };
+          // Backwards compat: keep style if old client sends it
+          if (parsed.style && !parsed.fontStyle) {
+            textOverlay.color = parsed.style === 'dark-on-light' ? '#111827' : '#FFFFFF';
+          }
         }
       } catch {
         // Invalid JSON — ignore

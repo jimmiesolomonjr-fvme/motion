@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy, Type } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy, Type, Palette } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -607,6 +607,25 @@ const FEATURE_UPDATES = {
         bg: 'bg-gold/10',
         title: 'Story Text Overlays',
         description: 'Add styled text directly on your story photos and videos. Choose background or transparent, light or dark — drag to position anywhere.',
+      },
+    ],
+  },
+  '2.30.0': {
+    subtitle: 'Story text just leveled up.',
+    features: [
+      {
+        icon: Type,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: '5 Font Styles',
+        description: 'Classic, Modern, Handwritten, Typewriter, and Bold — pick the vibe that matches your story.',
+      },
+      {
+        icon: Palette,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Color Picker & Font Size',
+        description: '12 text colors, adjustable font size, text alignment, and full X+Y drag positioning.',
       },
     ],
   },

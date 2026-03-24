@@ -3,6 +3,34 @@ import { X, Eye, Heart, Send, MoreVertical, Trash2 } from 'lucide-react';
 import api from '../../services/api';
 import { isVideoUrl } from '../../utils/mediaUtils';
 import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
+import { STORY_FONT_STYLES } from '../../utils/constants';
+
+// W3C brightness formula
+function isColorLight(hex) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150;
+}
+
+// Normalize old text overlay format to new one
+function normalizeTextOverlay(overlay) {
+  if (!overlay?.text) return null;
+  // Already new format
+  if (overlay.color) return overlay;
+  // Old format with style field
+  const isLight = overlay.style !== 'dark-on-light';
+  return {
+    text: overlay.text,
+    hasBackground: overlay.hasBackground ?? true,
+    fontStyle: 'classic',
+    color: isLight ? '#FFFFFF' : '#111827',
+    fontSize: 24,
+    align: 'center',
+    xPercent: 50,
+    yPercent: overlay.yPercent ?? 50,
+  };
+}
 
 export default function StoryViewer({ storyGroups, startIndex, currentUserId, isAdmin, onClose }) {
   const [groupIdx, setGroupIdx] = useState(startIndex);
@@ -318,24 +346,50 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
         )}
 
         {/* Text overlay */}
-        {story.textOverlay?.text && (
-          <div
-            className="absolute left-0 right-0 flex justify-center pointer-events-none px-4 z-10"
-            style={{ top: `${story.textOverlay.yPercent ?? 50}%`, transform: 'translateY(-50%)' }}
-          >
-            <span className={`text-lg font-semibold text-center max-w-[90%] inline-block ${
-              story.textOverlay.hasBackground
-                ? story.textOverlay.style === 'dark-on-light'
-                  ? 'text-gray-900 bg-white/80 px-4 py-2 rounded-xl'
-                  : 'text-white bg-black/70 px-4 py-2 rounded-xl'
-                : story.textOverlay.style === 'dark-on-light'
-                  ? 'text-gray-900 [text-shadow:_0_1px_4px_rgba(255,255,255,0.8),_0_0_8px_rgba(255,255,255,0.5)]'
-                  : 'text-white [text-shadow:_0_1px_4px_rgba(0,0,0,0.8),_0_0_8px_rgba(0,0,0,0.5)]'
-            }`}>
-              {story.textOverlay.text}
-            </span>
-          </div>
-        )}
+        {story.textOverlay?.text && (() => {
+          const overlay = normalizeTextOverlay(story.textOverlay);
+          if (!overlay) return null;
+          const font = STORY_FONT_STYLES.find((f) => f.id === overlay.fontStyle) || STORY_FONT_STYLES[0];
+          const light = isColorLight(overlay.color);
+          const inlineStyles = {
+            fontFamily: font.fontFamily,
+            fontWeight: font.fontWeight,
+            textTransform: font.textTransform || 'none',
+            color: overlay.color,
+            fontSize: `${overlay.fontSize || 24}px`,
+            lineHeight: 1.3,
+            textAlign: overlay.align || 'center',
+            maxWidth: '90%',
+            display: 'inline-block',
+            wordBreak: 'break-word',
+          };
+          if (overlay.hasBackground) {
+            inlineStyles.backgroundColor = light ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.8)';
+            inlineStyles.padding = '6px 16px';
+            inlineStyles.borderRadius = '12px';
+          } else {
+            inlineStyles.textShadow = light
+              ? '0 1px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5)'
+              : '0 1px 4px rgba(255,255,255,0.8), 0 0 8px rgba(255,255,255,0.5)';
+          }
+          return (
+            <div
+              className="absolute pointer-events-none px-4 z-10"
+              style={{
+                left: `${overlay.xPercent ?? 50}%`,
+                top: `${overlay.yPercent ?? 50}%`,
+                transform: 'translate(-50%, -50%)',
+                width: '100%',
+                display: 'flex',
+                justifyContent: overlay.align === 'left' ? 'flex-start' : overlay.align === 'right' ? 'flex-end' : 'center',
+              }}
+            >
+              <span style={inlineStyles}>
+                {overlay.text}
+              </span>
+            </div>
+          );
+        })()}
 
         {/* Bottom area */}
         <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-16 pb-6 px-4">
