@@ -159,6 +159,7 @@ router.get('/users', authenticate, requireAdmin, async (req, res) => {
         isMuted: u.isMuted,
         isHidden: u.isHidden,
         isVerified: u.isVerified,
+        referralCode: u.referralCode,
         createdAt: u.createdAt,
         profile: u.profile,
       })),
@@ -753,35 +754,35 @@ router.get('/referrals', authenticate, requireAdmin, async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Group by referredBy (which is the referralCode of the referrer)
-    const codeMap = {};
+    // Group by referredBy (which stores the referrer's user ID)
+    const referrerIdMap = {};
     for (const u of referredUsers) {
-      if (!codeMap[u.referredBy]) codeMap[u.referredBy] = [];
-      codeMap[u.referredBy].push({ id: u.id, email: u.email, displayName: u.profile?.displayName, createdAt: u.createdAt });
+      if (!referrerIdMap[u.referredBy]) referrerIdMap[u.referredBy] = [];
+      referrerIdMap[u.referredBy].push({ id: u.id, email: u.email, displayName: u.profile?.displayName, createdAt: u.createdAt });
     }
 
-    // Look up the referrer user for each code
-    const codes = Object.keys(codeMap);
-    const referrers = codes.length > 0
+    // Look up the referrer user for each ID
+    const referrerIds = Object.keys(referrerIdMap);
+    const referrers = referrerIds.length > 0
       ? await prisma.user.findMany({
-          where: { referralCode: { in: codes } },
+          where: { id: { in: referrerIds } },
           include: { profile: { select: { displayName: true, photos: true } } },
         })
       : [];
 
-    const referrerMap = {};
+    const referrerByIdMap = {};
     for (const r of referrers) {
-      referrerMap[r.referralCode] = r;
+      referrerByIdMap[r.id] = r;
     }
 
-    const leaderboard = codes.map((code) => {
-      const referrer = referrerMap[code];
+    const leaderboard = referrerIds.map((referrerId) => {
+      const referrer = referrerByIdMap[referrerId];
       return {
         user: referrer
           ? { id: referrer.id, email: referrer.email, displayName: referrer.profile?.displayName, photos: referrer.profile?.photos, referralCode: referrer.referralCode }
-          : { id: null, email: null, displayName: `Unknown (${code})`, photos: [], referralCode: code },
-        referrals: codeMap[code],
-        count: codeMap[code].length,
+          : { id: referrerId, email: null, displayName: `Unknown (${referrerId})`, photos: [], referralCode: null },
+        referrals: referrerIdMap[referrerId],
+        count: referrerIdMap[referrerId].length,
       };
     });
 

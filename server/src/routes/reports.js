@@ -8,7 +8,7 @@ const prisma = new PrismaClient();
 // Report a user
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { reportedId, reason, details } = req.body;
+    const { reportedId, reason, details, conversationId } = req.body;
 
     if (!reportedId || !reason) {
       return res.status(400).json({ error: 'Reported user and reason are required' });
@@ -19,9 +19,10 @@ router.post('/', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid reason' });
     }
 
-    const report = await prisma.report.create({
-      data: { reporterId: req.userId, reportedId, reason, details },
-    });
+    const data = { reporterId: req.userId, reportedId, reason, details };
+    if (conversationId) data.conversationId = conversationId;
+
+    const report = await prisma.report.create({ data });
 
     res.status(201).json(report);
   } catch (error) {

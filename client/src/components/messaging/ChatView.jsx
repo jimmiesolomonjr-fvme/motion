@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap, X, Loader, WifiOff } from 'lucide-react';
+import { Send, Mic, Square, ArrowLeft, Crown, ImagePlus, MoreVertical, UserX, Trash2, Zap, X, Loader, WifiOff, Flag, AlertTriangle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import ImageCropper from '../ui/ImageCropper';
 import api from '../../services/api';
 import { isOnline } from '../../utils/formatters';
+import { REPORT_REASONS } from '../../utils/constants';
 
 export default function ChatView({ conversationId, otherUser }) {
   const { user, refreshUser } = useAuth();
@@ -35,6 +36,11 @@ export default function ChatView({ conversationId, otherUser }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [reconnecting, setReconnecting] = useState(false);
   const [socketConnected, setSocketConnected] = useState(true);
+  const [muteBanner, setMuteBanner] = useState(null); // { reason }
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const queuedMessageRef = useRef(null); // { content, replyToId }
   const typingTimerRef = useRef(null);
   const menuRef = useRef(null);
@@ -109,11 +115,16 @@ export default function ChatView({ conversationId, otherUser }) {
 
     const handleSendError = (data) => {
       if (data?.conversationId === conversationId || !data?.conversationId) {
-        setSocketError(data?.error || 'Failed to send message');
         if (pendingMessageRef.current) {
           setInput(pendingMessageRef.current);
           pendingMessageRef.current = '';
         }
+        // Mute errors get a persistent banner instead of the auto-dismiss toast
+        if (data?.error?.includes('suspended') && data?.muteReason) {
+          setMuteBanner({ reason: data.muteReason });
+          return;
+        }
+        setSocketError(data?.error || 'Failed to send message');
         setTimeout(() => setSocketError(''), 5000);
       }
     };
@@ -352,6 +363,29 @@ export default function ChatView({ conversationId, otherUser }) {
     }
   };
 
+  const handleReport = async () => {
+    if (!reportReason) return;
+    setReportSubmitting(true);
+    try {
+      await api.post('/reports', {
+        reportedId: otherUser.id,
+        reason: reportReason,
+        details: reportDetails || undefined,
+        conversationId,
+      });
+      setShowReportModal(false);
+      setReportReason('');
+      setReportDetails('');
+      setSocketError('Report submitted');
+      setTimeout(() => setSocketError(''), 3000);
+    } catch {
+      setSocketError('Failed to submit report');
+      setTimeout(() => setSocketError(''), 3000);
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   const handleDeleteConversation = async () => {
     try {
       await api.delete(`/messages/conversations/${conversationId}`);
@@ -406,6 +440,12 @@ export default function ChatView({ conversationId, otherUser }) {
                   </button>
                 )}
                 <button
+                  onClick={() => { setMenuOpen(false); setShowReportModal(true); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-orange-400 hover:bg-dark-50 transition-colors"
+                >
+                  <Flag size={16} /> Report
+                </button>
+                <button
                   onClick={() => { setMenuOpen(false); setShowDeleteModal(true); }}
                   className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-dark-50 transition-colors"
                 >
@@ -451,9 +491,23 @@ export default function ChatView({ conversationId, otherUser }) {
         <div ref={bottomRef} />
       </div>
 
+      {/* Mute banner */}
+      {muteBanner && (
+        <div className="flex items-center gap-2 px-4 py-3 bg-red-500/10 border-t border-red-500/20">
+          <AlertTriangle size={16} className="text-red-400 shrink-0" />
+          <p className="text-sm text-red-400">
+            Your messaging has been suspended.{muteBanner.reason ? ` Reason: ${muteBanner.reason}` : ''}
+          </p>
+        </div>
+      )}
+
       {/* Input — hidden for system conversations */}
       <div className="px-3 pt-2 border-t border-dark-50" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.5rem)' }}>
-        {otherUser?.isAdmin ? (
+        {muteBanner ? (
+          <div className="text-center py-3">
+            <p className="text-xs text-gray-500">You cannot send messages while muted</p>
+          </div>
+        ) : otherUser?.isAdmin ? (
           <div className="text-center py-3">
             <p className="text-xs text-gray-500">System messages from Motion</p>
           </div>
@@ -594,6 +648,50 @@ export default function ChatView({ conversationId, otherUser }) {
           </button>
           <button onClick={handleDeleteConversation} className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors">
             Delete
+          </button>
+        </div>
+      </Modal>
+
+      {/* Report Modal */}
+      <Modal isOpen={showReportModal} onClose={() => { setShowReportModal(false); setReportReason(''); setReportDetails(''); }} title="Report User">
+        <p className="text-sm text-gray-400 mb-4">
+          Why are you reporting <span className="text-white font-medium">{otherUser?.profile?.displayName}</span>?
+        </p>
+        <div className="space-y-2 mb-4">
+          {REPORT_REASONS.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setReportReason(r.value)}
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition-colors ${
+                reportReason === r.value
+                  ? 'bg-gold/20 text-gold border border-gold/40'
+                  : 'bg-dark-100 text-gray-400 border border-transparent hover:bg-dark-50'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={reportDetails}
+          onChange={(e) => setReportDetails(e.target.value)}
+          placeholder="Additional details (optional)"
+          rows={3}
+          className="w-full input-field mb-4 text-sm"
+        />
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setShowReportModal(false); setReportReason(''); setReportDetails(''); }}
+            className="flex-1 px-4 py-2.5 bg-dark-100 text-white rounded-xl font-semibold text-sm hover:bg-dark-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleReport}
+            disabled={!reportReason || reportSubmitting}
+            className="flex-1 px-4 py-2.5 bg-red-500 text-white rounded-xl font-semibold text-sm hover:bg-red-600 transition-colors disabled:opacity-50"
+          >
+            {reportSubmitting ? 'Submitting...' : 'Submit Report'}
           </button>
         </div>
       </Modal>

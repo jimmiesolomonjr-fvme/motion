@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { MessageCircle } from 'lucide-react';
 import Avatar from '../ui/Avatar';
 import Button from '../ui/Button';
 import api from '../../services/api';
@@ -44,7 +45,14 @@ export default function ReportsList() {
                   <span className="text-gray-500"> reported by </span>
                   <span className="font-bold">{report.reporter?.profile?.displayName || 'Unknown'}</span>
                 </p>
-                <p className="text-xs text-gold mt-1">{report.reason.replace('_', ' ')}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-xs text-gold">{report.reason.replace('_', ' ')}</p>
+                  {report.conversationId && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded text-[10px] font-medium">
+                      <MessageCircle size={10} /> From conversation
+                    </span>
+                  )}
+                </div>
                 {report.details && <p className="text-xs text-gray-400 mt-1">{report.details}</p>}
                 <p className="text-xs text-gray-500 mt-1">{timeAgo(report.createdAt)}</p>
               </div>

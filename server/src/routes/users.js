@@ -30,17 +30,35 @@ const PROFILE_PROMPTS = [
   "I'm attracted to…",
 ];
 
+// Generate a unique referral code (same logic as auth.js)
+async function ensureReferralCode(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { referralCode: true },
+  });
+  if (user.referralCode) return user.referralCode;
+
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for (let attempt = 0; attempt < 10; attempt++) {
+    let code = 'MOTION-';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    const exists = await prisma.user.findUnique({ where: { referralCode: code } });
+    if (!exists) {
+      await prisma.user.update({ where: { id: userId }, data: { referralCode: code } });
+      return code;
+    }
+  }
+  return null;
+}
+
 // Get referral info
 router.get('/referral', authenticate, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { referralCode: true },
-    });
+    const referralCode = await ensureReferralCode(req.userId);
     const referralCount = await prisma.user.count({
-      where: { referredBy: user.id },
+      where: { referredBy: req.userId },
     });
-    res.json({ referralCode: user.referralCode, referralCount });
+    res.json({ referralCode, referralCount });
   } catch (error) {
     console.error('Referral info error:', error);
     res.status(500).json({ error: 'Server error' });
