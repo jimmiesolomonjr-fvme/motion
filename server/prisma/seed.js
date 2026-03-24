@@ -327,6 +327,18 @@ async function main() {
       category: 'DINNER',
     },
     {
+      title: 'Date Night at Catherine Lombardi',
+      description: 'Upscale Italian in the heart of New Brunswick. Low lighting, exposed brick, handmade pasta, and cocktails that set the tone. Old-school romance, new-school crowd.',
+      location: 'New Brunswick, NJ',
+      category: 'DINNER',
+    },
+    {
+      title: 'Boardwalk & Cocktails at Porta',
+      description: 'Wood-fired pizza, craft cocktails, and an outdoor patio steps from the boardwalk. Asbury Park energy is unmatched — young, vibrant, and always a good time.',
+      location: 'Asbury Park, NJ',
+      category: 'DRINKS',
+    },
+    {
       title: 'Live Jazz at Minton\'s Playhouse',
       description: 'The birthplace of bebop. Cocktails, live jazz, and legendary Harlem energy. Dress sharp — this one\'s a vibe.',
       location: 'Harlem, NY',
