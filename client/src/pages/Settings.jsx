@@ -176,19 +176,33 @@ export default function Settings() {
 
   const handleSetupTips = async () => {
     setConnectLoading(true);
+    const w = window.open('', '_blank');
     try {
       const { data } = await api.post('/payments/connect/onboard');
-      if (data.url) window.location.href = data.url;
+      if (data.url) {
+        w.location.href = data.url;
+      } else {
+        w.close();
+      }
+      setConnectLoading(false);
     } catch {
+      w.close();
       setConnectLoading(false);
     }
   };
 
   const handleOpenDashboard = async () => {
+    const w = window.open('', '_blank');
     try {
       const { data } = await api.get('/payments/connect/dashboard');
-      if (data.url) window.open(data.url, '_blank');
-    } catch {}
+      if (data.url) {
+        w.location.href = data.url;
+      } else {
+        w.close();
+      }
+    } catch {
+      w.close();
+    }
   };
 
   const DELETE_REASONS = [

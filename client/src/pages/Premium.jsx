@@ -21,11 +21,17 @@ export default function Premium() {
 
   const handleSubscribe = async () => {
     setLoading(true);
+    const w = window.open('', '_blank');
     try {
       const { data } = await api.post('/payments/checkout');
-      window.location.href = data.url;
+      if (data.url) {
+        w.location.href = data.url;
+      } else {
+        w.close();
+      }
     } catch (err) {
       console.error('Checkout error:', err);
+      w.close();
     } finally {
       setLoading(false);
     }

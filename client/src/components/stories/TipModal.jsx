@@ -32,18 +32,24 @@ export default function TipModal({ storyId, creatorId, creatorName, onClose }) {
     if (!selected) return;
     setLoading(true);
     setError('');
+    const w = window.open('', '_blank');
     try {
       const { data } = await api.post('/payments/tip', {
         storyId,
         amount: selected,
       });
       if (data.held) {
+        w.close();
         setHeldConfirmation(true);
         setLoading(false);
       } else if (data.url) {
-        window.location.href = data.url;
+        w.location.href = data.url;
+        setLoading(false);
+      } else {
+        w.close();
       }
     } catch (err) {
+      w.close();
       setError(err.response?.data?.error || 'Failed to start tip');
       setLoading(false);
     }
@@ -53,12 +59,17 @@ export default function TipModal({ storyId, creatorId, creatorName, onClose }) {
     if (!pendingTip) return;
     setLoading(true);
     setError('');
+    const w = window.open('', '_blank');
     try {
       const { data } = await api.post(`/payments/tip/${pendingTip.id}/complete`);
       if (data.url) {
-        window.location.href = data.url;
+        w.location.href = data.url;
+        setLoading(false);
+      } else {
+        w.close();
       }
     } catch (err) {
+      w.close();
       setError(err.response?.data?.error || 'Failed to complete tip');
       setLoading(false);
     }
