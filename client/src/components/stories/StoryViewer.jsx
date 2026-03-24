@@ -337,6 +337,7 @@ export default function StoryViewer({ storyGroups, startIndex, currentUserId, is
         {showTipModal && (
           <TipModal
             storyId={story.id}
+            creatorId={group.userId}
             creatorName={group.displayName}
             onClose={() => { setShowTipModal(false); resumeTimer(); }}
           />
