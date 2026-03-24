@@ -92,15 +92,32 @@ router.post('/free-upgrade', authenticate, async (req, res) => {
 // --- Stripe Connect: Onboard creator ---
 router.post('/connect/onboard', authenticate, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({ where: { id: req.userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      include: { profile: true },
+    });
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     let accountId = user.stripeConnectAccountId;
 
     if (!accountId) {
+      // Pre-fill name from profile to reduce onboarding screens
+      const nameParts = (user.profile?.displayName || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || undefined;
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : undefined;
+
       const account = await stripe.accounts.create({
         type: 'express',
-        email: user.email,
+        country: 'US',
+        business_type: 'individual',
+        individual: {
+          email: user.email,
+          ...(firstName && { first_name: firstName }),
+          ...(lastName && { last_name: lastName }),
+        },
+        capabilities: {
+          transfers: { requested: true },
+        },
         metadata: { userId: user.id },
       });
       accountId = account.id;
@@ -115,6 +132,10 @@ router.post('/connect/onboard', authenticate, async (req, res) => {
       refresh_url: `${config.clientUrl}/settings?connect=refresh`,
       return_url: `${config.clientUrl}/settings?connect=success`,
       type: 'account_onboarding',
+      collection_options: {
+        fields: 'currently_due',
+        future_requirements: 'omit',
+      },
     });
 
     res.json({ url: accountLink.url });
