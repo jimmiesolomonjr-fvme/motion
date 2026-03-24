@@ -116,6 +116,7 @@ router.post('/connect/onboard', authenticate, async (req, res) => {
           ...(lastName && { last_name: lastName }),
         },
         capabilities: {
+          card_payments: { requested: true },
           transfers: { requested: true },
         },
         metadata: { userId: user.id },
