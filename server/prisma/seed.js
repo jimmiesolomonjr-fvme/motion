@@ -306,6 +306,69 @@ async function main() {
 
   console.log('Created admin user: admin@motion.app / admin12345 (displays as "Motion")');
 
+  // Seed "Moves from Motion" — curated date ideas from the platform
+  const motionMoves = [
+    {
+      title: 'Life After — Edgewater',
+      description: 'Upscale dining meets nightlife on the water. Great food, strong drinks, and DJ sets that turn dinner into a whole night out. This is the one.',
+      location: 'Edgewater, NJ',
+      category: 'DINNER',
+    },
+    {
+      title: 'Cocktails at Cellar 335',
+      description: 'Speakeasy-style cocktail bar with low lights and a grown-and-sexy atmosphere. Perfect for a first date when you want to talk and vibe.',
+      location: 'Jersey City, NJ',
+      category: 'DRINKS',
+    },
+    {
+      title: 'Waterfront Dinner at Pier 115',
+      description: 'Right on the Hudson with Manhattan across the water. Elevated American menu, rooftop seating, and weekend energy that hits different.',
+      location: 'Edgewater, NJ',
+      category: 'DINNER',
+    },
+    {
+      title: 'Live Jazz at Minton\'s Playhouse',
+      description: 'The birthplace of bebop. Cocktails, live jazz, and legendary Harlem energy. Dress sharp — this one\'s a vibe.',
+      location: 'Harlem, NY',
+      category: 'CONCERT',
+    },
+    {
+      title: 'Dinner at Red Rooster',
+      description: 'Marcus Samuelsson\'s Harlem staple. Comfort food meets fine dining, live music downstairs at Ginny\'s Supper Club. The full experience.',
+      location: 'Harlem, NY',
+      category: 'DINNER',
+    },
+  ];
+
+  // Set date 30 days out so they stay active in the feed
+  const moveDate = new Date();
+  moveDate.setDate(moveDate.getDate() + 30);
+  moveDate.setHours(23, 59, 0, 0);
+
+  let movesCreated = 0;
+  for (const move of motionMoves) {
+    const exists = await prisma.move.findFirst({
+      where: { creatorId: admin.id, title: move.title },
+    });
+    if (!exists) {
+      await prisma.move.create({
+        data: {
+          creatorId: admin.id,
+          stepperId: admin.id,
+          title: move.title,
+          description: move.description,
+          date: moveDate,
+          location: move.location,
+          category: move.category,
+          isAnytime: true,
+          maxInterest: 20,
+        },
+      });
+      movesCreated++;
+    }
+  }
+  console.log(`Moves from Motion: ${movesCreated} new, ${motionMoves.length - movesCreated} already exist`);
+
   // Create Jasmine W dummy user
   const dummyPassword = await bcrypt.hash('motion123', 12);
 

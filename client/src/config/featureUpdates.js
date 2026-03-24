@@ -655,6 +655,25 @@ const FEATURE_UPDATES = {
       },
     ],
   },
+  '2.32.0': {
+    subtitle: 'Moves from Motion just dropped.',
+    features: [
+      {
+        icon: MapPin,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Moves from Motion',
+        description: 'Curated date ideas handpicked by the team. High-end spots across NJ and NYC — just tap "I\'m Down" on any that catch your eye.',
+      },
+      {
+        icon: Sparkles,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Must Try: Life After',
+        description: 'Upscale dining meets nightlife on the water in Edgewater, NJ. If you haven\'t been, this is your sign.',
+      },
+    ],
+  },
 };
 
 export default FEATURE_UPDATES;
