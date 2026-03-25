@@ -227,30 +227,59 @@ router.delete('/users/:userId', authenticate, requireAdmin, async (req, res) => 
       return res.status(403).json({ error: 'Cannot delete an admin user' });
     }
 
-    // Delete related records that don't cascade automatically
-    await prisma.$transaction([
-      prisma.messageReaction.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.pushSubscription.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.moveInterest.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.move.deleteMany({ where: { creatorId: req.params.userId } }),
-      prisma.message.deleteMany({ where: { senderId: req.params.userId } }),
-      prisma.conversation.deleteMany({ where: { OR: [{ user1Id: req.params.userId }, { user2Id: req.params.userId }] } }),
-      prisma.like.deleteMany({ where: { OR: [{ likerId: req.params.userId }, { likedId: req.params.userId }] } }),
-      prisma.match.deleteMany({ where: { OR: [{ user1Id: req.params.userId }, { user2Id: req.params.userId }] } }),
-      prisma.block.deleteMany({ where: { OR: [{ blockerId: req.params.userId }, { blockedId: req.params.userId }] } }),
-      prisma.report.deleteMany({ where: { OR: [{ reporterId: req.params.userId }, { reportedId: req.params.userId }] } }),
-      prisma.hiddenPair.deleteMany({ where: { OR: [{ user1Id: req.params.userId }, { user2Id: req.params.userId }] } }),
-      prisma.notification.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.profileView.deleteMany({ where: { OR: [{ viewerId: req.params.userId }, { viewedId: req.params.userId }] } }),
-      prisma.storyLike.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.storyView.deleteMany({ where: { viewerId: req.params.userId } }),
-      prisma.story.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.profilePrompt.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.vibeAnswer.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.subscription.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.profile.deleteMany({ where: { userId: req.params.userId } }),
-      prisma.user.delete({ where: { id: req.params.userId } }),
-    ]);
+    // Delete related records in dependency order
+    const uid = req.params.userId;
+    await prisma.$transaction(async (tx) => {
+      // Tips (no cascade on tipperId/creatorId)
+      await tx.tip.deleteMany({ where: { OR: [{ tipperId: uid }, { creatorId: uid }] } });
+      // Message reactions
+      await tx.messageReaction.deleteMany({ where: { userId: uid } });
+      // Messages in ALL conversations involving this user (not just sent by them)
+      const convos = await tx.conversation.findMany({
+        where: { OR: [{ user1Id: uid }, { user2Id: uid }] },
+        select: { id: true },
+      });
+      const convoIds = convos.map((c) => c.id);
+      if (convoIds.length > 0) {
+        await tx.message.deleteMany({ where: { conversationId: { in: convoIds } } });
+      }
+      await tx.conversation.deleteMany({ where: { id: { in: convoIds } } });
+      // Move participants (no cascade on baddieId)
+      await tx.moveParticipant.deleteMany({ where: { baddieId: uid } });
+      // Move interests on this user's moves + by this user
+      const userMoves = await tx.move.findMany({ where: { creatorId: uid }, select: { id: true } });
+      const moveIds = userMoves.map((m) => m.id);
+      if (moveIds.length > 0) {
+        await tx.moveInterest.deleteMany({ where: { moveId: { in: moveIds } } });
+        await tx.savedMove.deleteMany({ where: { moveId: { in: moveIds } } });
+        await tx.moveParticipant.deleteMany({ where: { moveId: { in: moveIds } } });
+      }
+      await tx.moveInterest.deleteMany({ where: { userId: uid } });
+      await tx.savedMove.deleteMany({ where: { userId: uid } });
+      await tx.move.deleteMany({ where: { creatorId: uid } });
+      // Push subscriptions
+      await tx.pushSubscription.deleteMany({ where: { userId: uid } });
+      // Social
+      await tx.like.deleteMany({ where: { OR: [{ likerId: uid }, { likedId: uid }] } });
+      await tx.match.deleteMany({ where: { OR: [{ user1Id: uid }, { user2Id: uid }] } });
+      await tx.block.deleteMany({ where: { OR: [{ blockerId: uid }, { blockedId: uid }] } });
+      await tx.report.deleteMany({ where: { OR: [{ reporterId: uid }, { reportedId: uid }] } });
+      await tx.hiddenPair.deleteMany({ where: { OR: [{ user1Id: uid }, { user2Id: uid }] } });
+      // Notifications & views
+      await tx.notification.deleteMany({ where: { userId: uid } });
+      await tx.profileView.deleteMany({ where: { OR: [{ viewerId: uid }, { viewedId: uid }] } });
+      // Stories (likes/views cascade, but clean up references to this user)
+      await tx.storyLike.deleteMany({ where: { userId: uid } });
+      await tx.storyView.deleteMany({ where: { viewerId: uid } });
+      await tx.story.deleteMany({ where: { userId: uid } });
+      // Profile & vibe
+      await tx.profilePrompt.deleteMany({ where: { userId: uid } });
+      await tx.vibeAnswer.deleteMany({ where: { userId: uid } });
+      await tx.subscription.deleteMany({ where: { userId: uid } });
+      await tx.profile.deleteMany({ where: { userId: uid } });
+      // Finally delete the user
+      await tx.user.delete({ where: { id: uid } });
+    });
 
     res.json({ success: true });
   } catch (error) {

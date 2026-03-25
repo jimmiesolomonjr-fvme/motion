@@ -92,6 +92,7 @@ router.get('/', authenticate, async (req, res) => {
       where: {
         expiresAt: { gt: new Date() },
         ...(excludeIds.length > 0 && { userId: { notIn: excludeIds } }),
+        user: { isHidden: false, isBanned: false },
         OR: roleCondition,
       },
       include: {
