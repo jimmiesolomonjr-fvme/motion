@@ -313,42 +313,49 @@ async function main() {
       description: 'Upscale dining meets nightlife on the water. Great food, strong drinks, and DJ sets that turn dinner into a whole night out. This is the one.',
       location: 'Edgewater, NJ',
       category: 'DINNER',
+      photo: 'https://images.unsplash.com/photo-1575444758702-4a6b9222336e?w=800&q=80',
     },
     {
       title: 'Cocktails at Cellar 335',
       description: 'Speakeasy-style cocktail bar with low lights and a grown-and-sexy atmosphere. Perfect for a first date when you want to talk and vibe.',
       location: 'Jersey City, NJ',
       category: 'DRINKS',
+      photo: 'https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=800&q=80',
     },
     {
       title: 'Waterfront Dinner at Pier 115',
       description: 'Right on the Hudson with Manhattan across the water. Elevated American menu, rooftop seating, and weekend energy that hits different.',
       location: 'Edgewater, NJ',
       category: 'DINNER',
+      photo: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80',
     },
     {
       title: 'Date Night at Catherine Lombardi',
       description: 'Upscale Italian in the heart of New Brunswick. Low lighting, exposed brick, handmade pasta, and cocktails that set the tone. Old-school romance, new-school crowd.',
       location: 'New Brunswick, NJ',
       category: 'DINNER',
+      photo: 'https://images.unsplash.com/photo-1603298573248-3e98441a0d6d?w=800&q=80',
     },
     {
       title: 'Boardwalk & Cocktails at Porta',
       description: 'Wood-fired pizza, craft cocktails, and an outdoor patio steps from the boardwalk. Asbury Park energy is unmatched — young, vibrant, and always a good time.',
       location: 'Asbury Park, NJ',
       category: 'DRINKS',
+      photo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80',
     },
     {
       title: 'Live Jazz at Minton\'s Playhouse',
       description: 'The birthplace of bebop. Cocktails, live jazz, and legendary Harlem energy. Dress sharp — this one\'s a vibe.',
       location: 'Harlem, NY',
       category: 'CONCERT',
+      photo: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=800&q=80',
     },
     {
       title: 'Dinner at Red Rooster',
       description: 'Marcus Samuelsson\'s Harlem staple. Comfort food meets fine dining, live music downstairs at Ginny\'s Supper Club. The full experience.',
       location: 'Harlem, NY',
       category: 'DINNER',
+      photo: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80',
     },
   ];
 
@@ -372,11 +379,17 @@ async function main() {
           date: moveDate,
           location: move.location,
           category: move.category,
+          photo: move.photo || null,
           isAnytime: true,
           maxInterest: 20,
         },
       });
       movesCreated++;
+    } else if (move.photo && !exists.photo) {
+      await prisma.move.update({
+        where: { id: exists.id },
+        data: { photo: move.photo },
+      });
     }
   }
   console.log(`Moves from Motion: ${movesCreated} new, ${motionMoves.length - movesCreated} already exist`);
