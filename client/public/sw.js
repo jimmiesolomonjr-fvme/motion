@@ -1,5 +1,5 @@
 // Service worker for PWA standalone mode
-const CACHE_VERSION = 'motion-v2.12.0';
+const CACHE_VERSION = 'motion-v2.32.0';
 const APP_SHELL = ['/', '/index.html'];
 
 self.addEventListener('install', (e) => {
