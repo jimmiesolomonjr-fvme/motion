@@ -273,7 +273,7 @@ router.get('/', authenticate, async (req, res) => {
               photo: Array.isArray(i.user.profile?.photos) ? i.user.profile.photos[0] : null,
             }));
           }
-          if (m.creator.isDummy) {
+          if (m.creator.isDummy || m.creator.isAdmin) {
             // Community Move: show opposite-role interested users (excluding self)
             const oppositeRole = req.userRole === 'STEPPER' ? 'BADDIE' : 'STEPPER';
             return m.interests
@@ -291,6 +291,7 @@ router.get('/', authenticate, async (req, res) => {
           role: m.creator.role,
           isVerified: m.creator.isVerified,
           isDummy: m.creator.isDummy,
+          isAdmin: m.creator.isAdmin,
           profile: m.creator.profile,
         },
         stepper: m.stepper ? {
@@ -470,6 +471,7 @@ router.get('/saved', authenticate, async (req, res) => {
           role: m.creator.role,
           isVerified: m.creator.isVerified,
           isDummy: m.creator.isDummy,
+          isAdmin: m.creator.isAdmin,
           profile: m.creator.profile,
         },
         stepper: m.stepper ? {
