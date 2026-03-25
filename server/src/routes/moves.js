@@ -178,8 +178,9 @@ router.get('/', authenticate, async (req, res) => {
         { creatorId: req.userId },
         // Baddie proposals — show to Steppers
         { creator: { role: 'BADDIE' }, date: { gte: twoHoursFromNow } },
-        // Community moves (dummy creator) — show to both roles
+        // Community moves (dummy or admin creator) — show to both roles
         { creator: { isDummy: true }, date: { gte: twoHoursFromNow } },
+        { creator: { isAdmin: true }, date: { gte: twoHoursFromNow } },
       ];
     }
 
@@ -187,9 +188,10 @@ router.get('/', authenticate, async (req, res) => {
     if (currentUser?.role === 'BADDIE') {
       whereClause.OR = [
         { creatorId: req.userId },
-        { creator: { role: 'STEPPER' }, date: { gte: twoHoursFromNow } },
-        // Community moves (dummy creator) — show to both roles
+        { creator: { role: 'STEPPER', isAdmin: false }, date: { gte: twoHoursFromNow } },
+        // Community moves (dummy or admin creator) — show to both roles
         { creator: { isDummy: true }, date: { gte: twoHoursFromNow } },
+        { creator: { isAdmin: true }, date: { gte: twoHoursFromNow } },
       ];
     }
 
