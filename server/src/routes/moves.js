@@ -307,8 +307,8 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     // User-created moves always show before Motion (community/dummy) moves
-    const userMoves = result.filter((m) => !m.creator.isDummy);
-    const communityMoves = result.filter((m) => m.creator.isDummy);
+    const userMoves = result.filter((m) => !m.creator.isDummy && !m.creator.isAdmin);
+    const communityMoves = result.filter((m) => m.creator.isDummy || m.creator.isAdmin);
     // Community moves: most interest first, then soonest expiration
     communityMoves.sort((a, b) => {
       if (b.interestCount !== a.interestCount) return b.interestCount - a.interestCount;
@@ -578,7 +578,7 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
     const move = await prisma.move.findUnique({
       where: { id: req.params.moveId },
       include: {
-        creator: { select: { role: true, isDummy: true } },
+        creator: { select: { role: true, isDummy: true, isAdmin: true } },
         _count: { select: { interests: true } },
       },
     });
@@ -587,7 +587,7 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Move not found or no longer active' });
     }
 
-    const isCommunityMove = move.creator.isDummy;
+    const isCommunityMove = move.creator.isDummy || move.creator.isAdmin;
 
     // Must be opposite role of creator (skip for community moves — both roles allowed)
     if (!isCommunityMove && move.creator.role === req.userRole) {
