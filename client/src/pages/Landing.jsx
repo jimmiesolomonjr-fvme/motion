@@ -37,7 +37,7 @@ export default function Landing() {
           </h1>
           <p className="text-xl text-gray-300 mb-2 font-medium">Move Different.</p>
           <p className="text-gray-500 mb-10 max-w-sm mx-auto leading-relaxed">
-            The dating platform for young Black excellence. Choose your role. Make your move. No games.
+            The dating platform for young excellence. Choose your role. Make your move. No games.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
