@@ -194,7 +194,17 @@ export function SocketProvider({ children }) {
 
     setSocket(newSocket);
 
+    // When PWA resumes from background, force immediate reconnect
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && !newSocket.connected) {
+        newSocket.auth.token = localStorage.getItem('accessToken');
+        newSocket.connect();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
       newSocket.disconnect();
     };
   }, [user?.id]);

@@ -37,6 +37,7 @@ export default function ChatView({ conversationId, otherUser }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [reconnecting, setReconnecting] = useState(false);
   const [socketConnected, setSocketConnected] = useState(true);
+  const reconnectBannerRef = useRef(null);
   const [muteBanner, setMuteBanner] = useState(null); // { reason }
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -84,17 +85,30 @@ export default function ChatView({ conversationId, otherUser }) {
   useEffect(() => {
     if (!socket) return;
     setActiveConversation(conversationId);
-    socket.emit('join-conversation', conversationId);
-    socket.emit('mark-read', { conversationId });
     // Decrement unread badge (this chat is now being viewed)
     setUnreadCount((prev) => Math.max(0, prev - 1));
-    setSocketConnected(socket.connected);
+
+    // If socket is connected, join immediately. If not, force reconnect.
+    if (socket.connected) {
+      setSocketConnected(true);
+      socket.emit('join-conversation', conversationId);
+      socket.emit('mark-read', { conversationId });
+    } else {
+      // Don't show banner yet — give it 3s to connect first
+      socket.auth.token = localStorage.getItem('accessToken');
+      socket.connect();
+      reconnectBannerRef.current = setTimeout(() => {
+        if (!socket.connected) setSocketConnected(false);
+      }, 3000);
+    }
 
     const handleConnect = () => {
+      clearTimeout(reconnectBannerRef.current);
       setSocketConnected(true);
       setReconnecting(false);
       // Re-join room after reconnect
       socket.emit('join-conversation', conversationId);
+      socket.emit('mark-read', { conversationId });
       // Flush queued message
       if (queuedMessageRef.current) {
         const { content, replyToId } = queuedMessageRef.current;
@@ -105,7 +119,10 @@ export default function ChatView({ conversationId, otherUser }) {
     };
 
     const handleDisconnect = () => {
-      setSocketConnected(false);
+      // Delay showing banner — socket may reconnect quickly
+      reconnectBannerRef.current = setTimeout(() => {
+        if (!socket.connected) setSocketConnected(false);
+      }, 3000);
     };
 
     const handleNewMessage = (msg) => {
@@ -165,6 +182,7 @@ export default function ChatView({ conversationId, otherUser }) {
 
     return () => {
       setActiveConversation(null);
+      clearTimeout(reconnectBannerRef.current);
       socket.emit('leave-conversation', conversationId);
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
