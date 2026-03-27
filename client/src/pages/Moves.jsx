@@ -106,10 +106,20 @@ export default function Moves() {
     }
   };
 
-  const handleInterest = (moveId) => {
+  const handleInterest = async (moveId) => {
     const move = [...moves, ...myMoves].find((m) => m.id === moveId);
-    const isCommunity = move?.creator?.isDummy === true || move?.stepper?.isDummy === true;
-    setInterestModal({ moveId, isCommunity });
+    const isCommunity = move?.creator?.isDummy === true || move?.creator?.isAdmin === true || move?.stepper?.isDummy === true;
+    if (isCommunity) {
+      // No popup for community moves — instant interest + auto-match
+      try {
+        await api.post(`/moves/${moveId}/interest`);
+        fetchMoves();
+      } catch (err) {
+        alert(err.response?.data?.error || 'Failed to express interest');
+      }
+      return;
+    }
+    setInterestModal({ moveId, isCommunity: false });
   };
 
   const submitInterest = async () => {
