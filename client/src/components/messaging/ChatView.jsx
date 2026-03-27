@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import ChatBubble from './ChatBubble';
 import Avatar from '../ui/Avatar';
 import Modal from '../ui/Modal';
-import { useSocket } from '../../context/SocketContext';
+import { useSocket, useNotifications } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import ImageCropper from '../ui/ImageCropper';
 import api from '../../services/api';
@@ -14,6 +14,7 @@ import { REPORT_REASONS } from '../../utils/constants';
 export default function ChatView({ conversationId, otherUser }) {
   const { user, refreshUser } = useAuth();
   const socket = useSocket();
+  const { setUnreadCount, setActiveConversation } = useNotifications();
   const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -82,8 +83,11 @@ export default function ChatView({ conversationId, otherUser }) {
 
   useEffect(() => {
     if (!socket) return;
+    setActiveConversation(conversationId);
     socket.emit('join-conversation', conversationId);
     socket.emit('mark-read', { conversationId });
+    // Decrement unread badge (this chat is now being viewed)
+    setUnreadCount((prev) => Math.max(0, prev - 1));
     setSocketConnected(socket.connected);
 
     const handleConnect = () => {
@@ -160,6 +164,7 @@ export default function ChatView({ conversationId, otherUser }) {
     socket.on('message-reaction', handleReaction);
 
     return () => {
+      setActiveConversation(null);
       socket.emit('leave-conversation', conversationId);
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);

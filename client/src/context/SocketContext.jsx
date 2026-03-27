@@ -13,6 +13,7 @@ const NotificationContext = createContext({
   dismissToast: () => {},
   notifCount: 0,
   viewingPulse: null,
+  setActiveConversation: () => {},
 });
 
 let toastIdCounter = 0;
@@ -27,6 +28,11 @@ export function SocketProvider({ children }) {
   const [viewingPulse, setViewingPulse] = useState(null);
   const viewingPulseTimerRef = useRef(null);
   const timersRef = useRef({});
+  const activeConversationRef = useRef(null);
+
+  const setActiveConversation = useCallback((convId) => {
+    activeConversationRef.current = convId;
+  }, []);
 
   const clearMatchAlert = useCallback(() => setMatchAlert(null), []);
 
@@ -152,8 +158,9 @@ export function SocketProvider({ children }) {
       }
     });
 
-    // Increment unread on new message notification
-    newSocket.on('message-notification', () => {
+    // Increment unread on new message notification (skip if user is in that chat)
+    newSocket.on('message-notification', (data) => {
+      if (data?.conversationId && data.conversationId === activeConversationRef.current) return;
       setUnreadCount((prev) => prev + 1);
     });
 
@@ -207,6 +214,7 @@ export function SocketProvider({ children }) {
         toasts, dismissToast,
         notifCount, setNotifCount,
         viewingPulse,
+        setActiveConversation,
       }}>
         {children}
       </NotificationContext.Provider>

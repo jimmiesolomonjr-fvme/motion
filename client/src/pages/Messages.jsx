@@ -98,8 +98,6 @@ export default function Messages() {
         setConversations(results[0].data);
         setMatches(results[1].data);
         if (results[2]) setMoveInterests(results[2].data);
-        // Clear unread badge when viewing messages
-        setUnreadCount(0);
       } catch (err) {
         console.error('Messages error:', err);
       } finally {
