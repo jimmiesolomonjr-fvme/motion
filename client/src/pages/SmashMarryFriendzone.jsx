@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '../components/layout/AppLayout';
 import api from '../services/api';
 import { ArrowLeft, Flame, Heart, HandMetal, Lock, Clock, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { optimizeCloudinaryUrl } from '../utils/cloudinaryUrl';
 
 const CATEGORIES = [
   { key: 'smash', label: 'Smash', emoji: '🔥', color: 'bg-red-500', border: 'border-red-500', text: 'text-red-400', bg: 'bg-red-500/10' },
@@ -196,7 +197,7 @@ export default function SmashMarryFriendzone() {
                       onClick={() => user.photos?.length > 0 && setEnlargedPhoto({ photos: user.photos, name: user.displayName, index: 0 })}
                     >
                       {user.photo ? (
-                        <img src={user.photo} alt={user.displayName} className="w-full h-full object-cover" />
+                        <img src={optimizeCloudinaryUrl(user.photo, { width: 224, crop: 'fill' })} alt={user.displayName} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-gray-500 text-3xl font-bold">
                           {user.displayName?.[0]}
@@ -294,7 +295,7 @@ export default function SmashMarryFriendzone() {
                 >
                   <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-dark-100">
                     {user.photo ? (
-                      <img src={user.photo} alt={user.displayName} className="w-full h-full object-cover" />
+                      <img src={optimizeCloudinaryUrl(user.photo, { width: 96, crop: 'fill' })} alt={user.displayName} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-gray-500 font-bold">
                         {user.displayName?.[0]}
@@ -447,7 +448,7 @@ export default function SmashMarryFriendzone() {
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-8 h-48 rounded-r-xl overflow-hidden opacity-30 cursor-pointer"
                     onClick={() => setEnlargedPhoto((prev) => ({ ...prev, index: prev.index - 1 }))}
                   >
-                    <img src={enlargedPhoto.photos[enlargedPhoto.index - 1]} alt="" className="w-full h-full object-cover" />
+                    <img src={optimizeCloudinaryUrl(enlargedPhoto.photos[enlargedPhoto.index - 1], { width: 64 })} alt="" className="w-full h-full object-cover" />
                   </div>
                 )}
 
@@ -458,7 +459,7 @@ export default function SmashMarryFriendzone() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -50 }}
                     transition={{ duration: 0.2 }}
-                    src={enlargedPhoto.photos[enlargedPhoto.index]}
+                    src={optimizeCloudinaryUrl(enlargedPhoto.photos[enlargedPhoto.index], { width: 800 })}
                     alt={enlargedPhoto.name}
                     className="max-w-full max-h-[75vh] rounded-2xl object-contain"
                   />
@@ -470,7 +471,7 @@ export default function SmashMarryFriendzone() {
                     className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-48 rounded-l-xl overflow-hidden opacity-30 cursor-pointer"
                     onClick={() => setEnlargedPhoto((prev) => ({ ...prev, index: prev.index + 1 }))}
                   >
-                    <img src={enlargedPhoto.photos[enlargedPhoto.index + 1]} alt="" className="w-full h-full object-cover" />
+                    <img src={optimizeCloudinaryUrl(enlargedPhoto.photos[enlargedPhoto.index + 1], { width: 64 })} alt="" className="w-full h-full object-cover" />
                   </div>
                 )}
               </div>

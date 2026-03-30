@@ -107,6 +107,16 @@ export const uploadVideo = multer({
   limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
 });
 
+/**
+ * Insert f_auto,q_auto into a Cloudinary URL for automatic format/quality optimization.
+ * Reduces bandwidth by 40-60% with no visual quality loss.
+ */
+function addCloudinaryTransforms(url) {
+  if (!url || !url.includes('/upload/')) return url;
+  if (url.includes('/video/upload/')) return url; // skip videos
+  return url.replace('/upload/', '/upload/f_auto,q_auto/');
+}
+
 // Convert multer memory-stored file to a base64 data URL (fallback)
 function toDataUrl(file) {
   return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
@@ -145,7 +155,7 @@ export async function uploadToCloud(fileOrDataUrl, folder = 'motion/uploads') {
       folder,
       resource_type: 'auto',
     });
-    return result.secure_url;
+    return addCloudinaryTransforms(result.secure_url);
   }
 
   // Handle multer file object — compress images before upload
@@ -164,7 +174,7 @@ export async function uploadToCloud(fileOrDataUrl, folder = 'motion/uploads') {
     folder,
     resource_type: 'auto',
   });
-  return result.secure_url;
+  return addCloudinaryTransforms(result.secure_url);
 }
 
 /**

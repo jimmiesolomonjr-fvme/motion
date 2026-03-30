@@ -6,6 +6,7 @@ import { useNotifications } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Heart, X, Sparkles, Eye, Flame, AlertTriangle } from 'lucide-react';
+import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 import UpdateBanner from '../ui/UpdateBanner';
 import InstallBanner from '../ui/InstallBanner';
 
@@ -128,7 +129,7 @@ export default function AppLayout({ children }) {
           >
             <div className="relative flex-shrink-0">
               {viewingPulse.viewerPhoto ? (
-                <img src={viewingPulse.viewerPhoto} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-purple-400 animate-pulse" />
+                <img src={optimizeCloudinaryUrl(viewingPulse.viewerPhoto, { width: 80, crop: 'fill' })} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-purple-400 animate-pulse" />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-purple-accent/20 flex items-center justify-center ring-2 ring-purple-400 animate-pulse">
                   <Eye size={18} className="text-purple-400" />

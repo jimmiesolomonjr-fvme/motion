@@ -6,6 +6,7 @@ import QuestionCard from '../components/vibe-check/QuestionCard';
 import StreakCelebration from '../components/vibe-check/StreakCelebration';
 import api from '../services/api';
 import { Sparkles, Flame, Moon } from 'lucide-react';
+import { optimizeCloudinaryUrl } from '../utils/cloudinaryUrl';
 
 function useCountdown(resetsAt) {
   const [timeLeft, setTimeLeft] = useState('');
@@ -231,7 +232,7 @@ export default function VibeCheck() {
               >
                 <div className={`relative w-16 h-16 rounded-full overflow-hidden ${i === 0 ? 'ring-2 ring-gold' : 'ring-1 ring-gray-600'}`}>
                   {match.photo ? (
-                    <img src={match.photo} alt={match.displayName} className="w-full h-full object-cover" />
+                    <img src={optimizeCloudinaryUrl(match.photo, { width: 128, crop: 'fill' })} alt={match.displayName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-dark-50 flex items-center justify-center text-gray-500 text-lg font-bold">
                       {match.displayName?.[0]}
@@ -269,7 +270,7 @@ export default function VibeCheck() {
             >
               <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 ring-2 ring-purple-glow">
                 {vibeMatch.photo ? (
-                  <img src={vibeMatch.photo} alt={vibeMatch.displayName} className="w-full h-full object-cover" />
+                  <img src={optimizeCloudinaryUrl(vibeMatch.photo, { width: 160, crop: 'fill' })} alt={vibeMatch.displayName} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-dark-100 flex items-center justify-center text-2xl font-bold text-gray-500">
                     {vibeMatch.displayName?.[0]}

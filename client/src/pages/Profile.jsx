@@ -592,7 +592,7 @@ export default function Profile() {
                     {isVideoUrl(photos[i]) ? (
                       <video src={photos[i]} className="w-full h-full object-cover" playsInline muted loop autoPlay />
                     ) : (
-                      <img src={photos[i]} alt="" className="w-full h-full object-cover" />
+                      <img src={optimizeCloudinaryUrl(photos[i], { width: 400 })} alt="" className="w-full h-full object-cover" />
                     )}
                     <button
                       onClick={() => setDeletePhotoIndex(i)}

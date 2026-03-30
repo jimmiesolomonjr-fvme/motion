@@ -14,6 +14,7 @@ import api from '../services/api';
 import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users, ChevronDown, ChevronUp, Edit3 } from 'lucide-react';
 import Input from '../components/ui/Input';
 import { formatDate } from '../utils/formatters';
+import { optimizeCloudinaryUrl } from '../utils/cloudinaryUrl';
 
 function getTimeFilterDates(time) {
   if (!time) return {};
@@ -325,7 +326,7 @@ export default function Moves() {
                         )}
                       </div>
                       {move.photo && (
-                        <img src={move.photo} alt="" className="w-full h-36 object-cover rounded-lg mb-2" />
+                        <img src={optimizeCloudinaryUrl(move.photo, { width: 600 })} alt="" className="w-full h-36 object-cover rounded-lg mb-2" />
                       )}
                       <p className="text-gray-400 text-sm mb-2">{move.description}</p>
                       <p className="text-xs text-gray-500 mb-3">{formatDate(move.date)} · {move.location}</p>
