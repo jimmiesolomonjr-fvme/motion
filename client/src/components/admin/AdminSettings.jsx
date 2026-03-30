@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Settings, MessageCircle, Users, FileText, Mail, Eye, Heart, Clock, Gamepad2 } from 'lucide-react';
+import { Settings, MessageCircle, Users, FileText, Mail, Eye, Heart, Clock, Gamepad2, AlertTriangle } from 'lucide-react';
 
 const DEFAULT_STEPPER_MSG = `Welcome to Motion, King! 👑\n\nYou're officially a Stepper. Here's how to get started:\n\n• Browse Baddies in the Feed and send a Like\n• Post a Move to invite Baddies to link up\n• Complete your profile to stand out\n\nLet's get it! 🚀`;
 const DEFAULT_BADDIE_MSG = `Welcome to Motion, Queen! ✨\n\nYou're officially a Baddie. Here's how to get started:\n\n• Browse the Feed and Like a Stepper you're feeling\n• Check out Moves to see what Steppers are planning\n• Complete your profile so they notice you\n\nTime to shine! 💅`;
@@ -13,12 +13,14 @@ export default function AdminSettings() {
   const [showStepperMsg, setShowStepperMsg] = useState(false);
   const [showBaddieMsg, setShowBaddieMsg] = useState(false);
   const [savingMsg, setSavingMsg] = useState(null);
+  const [bannerText, setBannerText] = useState('');
 
   useEffect(() => {
     api.get('/admin/settings').then(({ data }) => {
       setSettings(data);
       setStepperMsg(data.welcomeMessageStepper || DEFAULT_STEPPER_MSG);
       setBaddieMsg(data.welcomeMessageBaddie || DEFAULT_BADDIE_MSG);
+      setBannerText(data.maintenanceBanner || '');
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
@@ -50,6 +52,43 @@ export default function AdminSettings() {
       <div className="flex items-center gap-2 mb-4">
         <Settings size={18} className="text-gold" />
         <h2 className="text-lg font-bold text-white">App Settings</h2>
+      </div>
+
+      {/* Maintenance Banner */}
+      <div className="bg-dark-100 rounded-xl p-4 border border-amber-500/20">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+            <AlertTriangle size={18} className="text-amber-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-white text-sm">Status Banner</p>
+            <p className="text-xs text-gray-400">Shows a message to all users at the top of the app. Leave empty to hide.</p>
+          </div>
+        </div>
+        <textarea
+          value={bannerText}
+          onChange={(e) => setBannerText(e.target.value)}
+          placeholder="e.g. We're making some improvements — some images may be temporarily unavailable."
+          rows={2}
+          className="w-full bg-dark-50 text-white text-sm rounded-lg px-3 py-2 border border-dark-50 focus:border-amber-500/50 outline-none resize-none mb-2"
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={() => saveWelcomeMessage('maintenanceBanner', bannerText)}
+            disabled={savingMsg === 'maintenanceBanner'}
+            className="px-4 py-1.5 bg-amber-500 text-dark text-sm font-semibold rounded-lg hover:bg-amber-400 disabled:opacity-50 transition-colors"
+          >
+            {savingMsg === 'maintenanceBanner' ? 'Saving...' : bannerText.trim() ? 'Show Banner' : 'Clear Banner'}
+          </button>
+          {settings.maintenanceBanner && (
+            <button
+              onClick={() => { setBannerText(''); saveWelcomeMessage('maintenanceBanner', ''); }}
+              className="px-4 py-1.5 bg-dark-50 text-gray-300 text-sm font-semibold rounded-lg hover:bg-dark transition-colors"
+            >
+              Remove
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-dark-100 rounded-xl p-4">

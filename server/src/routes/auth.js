@@ -307,6 +307,16 @@ router.post('/reset-password', async (req, res) => {
   }
 });
 
+// Public: get maintenance/status banner (no auth required)
+router.get('/status-banner', async (req, res) => {
+  try {
+    const setting = await prisma.appSetting.findUnique({ where: { key: 'maintenanceBanner' } });
+    res.json({ message: setting?.value || null });
+  } catch {
+    res.json({ message: null });
+  }
+});
+
 // Unsubscribe from email notifications (no login required)
 router.get('/unsubscribe', async (req, res) => {
   try {

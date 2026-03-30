@@ -5,7 +5,7 @@ import BottomNav from './BottomNav';
 import { useNotifications } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Heart, X, Sparkles, Eye, Flame } from 'lucide-react';
+import { Heart, X, Sparkles, Eye, Flame, AlertTriangle } from 'lucide-react';
 import UpdateBanner from '../ui/UpdateBanner';
 import InstallBanner from '../ui/InstallBanner';
 
@@ -15,6 +15,16 @@ export default function AppLayout({ children }) {
   const navigate = useNavigate();
   const [vibeBanner, setVibeBanner] = useState(false);
   const [vibeDismissed, setVibeDismissed] = useState(false);
+  const [statusBanner, setStatusBanner] = useState(null);
+  const [statusDismissed, setStatusDismissed] = useState(false);
+
+  useEffect(() => {
+    if (statusDismissed) return;
+    api.get('/auth/status-banner').then(({ data }) => {
+      if (data.message) setStatusBanner(data.message);
+      else setStatusBanner(null);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!user || vibeDismissed) return;
@@ -57,6 +67,24 @@ export default function AppLayout({ children }) {
     <div className="min-h-screen bg-dark">
       <UpdateBanner />
       <Header />
+
+      {/* Status / maintenance banner */}
+      {statusBanner && !statusDismissed && (
+        <div className="max-w-lg mx-auto px-4 pt-2">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+              <AlertTriangle className="text-amber-400" size={18} />
+            </div>
+            <p className="flex-1 text-sm text-amber-200">{statusBanner}</p>
+            <button
+              onClick={() => setStatusDismissed(true)}
+              className="text-gray-500 hover:text-white flex-shrink-0"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Vibe questions renewal banner */}
       {vibeBanner && (
