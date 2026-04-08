@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import { useNotifications } from '../context/SocketContext';
 import api from '../services/api';
-import { Eye, Heart, Sparkles, CheckCheck, UserCircle, Download, Gift, MapPin, Flame, DollarSign, MessageCircle } from 'lucide-react';
+import { Eye, Heart, Sparkles, CheckCheck, UserCircle, Download, Gift, MapPin, Flame, DollarSign, MessageCircle, Star, Users } from 'lucide-react';
 
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || window.navigator.standalone === true;
@@ -65,6 +65,12 @@ export default function Notifications() {
       navigate(`/stories?completeTip=${notif.data.tipId}`);
     } else if (notif.type === 'new_version') {
       navigate('/');
+    } else if (notif.type === 'new_user_priority' && notif.data?.targetUserId) {
+      navigate(`/profile/${notif.data.targetUserId}`);
+    } else if (notif.type === 'community_move_paired') {
+      navigate('/moves', { state: { tab: 'picks' } });
+    } else if (notif.type === 'community_move_confirmed' && notif.data?.conversationId) {
+      navigate(`/chat/${notif.data.conversationId}`);
     }
   };
 
@@ -85,6 +91,9 @@ export default function Notifications() {
       case 'tip_received': return <DollarSign className="text-green-400" size={18} />;
       case 'tip_held': return <DollarSign className="text-amber-400" size={18} />;
       case 'tip_ready': return <DollarSign className="text-green-400" size={18} />;
+      case 'new_user_priority': return <Star className="text-green-400" size={18} />;
+      case 'community_move_paired': return <Users className="text-purple-400" size={18} />;
+      case 'community_move_confirmed': return <Heart className="text-green-400" size={18} fill="currentColor" />;
       default: return <Sparkles className="text-gold" size={18} />;
     }
   };

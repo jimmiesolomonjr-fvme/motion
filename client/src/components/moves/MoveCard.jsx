@@ -17,7 +17,7 @@ const CATEGORY_LABELS = {
 export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete, onSave, onUnsave, currentUserId, onEdit }) {
   const interestedUsers = move.interestedUsers || [];
   const creator = move.creator || move.stepper;
-  const isCommunityMove = creator?.isDummy === true || creator?.isAdmin === true;
+  const isCommunityMove = move.isCommunity || creator?.isDummy === true || creator?.isAdmin === true;
   const isCreatorBaddie = creator?.role === 'BADDIE';
   const canExpress = isCommunityMove || (isCreatorBaddie && userRole === 'STEPPER') || (!isCreatorBaddie && userRole === 'BADDIE');
 
@@ -132,7 +132,31 @@ export default function MoveCard({ move, onInterest, userRole, isAdmin, onDelete
             {CATEGORY_LABELS[move.category] || move.category}
           </span>
         )}
+        {isCommunityMove && move.poolCount > 0 && (
+          <span className="flex items-center gap-1">
+            <Users size={14} className="text-purple-400" />
+            {move.poolCount} down
+          </span>
+        )}
       </div>
+
+      {/* Vibe tags for community moves */}
+      {isCommunityMove && move.vibeTagsCommunity?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {move.vibeTagsCommunity.map((tag) => (
+            <span key={tag} className="px-2 py-0.5 bg-gold/10 text-gold text-xs font-medium rounded-full">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Venue link for community moves */}
+      {isCommunityMove && move.sourceUrl && (
+        <a href={move.sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-block text-xs text-gold hover:underline mb-4">
+          View venue details
+        </a>
+      )}
 
       {/* Closing soon / closed badges */}
       {move.interestClosingSoon && move.status === 'OPEN' && (

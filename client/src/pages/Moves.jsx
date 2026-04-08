@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import MoveCard from '../components/moves/MoveCard';
 import CreateMove from '../components/moves/CreateMove';
@@ -11,10 +11,11 @@ import Button from '../components/ui/Button';
 import { Textarea } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users, ChevronDown, ChevronUp, Edit3 } from 'lucide-react';
+import { Plus, Flame, Trash2, Bookmark, RotateCcw, MapPin, Calendar, Users, ChevronDown, ChevronUp, Edit3, Sparkles } from 'lucide-react';
 import Input from '../components/ui/Input';
 import { formatDate } from '../utils/formatters';
 import { optimizeCloudinaryUrl } from '../utils/cloudinaryUrl';
+import PairingModal from '../components/moves/PairingModal';
 
 function getTimeFilterDates(time) {
   if (!time) return {};
@@ -45,9 +46,11 @@ function getTimeFilterDates(time) {
 export default function Moves() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [moves, setMoves] = useState([]);
   const [myMoves, setMyMoves] = useState([]);
   const [expiredMoves, setExpiredMoves] = useState([]);
+  const [communityPicks, setCommunityPicks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [interestModal, setInterestModal] = useState(null);
@@ -60,7 +63,8 @@ export default function Moves() {
   const [repostAnytime, setRepostAnytime] = useState(false);
   const [clearModal, setClearModal] = useState(false);
   const [editModal, setEditModal] = useState(null);
-  const [tab, setTab] = useState('browse');
+  const [pairingModal, setPairingModal] = useState(null);
+  const [tab, setTab] = useState(location.state?.tab || 'browse');
   const [filters, setFilters] = useState({ time: null, category: null, sort: 'soonest' });
   const [showExpired, setShowExpired] = useState(false);
 
@@ -79,12 +83,14 @@ export default function Moves() {
         fetchBrowseData(),
         api.get('/moves/mine'),
         api.get('/moves/expired'),
+        api.get('/moves/community/picks'),
       ];
 
       const results = await Promise.allSettled(promises);
 
       if (results[1]?.status === 'fulfilled') setMyMoves(results[1].value.data);
       if (results[2]?.status === 'fulfilled') setExpiredMoves(results[2].value.data);
+      if (results[3]?.status === 'fulfilled') setCommunityPicks(results[3].value.data);
     } catch (err) {
       console.error('Moves error:', err);
     } finally {
@@ -108,15 +114,17 @@ export default function Moves() {
   };
 
   const handleInterest = async (moveId) => {
-    const move = [...moves, ...myMoves].find((m) => m.id === moveId);
-    const isCommunity = move?.creator?.isDummy === true || move?.creator?.isAdmin === true || move?.stepper?.isDummy === true;
+    const move = [...moves, ...myMoves, ...communityPicks].find((m) => m.id === moveId);
+    const isCommunity = move?.isCommunity || move?.creator?.isDummy === true || move?.creator?.isAdmin === true;
     if (isCommunity) {
-      // No popup for community moves — instant interest + auto-match
       try {
-        await api.post(`/moves/${moveId}/interest`);
+        const { data } = await api.post(`/moves/${moveId}/pool`);
         fetchMoves();
+        if (data.status === 'paired') {
+          setPairingModal(data);
+        }
       } catch (err) {
-        alert(err.response?.data?.error || 'Failed to express interest');
+        alert(err.response?.data?.error || 'Failed to join pool');
       }
       return;
     }
@@ -274,10 +282,91 @@ export default function Moves() {
         >
           My Moves
         </button>
+        <button
+          onClick={() => setTab('picks')}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 ${tab === 'picks' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+        >
+          <Sparkles size={14} /> Picks
+        </button>
       </div>
 
       {/* Content */}
-      {tab === 'mine' ? (
+      {tab === 'picks' ? (
+        <div className="space-y-4">
+          {communityPicks.length === 0 ? (
+            <div className="text-center py-12 flex flex-col items-center">
+              <Sparkles className="text-gray-600 mb-3" size={40} />
+              <p className="text-gray-400 text-lg mb-2">No Motion Picks right now</p>
+              <p className="text-gray-500 text-sm">AI-curated date moves will appear here Mon &amp; Thu</p>
+            </div>
+          ) : (
+            communityPicks.map((pick) => (
+              <div key={pick.id} className="card-elevated">
+                {pick.photo && (
+                  <div className="relative -mx-4 -mt-4 mb-4 rounded-t-xl overflow-hidden">
+                    <img src={optimizeCloudinaryUrl(pick.photo, { width: 600 })} alt={pick.title} className="w-full h-44 object-cover" />
+                    <div className="absolute top-2 left-2 flex items-center gap-1 bg-dark/80 backdrop-blur-sm px-2 py-1 rounded-full">
+                      <Sparkles size={12} className="text-gold" />
+                      <span className="text-[10px] text-gold font-semibold">Motion Pick</span>
+                    </div>
+                    {pick.poolCount > 0 && (
+                      <div className="absolute top-2 right-2 flex items-center gap-1 bg-dark/80 backdrop-blur-sm px-2 py-1 rounded-full">
+                        <Users size={12} className="text-white" />
+                        <span className="text-[10px] text-white font-medium">{pick.poolCount} down</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <h3 className="text-lg font-bold text-white mb-2">{pick.title}</h3>
+                <p className="text-gray-400 text-sm mb-3">{pick.description}</p>
+
+                {pick.vibeTagsCommunity?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {pick.vibeTagsCommunity.map((tag) => (
+                      <span key={tag} className="px-2 py-0.5 bg-purple-500/20 text-purple-400 text-xs font-medium rounded-full">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-wrap gap-3 text-sm text-gray-400 mb-4">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={14} className="text-gold" />
+                    {formatDate(pick.date)}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <MapPin size={14} className="text-gold" />
+                    {pick.location}
+                  </span>
+                  {pick.sourceUrl && (
+                    <a href={pick.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-gold hover:underline text-xs">
+                      View Venue
+                    </a>
+                  )}
+                </div>
+
+                {pick.userStatus === 'not_joined' ? (
+                  <button
+                    onClick={() => handleInterest(pick.id)}
+                    className="w-full px-4 py-2.5 btn-gold rounded-xl font-semibold text-sm"
+                  >
+                    I&apos;m Down
+                  </button>
+                ) : pick.userStatus === 'in_pool' ? (
+                  <button disabled className="w-full px-4 py-2.5 bg-green-500/20 text-green-400 rounded-xl font-semibold text-sm cursor-default">
+                    In Pool — Waiting for match
+                  </button>
+                ) : (
+                  <button disabled className="w-full px-4 py-2.5 bg-purple-500/20 text-purple-400 rounded-xl font-semibold text-sm cursor-default">
+                    Paired!
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      ) : tab === 'mine' ? (
         <div className="space-y-4">
           {/* Active moves */}
           {activeMyMoves.length === 0 && completedMyMoves.length === 0 && expiredMoves.length === 0 ? (
@@ -591,6 +680,28 @@ export default function Moves() {
           </button>
         </div>
       </Modal>
+
+      {/* Pairing Modal */}
+      <PairingModal
+        pairing={pairingModal}
+        onClose={() => setPairingModal(null)}
+        onRespond={async (pairingId, accepted) => {
+          try {
+            const { data } = await api.post(`/moves/pairings/${pairingId}/respond`, { accepted });
+            if (data.status === 'confirmed' && data.conversationId) {
+              setPairingModal(null);
+              navigate(`/chat/${data.conversationId}`);
+            } else if (data.status === 'passed') {
+              setPairingModal(null);
+              fetchMoves();
+            } else {
+              setPairingModal(null);
+            }
+          } catch (err) {
+            alert(err.response?.data?.error || 'Failed to respond');
+          }
+        }}
+      />
     </AppLayout>
   );
 }

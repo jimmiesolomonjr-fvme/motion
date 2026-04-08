@@ -24,11 +24,26 @@ enum ReportStatus {
   ACTIONED
 }
 
+enum ActivationStatus {
+  PENDING
+  NUDGED
+  MESSAGED
+  REPLIED
+  EXPIRED
+}
+
 enum MoveStatus {
   OPEN
   CONFIRMED
   COMPLETED
   CANCELLED
+}
+
+enum PairingStatus {
+  PENDING
+  ACCEPTED
+  PASSED
+  EXPIRED
 }
 
 enum MoveCategory {
@@ -109,6 +124,10 @@ model User {
   smfRounds        SmfRound[]
   tipsSent         Tip[]      @relation("TipsSent")
   tipsReceived     Tip[]      @relation("TipsReceived")
+  activation       UserActivation?
+  communityMovePoolEntries CommunityMovePool[]
+  pairingsAsBaddie  CommunityMovePairing[] @relation("PairingBaddie")
+  pairingsAsStepper CommunityMovePairing[] @relation("PairingStepper")
 
   vibeStreak           Int       @default(0)
   vibeLastAnsweredDate DateTime?
@@ -148,13 +167,16 @@ model Conversation {
   id            String   @id @default(uuid())
   user1Id       String
   user2Id       String
+  moveId        String?
   lastMessageAt DateTime @default(now())
   createdAt     DateTime @default(now())
 
   user1    User      @relation("ConvUser1", fields: [user1Id], references: [id])
   user2    User      @relation("ConvUser2", fields: [user2Id], references: [id])
+  move     Move?     @relation(fields: [moveId], references: [id])
   messages Message[]
   reports  Report[]
+  communityMovePairing CommunityMovePairing?
 
   @@unique([user1Id, user2Id])
 }
@@ -294,6 +316,13 @@ model Move {
   playlistLink     String?
   stepperOnMyWay   Boolean       @default(false)
   baddieOnMyWay    Boolean       @default(false)
+  isCommunity      Boolean       @default(false)
+  sourceApi        String?
+  sourceUrl        String?
+  vibeTagsCommunity String[]     @default([])
+  expiresAt        DateTime?
+  communityMatchCount Int        @default(0)
+  pipelineRunId    String?
   createdAt        DateTime      @default(now())
 
   stepper        User?          @relation("StepperMoves", fields: [stepperId], references: [id])
@@ -302,11 +331,15 @@ model Move {
   interests      MoveInterest[]
   participants   MoveParticipant[]
   savedBy        SavedMove[]
+  communityMovePool     CommunityMovePool[]
+  communityMovePairings CommunityMovePairing[]
+  conversations         Conversation[]
 
   @@index([status, date])
   @@index([stepperId])
   @@index([creatorId])
   @@index([selectedBaddieId])
+  @@index([isCommunity, isActive, status])
 }
 
 model MoveInterest {
@@ -512,6 +545,22 @@ model Tip {
   @@index([creatorId])
 }
 
+model UserActivation {
+  id                    String           @id @default(uuid())
+  userId                String           @unique
+  needsFirstMessage     Boolean          @default(true)
+  activationStatus      ActivationStatus @default(PENDING)
+  firstInboundMessageAt DateTime?
+  firstReplyAt          DateTime?
+  nudgeCount            Int              @default(0)
+  lastNudgedAt          DateTime?
+  boostedResponderIds   String[]         @default([])
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model DeletionLog {
   id          String   @id @default(uuid())
   email       String
@@ -523,4 +572,62 @@ model DeletionLog {
   reasonText  String?
   signedUpAt  DateTime
   deletedAt   DateTime @default(now())
+}
+
+model CommunityMovePool {
+  id       String    @id @default(uuid())
+  moveId   String
+  userId   String
+  role     String
+  joinedAt DateTime  @default(now())
+  paired   Boolean   @default(false)
+  pairedAt DateTime?
+
+  move Move @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([moveId, userId])
+  @@index([moveId, paired, role])
+}
+
+model CommunityMovePairing {
+  id              String        @id @default(uuid())
+  moveId          String
+  baddieId        String
+  stepperId       String
+  status          PairingStatus @default(PENDING)
+  baddieAccepted  Boolean       @default(false)
+  stepperAccepted Boolean       @default(false)
+  conversationId  String?       @unique
+  expiresAt       DateTime
+  resolvedAt      DateTime?
+  createdAt       DateTime      @default(now())
+
+  move         Move          @relation(fields: [moveId], references: [id], onDelete: Cascade)
+  baddie       User          @relation("PairingBaddie", fields: [baddieId], references: [id])
+  stepper      User          @relation("PairingStepper", fields: [stepperId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@index([moveId, status])
+  @@index([baddieId])
+  @@index([stepperId])
+}
+
+model CommunityMoveVenueLog {
+  id        String   @id @default(uuid())
+  venueName String
+  address   String
+  sourceApi String
+  sourceId  String   @unique
+  usedAt    DateTime @default(now())
+}
+
+model PipelineRunLog {
+  id            String   @id @default(uuid())
+  status        String
+  movesCreated  Int      @default(0)
+  venuesFetched Int      @default(0)
+  errors        String[] @default([])
+  duration      Int
+  createdAt     DateTime @default(now())
 }

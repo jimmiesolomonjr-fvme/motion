@@ -956,4 +956,249 @@ router.delete('/deletion-log/:id', authenticate, requireAdmin, async (req, res) 
   }
 });
 
+// ── Activation stats + list ──
+router.get('/activation', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [newUsers24h, waiting, messaged, replied, expired, total] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: twentyFourHoursAgo } } }),
+      prisma.userActivation.count({ where: { activationStatus: { in: ['PENDING', 'NUDGED'] }, needsFirstMessage: true } }),
+      prisma.userActivation.count({ where: { activationStatus: 'MESSAGED' } }),
+      prisma.userActivation.count({ where: { activationStatus: 'REPLIED' } }),
+      prisma.userActivation.count({ where: { activationStatus: 'EXPIRED' } }),
+      prisma.userActivation.count(),
+    ]);
+
+    // Count onboarding complete (have profile + photos) from last 24h
+    const onboardingComplete = await prisma.user.count({
+      where: {
+        createdAt: { gte: twentyFourHoursAgo },
+        profile: { isNot: null },
+      },
+    });
+
+    const activations = await prisma.userActivation.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      include: {
+        user: {
+          include: { profile: { select: { displayName: true, photos: true, city: true } } },
+        },
+      },
+    });
+
+    res.json({
+      stats: { newUsers24h, onboardingComplete, waiting, messaged, replied, expired, total },
+      activations: activations.map((a) => ({
+        id: a.id,
+        userId: a.userId,
+        displayName: a.user.profile?.displayName || 'No profile',
+        photo: Array.isArray(a.user.profile?.photos) ? a.user.profile.photos[0] : null,
+        city: a.user.profile?.city,
+        role: a.user.role,
+        activationStatus: a.activationStatus,
+        needsFirstMessage: a.needsFirstMessage,
+        nudgeCount: a.nudgeCount,
+        lastNudgedAt: a.lastNudgedAt,
+        firstInboundMessageAt: a.firstInboundMessageAt,
+        firstReplyAt: a.firstReplyAt,
+        createdAt: a.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Activation stats error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── Activation metrics ──
+router.get('/activation/metrics', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const allActivations = await prisma.userActivation.findMany();
+    const total = allActivations.length;
+    if (total === 0) {
+      return res.json({ messaged: 0, medianTimeMin: 0, replied: 0, nudgeConversion: 0 });
+    }
+
+    const messagedCount = allActivations.filter((a) => ['MESSAGED', 'REPLIED'].includes(a.activationStatus)).length;
+    const repliedCount = allActivations.filter((a) => a.activationStatus === 'REPLIED').length;
+    const nudgedCount = allActivations.filter((a) => a.nudgeCount > 0).length;
+    const nudgedAndMessaged = allActivations.filter((a) => a.nudgeCount > 0 && ['MESSAGED', 'REPLIED'].includes(a.activationStatus)).length;
+
+    // Median time to first message
+    const timesToMessage = allActivations
+      .filter((a) => a.firstInboundMessageAt)
+      .map((a) => (new Date(a.firstInboundMessageAt).getTime() - new Date(a.createdAt).getTime()) / 60000);
+    timesToMessage.sort((a, b) => a - b);
+    const medianTimeMin = timesToMessage.length > 0
+      ? Math.round(timesToMessage[Math.floor(timesToMessage.length / 2)])
+      : 0;
+
+    res.json({
+      messaged: total > 0 ? Math.round((messagedCount / total) * 100) : 0,
+      medianTimeMin,
+      replied: messagedCount > 0 ? Math.round((repliedCount / messagedCount) * 100) : 0,
+      nudgeConversion: nudgedCount > 0 ? Math.round((nudgedAndMessaged / nudgedCount) * 100) : 0,
+    });
+  } catch (error) {
+    console.error('Activation metrics error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── Manual nudge ──
+router.post('/activation/:userId/nudge', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const activation = await prisma.userActivation.findUnique({ where: { userId } });
+    if (!activation) return res.status(404).json({ error: 'No activation found' });
+
+    // Import and run the scoring + nudge logic
+    const { getTopResponders } = await import('../services/responderScoring.js');
+    const { sendPushNotification } = await import('../utils/pushNotifications.js');
+    const { io } = await import('../../server.js');
+
+    const responderIds = await getTopResponders(userId, 5);
+    const profile = await prisma.profile.findUnique({ where: { userId }, select: { displayName: true } });
+
+    for (const responderId of responderIds) {
+      const notification = await prisma.notification.create({
+        data: {
+          userId: responderId,
+          type: 'new_user_priority',
+          title: 'New member nearby',
+          body: `${profile?.displayName || 'Someone'} just joined — be the first to say hi!`,
+          data: { targetUserId: userId, targetName: profile?.displayName },
+        },
+      });
+      io.to(responderId).emit('notification', notification);
+      sendPushNotification(responderId, {
+        title: 'New member nearby',
+        body: `${profile?.displayName || 'Someone'} just joined — be the first to say hi!`,
+      }).catch(() => {});
+    }
+
+    await prisma.userActivation.update({
+      where: { userId },
+      data: {
+        nudgeCount: activation.nudgeCount + 1,
+        lastNudgedAt: new Date(),
+        activationStatus: activation.activationStatus === 'PENDING' ? 'NUDGED' : activation.activationStatus,
+        boostedResponderIds: [...new Set([...activation.boostedResponderIds, ...responderIds])],
+      },
+    });
+
+    res.json({ success: true, nudgedResponders: responderIds.length });
+  } catch (error) {
+    console.error('Manual nudge error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── Manual boost (reset nudge cooldown) ──
+router.post('/activation/:userId/boost', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const activation = await prisma.userActivation.findUnique({ where: { userId } });
+    if (!activation) return res.status(404).json({ error: 'No activation found' });
+
+    await prisma.userActivation.update({
+      where: { userId },
+      data: {
+        lastNudgedAt: null,
+        nudgeCount: 0,
+        needsFirstMessage: true,
+        activationStatus: 'PENDING',
+      },
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Manual boost error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== Community Moves Admin =====
+
+// Get active community moves + stats
+router.get('/community-moves', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const moves = await prisma.move.findMany({
+      where: { isCommunity: true },
+      include: {
+        _count: { select: { communityMovePool: true, communityMovePairings: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+
+    const result = moves.map((m) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      photo: m.photo,
+      date: m.date,
+      location: m.location,
+      category: m.category,
+      status: m.status,
+      isActive: m.isActive,
+      vibeTagsCommunity: m.vibeTagsCommunity,
+      sourceApi: m.sourceApi,
+      poolCount: m._count.communityMovePool,
+      pairingCount: m._count.communityMovePairings,
+      communityMatchCount: m.communityMatchCount,
+      expiresAt: m.expiresAt,
+      pipelineRunId: m.pipelineRunId,
+      createdAt: m.createdAt,
+    }));
+
+    res.json(result);
+  } catch (error) {
+    console.error('Admin community moves error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get pipeline run history
+router.get('/community-moves/pipeline-runs', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const runs = await prisma.pipelineRunLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    });
+    res.json(runs);
+  } catch (error) {
+    console.error('Pipeline runs error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Manual pipeline trigger
+router.post('/community-moves/run-pipeline', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { runPipeline } = await import('../services/communityMovePipeline.js');
+    const result = await runPipeline(req.body.city);
+    res.json(result);
+  } catch (error) {
+    console.error('Manual pipeline error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Unpublish a community move
+router.delete('/community-moves/:moveId', authenticate, requireAdmin, async (req, res) => {
+  try {
+    await prisma.move.update({
+      where: { id: req.params.moveId },
+      data: { isActive: false, status: 'CANCELLED' },
+    });
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Unpublish community move error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;

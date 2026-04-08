@@ -9,6 +9,7 @@ export default function Chat() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [otherUser, setOtherUser] = useState(null);
+  const [moveInfo, setMoveInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,6 +17,7 @@ export default function Chat() {
       try {
         const { data } = await api.get(`/messages/conversations/${conversationId}/info`);
         setOtherUser(data.otherUser);
+        if (data.move) setMoveInfo(data.move);
       } catch (err) {
         if (err.response?.status === 404) {
           navigate('/messages');
@@ -41,7 +43,7 @@ export default function Chat() {
   return (
     <div className="min-h-screen bg-dark">
       <div className="sticky top-0 z-40 glass border-b border-dark-50 h-0" />
-      <ChatView conversationId={conversationId} otherUser={otherUser} />
+      <ChatView conversationId={conversationId} otherUser={otherUser} moveInfo={moveInfo} />
     </div>
   );
 }

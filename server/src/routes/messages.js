@@ -4,6 +4,7 @@ import { authenticate } from '../middleware/auth.js';
 import { requirePremium } from '../middleware/premium.js';
 import { upload, uploadVoice, uploadToCloud } from '../middleware/upload.js';
 import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
+import { checkFirstMessageActivation, checkFirstReplyActivation } from '../services/activationTracker.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -65,6 +66,7 @@ router.get('/conversations/:conversationId/info', authenticate, async (req, res)
       include: {
         user1: { include: { profile: true } },
         user2: { include: { profile: true } },
+        move: { select: { id: true, title: true, photo: true, date: true, location: true, vibeTagsCommunity: true, sourceUrl: true, category: true } },
       },
     });
 
@@ -76,11 +78,14 @@ router.get('/conversations/:conversationId/info', authenticate, async (req, res)
     res.json({
       id: conversation.id,
       lastMessageAt: conversation.lastMessageAt,
+      moveId: conversation.moveId,
+      move: conversation.move || null,
       otherUser: {
         id: other.id,
         role: other.role,
         isAdmin: !!other.isAdmin,
         lastOnline: other.lastOnline,
+        createdAt: other.createdAt,
         profile: other.profile,
       },
     });
@@ -151,6 +156,11 @@ router.post('/:conversationId', authenticate, requirePremium, async (req, res) =
       where: { id: req.params.conversationId },
       data: { lastMessageAt: new Date() },
     });
+
+    // Fire-and-forget activation tracking
+    const otherUserId = conversation.user1Id === req.userId ? conversation.user2Id : conversation.user1Id;
+    checkFirstMessageActivation(otherUserId, req.userId).catch(() => {});
+    checkFirstReplyActivation(req.userId).catch(() => {});
 
     res.status(201).json(message);
   } catch (error) {
@@ -278,6 +288,11 @@ router.post('/:conversationId/voice', authenticate, requirePremium, uploadVoice.
       // Socket notification is best-effort
     }
 
+    // Fire-and-forget activation tracking
+    const voiceOtherUserId = conversation.user1Id === req.userId ? conversation.user2Id : conversation.user1Id;
+    checkFirstMessageActivation(voiceOtherUserId, req.userId).catch(() => {});
+    checkFirstReplyActivation(req.userId).catch(() => {});
+
     res.status(201).json(message);
   } catch (error) {
     console.error('Voice upload error:', error);
@@ -319,6 +334,11 @@ router.post('/:conversationId/image', authenticate, requirePremium, upload.singl
     } catch {
       // Socket notification is best-effort
     }
+
+    // Fire-and-forget activation tracking
+    const imgOtherUserId = conversation.user1Id === req.userId ? conversation.user2Id : conversation.user1Id;
+    checkFirstMessageActivation(imgOtherUserId, req.userId).catch(() => {});
+    checkFirstReplyActivation(req.userId).catch(() => {});
 
     res.status(201).json(message);
   } catch (error) {

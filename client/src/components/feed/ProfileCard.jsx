@@ -43,10 +43,17 @@ export default memo(function ProfileCard({ user, onLike, onUnlike }) {
 
           {/* Vibe score */}
           {user.vibeScore !== null && (
-            <span className="absolute top-2 left-2 vibe-score flex items-center gap-1">
+            <span className={`absolute ${user.isNew ? 'top-9' : 'top-2'} left-2 vibe-score flex items-center gap-1`}>
               <Sparkles size={10} />
               {user.vibeScore}%
             </span>
+          )}
+
+          {/* NEW badge */}
+          {user.isNew && (
+            <div className="absolute top-2 left-2 z-10 bg-green-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+              NEW
+            </div>
           )}
 
           {/* Video indicator */}

@@ -192,6 +192,28 @@ export function SocketProvider({ children }) {
       }
     });
 
+    // Community move pairing
+    newSocket.on('community-move-paired', (data) => {
+      addToast({
+        type: 'community_move_paired',
+        title: "You've Been Paired!",
+        body: `Paired for "${data.moveTitle}"`,
+        data,
+      });
+      setNotifCount((prev) => prev + 1);
+    });
+
+    // Community move confirmed (both accepted)
+    newSocket.on('community-move-confirmed', (data) => {
+      addToast({
+        type: 'community_move_confirmed',
+        title: "It's a Date!",
+        body: `Both accepted for "${data.moveTitle}"`,
+        data,
+      });
+      setNotifCount((prev) => prev + 1);
+    });
+
     setSocket(newSocket);
 
     // When PWA resumes from background, force immediate reconnect

@@ -455,6 +455,7 @@ router.get('/feed', authenticate, async (req, res) => {
         hasLiked: likedIds.has(user.id),
         isPlug: (referralCountMap.get(user.id) || 0) > 0,
         dateEnergy: getActiveEnergy(user),
+        isNew: new Date(user.createdAt).getTime() > Date.now() - 48 * 60 * 60 * 1000,
       };
     });
 
@@ -496,6 +497,50 @@ router.get('/feed', authenticate, async (req, res) => {
       });
     }
     // 'active' and 'newest' are handled by the DB orderBy
+
+    // Boost new users (created in last 48h) — interleave near the top
+    if (sort === 'active' || sort === 'newest') {
+      const boostCutoff = Date.now() - 48 * 60 * 60 * 1000;
+      const boosted = [];
+      const rest = [];
+      for (const u of results) {
+        const created = users.find(x => x.id === u.id)?.createdAt;
+        if (created && new Date(created).getTime() > boostCutoff) boosted.push(u);
+        else rest.push(u);
+      }
+      if (boosted.length > 0) {
+        results = [];
+        let bi = 0;
+        for (let i = 0; i < rest.length; i++) {
+          // Insert a boosted user every 3 positions, starting at position 1
+          if (bi < boosted.length && (i === 1 || (i > 1 && (i - 1) % 3 === 0))) {
+            results.push(boosted[bi++]);
+          }
+          results.push(rest[i]);
+        }
+        // Append remaining boosted users
+        while (bi < boosted.length) results.push(boosted[bi++]);
+      }
+    }
+
+    // Targeted boost: if current user is a nudged responder, push target new users to the top
+    try {
+      const activeBoosts = await prisma.userActivation.findMany({
+        where: {
+          needsFirstMessage: true,
+          boostedResponderIds: { has: req.userId },
+        },
+        select: { userId: true },
+      });
+      if (activeBoosts.length > 0) {
+        const boostTargetIds = new Set(activeBoosts.map((a) => a.userId));
+        const targetUsers = results.filter((u) => boostTargetIds.has(u.id));
+        const otherUsers = results.filter((u) => !boostTargetIds.has(u.id));
+        results = [...targetUsers, ...otherUsers];
+      }
+    } catch {
+      // Best-effort boost
+    }
 
     // Paginate results
     const start = page * limit;
@@ -899,6 +944,7 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
         hasLiked: likedIds.has(user.id),
         isPlug: (referralCountMap.get(user.id) || 0) > 0,
         dateEnergy: getActiveEnergy(user),
+        isNew: new Date(user.createdAt).getTime() > Date.now() - 48 * 60 * 60 * 1000,
       };
     });
 
@@ -937,6 +983,48 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
         const bMatch = b.dateEnergy && b.dateEnergy === currentEnergy ? 1 : 0;
         return bMatch - aMatch;
       });
+    }
+
+    // Boost new users (created in last 48h) — interleave near the top
+    if (sort === 'active' || sort === 'newest') {
+      const boostCutoff = Date.now() - 48 * 60 * 60 * 1000;
+      const boosted = [];
+      const rest = [];
+      for (const u of results) {
+        const created = users.find(x => x.id === u.id)?.createdAt;
+        if (created && new Date(created).getTime() > boostCutoff) boosted.push(u);
+        else rest.push(u);
+      }
+      if (boosted.length > 0) {
+        results = [];
+        let bi = 0;
+        for (let i = 0; i < rest.length; i++) {
+          if (bi < boosted.length && (i === 1 || (i > 1 && (i - 1) % 3 === 0))) {
+            results.push(boosted[bi++]);
+          }
+          results.push(rest[i]);
+        }
+        while (bi < boosted.length) results.push(boosted[bi++]);
+      }
+    }
+
+    // Targeted boost: if current user is a nudged responder, push target new users to the top
+    try {
+      const activeBoosts = await prisma.userActivation.findMany({
+        where: {
+          needsFirstMessage: true,
+          boostedResponderIds: { has: req.userId },
+        },
+        select: { userId: true },
+      });
+      if (activeBoosts.length > 0) {
+        const boostTargetIds = new Set(activeBoosts.map((a) => a.userId));
+        const targetUsers = results.filter((u) => boostTargetIds.has(u.id));
+        const otherUsers = results.filter((u) => !boostTargetIds.has(u.id));
+        results = [...targetUsers, ...otherUsers];
+      }
+    } catch {
+      // Best-effort boost
     }
 
     const start = page * limit;

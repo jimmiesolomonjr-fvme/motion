@@ -74,6 +74,12 @@ router.post('/register', async (req, res) => {
 
     // Fire-and-forget: send welcome message from admin
     sendWelcomeMessage(user.id, user.role).catch(() => {});
+
+    // Schedule profile view boost after 10 minutes (waits for onboarding)
+    setTimeout(() => generateNewUserProfileViews(user.id, user.role).catch(() => {}), 10 * 60 * 1000);
+
+    // Schedule activation record creation after 10 minutes (waits for onboarding)
+    setTimeout(() => createActivationRecord(user.id).catch(() => {}), 10 * 60 * 1000);
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -304,6 +310,23 @@ router.post('/reset-password', async (req, res) => {
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Public: activity stats for landing page (no auth required)
+router.get('/stats', async (req, res) => {
+  try {
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [newMembers, conversations] = await Promise.all([
+      prisma.user.count({ where: { createdAt: { gte: oneWeekAgo } } }),
+      prisma.conversation.count(),
+    ]);
+    res.json({
+      newMembersThisWeek: Math.max(newMembers, 10),
+      conversationsStarted: Math.max(conversations, 10),
+    });
+  } catch {
+    res.json({ newMembersThisWeek: 0, conversationsStarted: 0 });
   }
 });
 
@@ -573,6 +596,78 @@ async function generateLoginNotifications(userId, hasProfile) {
   } catch (err) {
     console.error('Version notification error:', err);
   }
+}
+
+async function generateNewUserProfileViews(userId, role) {
+  // Only generate views if the user completed onboarding (has photos)
+  const profile = await prisma.profile.findUnique({ where: { userId } });
+  if (!profile || !profile.photos?.length) return;
+
+  // Find 3 most recently active opposite-role users with profiles
+  const oppositeRole = role === 'STEPPER' ? 'BADDIE' : 'STEPPER';
+  const viewers = await prisma.user.findMany({
+    where: {
+      role: oppositeRole,
+      isBanned: false,
+      isHidden: false,
+      isDummy: false,
+      profile: { isNot: null },
+    },
+    orderBy: { lastOnline: 'desc' },
+    take: 3,
+    include: { profile: { select: { displayName: true } } },
+  });
+
+  for (const viewer of viewers) {
+    // Create real profile view record
+    await prisma.profileView.create({
+      data: { viewerId: viewer.id, viewedId: userId },
+    });
+
+    const viewerName = viewer.profile?.displayName || 'Someone';
+    const notification = await prisma.notification.create({
+      data: {
+        userId,
+        type: 'profile_view',
+        title: 'New Profile View',
+        body: `${viewerName} viewed your profile`,
+        data: { viewerId: viewer.id, viewerName },
+      },
+    });
+
+    // Emit socket event if available
+    try {
+      const { io } = await import('../../server.js');
+      io.to(userId).emit('notification', notification);
+    } catch {}
+  }
+}
+
+async function createActivationRecord(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { profile: true },
+  });
+  if (!user || !user.profile || !user.profile.photos?.length) return;
+  if (user.isBanned || user.isHidden) return;
+
+  // Check if user already has inbound messages (not from admin)
+  const admin = await prisma.user.findUnique({ where: { email: 'admin@motion.app' } });
+  const inboundCount = await prisma.message.count({
+    where: {
+      conversation: {
+        OR: [{ user1Id: userId }, { user2Id: userId }],
+      },
+      senderId: { notIn: [userId, ...(admin ? [admin.id] : [])] },
+    },
+  });
+  if (inboundCount > 0) return;
+
+  await prisma.userActivation.upsert({
+    where: { userId },
+    create: { userId, needsFirstMessage: true },
+    update: {},
+  });
 }
 
 export default router;

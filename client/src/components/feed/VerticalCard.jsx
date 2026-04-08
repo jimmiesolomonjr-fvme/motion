@@ -147,6 +147,13 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
             )}
           </AnimatePresence>
 
+          {/* NEW badge */}
+          {user.isNew && (
+            <div className="absolute top-4 left-4 z-10 bg-green-500/90 text-white text-xs font-bold px-2.5 py-1 rounded-full">
+              NEW
+            </div>
+          )}
+
           {/* Online indicator */}
           {online && (
             <div className={`absolute top-4 ${hasVideo ? 'left-4' : 'right-4'} z-10 flex items-center gap-1.5 bg-black/50 rounded-full px-2.5 py-1`}>
@@ -216,6 +223,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
                   {[profile.height, profile.occupation].filter(Boolean).join(' \u00b7 ')}
                 </p>
               )}
+              {user.isNew && <p className="text-xs text-green-400 mt-1">Just joined — be first to say hi!</p>}
               {user.dateEnergy && <div className="mt-1"><DateEnergyBadge energy={user.dateEnergy} size="sm" /></div>}
             </motion.div>
           ) : (
@@ -245,6 +253,7 @@ export default function VerticalCard({ user, onLike, onUnlike, isVisible }) {
                   {[profile.height, profile.occupation].filter(Boolean).join(' \u00b7 ')}
                 </p>
               )}
+              {user.isNew && <p className="text-xs text-green-400 mt-1">Just joined — be first to say hi!</p>}
               {user.dateEnergy && <div className="mt-1"><DateEnergyBadge energy={user.dateEnergy} size="sm" /></div>}
             </div>
           )}

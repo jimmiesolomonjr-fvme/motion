@@ -1,38 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
-import webpush from 'web-push';
 import config from '../config/index.js';
 import { sendNotificationEmail } from '../utils/emailNotifications.js';
+import { sendPushNotification } from '../utils/pushNotifications.js';
+import { checkFirstMessageActivation, checkFirstReplyActivation } from '../services/activationTracker.js';
 
 const prisma = new PrismaClient();
-
-// Configure web-push if VAPID keys are set
-if (config.vapid.publicKey && config.vapid.privateKey) {
-  webpush.setVapidDetails(config.vapid.email, config.vapid.publicKey, config.vapid.privateKey);
-}
-
-async function sendPushNotification(recipientId, payload) {
-  if (!config.vapid.publicKey || !config.vapid.privateKey) return;
-  try {
-    const subscriptions = await prisma.pushSubscription.findMany({
-      where: { userId: recipientId },
-    });
-    for (const sub of subscriptions) {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          JSON.stringify(payload)
-        );
-      } catch (err) {
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          await prisma.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {});
-        }
-      }
-    }
-  } catch {
-    // Push is best-effort
-  }
-}
 
 export function setupSocketHandlers(io) {
   // Auth middleware for sockets
@@ -140,6 +113,10 @@ export function setupSocketHandlers(io) {
           // Fire-and-forget email notification
           sendNotificationEmail(otherUserId, 'message', socket.userId).catch(() => {});
         }
+
+        // Fire-and-forget activation tracking
+        checkFirstMessageActivation(otherUserId, socket.userId).catch(() => {});
+        checkFirstReplyActivation(socket.userId).catch(() => {});
       } catch (error) {
         console.error('Socket send-message error:', error);
         socket.emit('send-message-error', { conversationId: data?.conversationId, error: 'Failed to send message' });

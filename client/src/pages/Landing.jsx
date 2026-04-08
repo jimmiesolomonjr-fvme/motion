@@ -1,14 +1,38 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Crown, Sparkles, Flame, Mic, Heart } from 'lucide-react';
+import { ArrowRight, Crown, Sparkles, Flame, Mic, Heart, Users, MessageCircle } from 'lucide-react';
+import api from '../services/api';
+
+function AnimatedCount({ value }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (!value) return;
+    let start = 0;
+    const duration = 1200;
+    const step = Math.max(1, Math.floor(value / 60));
+    const interval = duration / (value / step);
+    const timer = setInterval(() => {
+      start += step;
+      if (start >= value) { setDisplay(value); clearInterval(timer); }
+      else setDisplay(start);
+    }, interval);
+    return () => clearInterval(timer);
+  }, [value]);
+  return <span>{display.toLocaleString()}</span>;
+}
 
 export default function Landing() {
   const videoRef = useRef(null);
+  const [stats, setStats] = useState(null);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     video.play().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    api.get('/auth/stats').then(r => setStats(r.data)).catch(() => {});
   }, []);
 
   return (
@@ -35,9 +59,12 @@ export default function Landing() {
               style={{ backgroundImage: 'linear-gradient(135deg, #B8960F 0%, #D4AF37 50%, #8B7209 100%)' }}
             >Motion</span>
           </h1>
-          <p className="text-xl text-gray-300 mb-2 font-medium">Move Different.</p>
-          <p className="text-gray-500 mb-10 max-w-sm mx-auto leading-relaxed">
-            The dating platform for young excellence. Choose your role. Make your move. No games.
+          <p className="text-xl text-gray-300 mb-2 font-medium">Find people who know what they want.</p>
+          <p className="text-gray-500 mb-3 max-w-sm mx-auto leading-relaxed">
+            A more intentional way to connect — where expectations are clear, time isn't wasted, and the right matches stand out.
+          </p>
+          <p className="text-gray-600 mb-10 max-w-sm mx-auto leading-relaxed text-sm">
+            Join a growing network of ambitious, like-minded individuals. Choose your role. Make your move.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -50,6 +77,36 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* Activity Stats */}
+      {stats && (stats.newMembersThisWeek > 0 || stats.conversationsStarted > 0) && (
+        <section className="py-10 px-6 border-b border-dark-50">
+          <div className="max-w-lg mx-auto flex justify-center gap-10 sm:gap-16">
+            {stats.newMembersThisWeek > 0 && (
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Users size={18} className="text-gold" />
+                  <span className="text-2xl sm:text-3xl font-bold text-white">
+                    <AnimatedCount value={stats.newMembersThisWeek} />
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-500">new members this week</p>
+              </div>
+            )}
+            {stats.conversationsStarted > 0 && (
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <MessageCircle size={18} className="text-purple-400" />
+                  <span className="text-2xl sm:text-3xl font-bold text-white">
+                    <AnimatedCount value={stats.conversationsStarted} />+
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-500">conversations started</p>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Roles */}
       <section className="py-20 px-6">

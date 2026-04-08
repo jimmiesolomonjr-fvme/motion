@@ -33,6 +33,14 @@ export default {
     apiKey: process.env.RESEND_API_KEY,
     from: process.env.RESEND_FROM || 'Motion <onboarding@resend.dev>',
   },
+  communityMoves: {
+    googlePlacesApiKey: process.env.GOOGLE_PLACES_API_KEY || '',
+    yelpApiKey: process.env.YELP_API_KEY || '',
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || '',
+    defaultCity: process.env.COMMUNITY_MOVES_CITY || 'Atlanta',
+    defaultLat: process.env.COMMUNITY_MOVES_LAT || '33.749',
+    defaultLng: process.env.COMMUNITY_MOVES_LNG || '-84.388',
+  },
   appVersion: process.env.APP_VERSION || '0.0.0',
   vapid: {
     publicKey: process.env.VAPID_PUBLIC_KEY,

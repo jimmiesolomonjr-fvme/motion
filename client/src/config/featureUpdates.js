@@ -19,7 +19,7 @@
  *   Ruler, Moon, Video, Tag, Heart, Shield, Zap, Crown, Star,
  *   MessageCircle, Bell, Camera, Music, MapPin, Flame, Users, etc.
  */
-import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy, Type, Palette, DollarSign } from 'lucide-react';
+import { Ruler, Moon, Video, Tag, Shield, Users, Sparkles, Music, Download, RefreshCw, Bell, Mail, Volume2, Activity, SlidersHorizontal, Flame, Edit3, Crop, Heart, MapPin, Zap, MessageCircle, Share2, Target, Gamepad2, Eye, EyeOff, Mic, KeyRound, WifiOff, Image, Bot, Gauge, PauseCircle, ImageOff, MessageSquareOff, Flag, Trophy, Type, Palette, DollarSign, Star } from 'lucide-react';
 
 const FEATURE_UPDATES = {
   '2.0.0': {
@@ -671,6 +671,44 @@ const FEATURE_UPDATES = {
         bg: 'bg-purple-400/10',
         title: 'Must Try: Life After',
         description: 'Upscale dining meets nightlife on the water in Edgewater, NJ. If you haven\'t been, this is your sign.',
+      },
+    ],
+  },
+  '2.33.0': {
+    subtitle: 'New members get the spotlight.',
+    features: [
+      {
+        icon: Star,
+        color: 'text-green-400',
+        bg: 'bg-green-400/10',
+        title: 'First Message Guarantee',
+        description: 'New members get boosted in your feed with a NEW badge. Be the first to say hi and make their day.',
+      },
+      {
+        icon: Zap,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Priority Nudges',
+        description: 'Get notified when someone new joins who might be your type. Active users are nudged to welcome newcomers.',
+      },
+    ],
+  },
+  '2.34.0': {
+    subtitle: 'AI-curated date experiences, just for you.',
+    features: [
+      {
+        icon: Sparkles,
+        color: 'text-purple-400',
+        bg: 'bg-purple-400/10',
+        title: 'Motion Picks',
+        description: 'AI-curated date spots picked just for you. Tap "I\'m Down" and get paired with someone who\'s feeling the same vibe.',
+      },
+      {
+        icon: Users,
+        color: 'text-gold',
+        bg: 'bg-gold/10',
+        title: 'Smart Pairing',
+        description: 'When a Baddie and a Stepper both say "I\'m Down" on the same Move, you get paired and a private chat opens up.',
       },
     ],
   },

@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { upload, uploadToCloud, deleteFromCloud } from '../middleware/upload.js';
 import { getHiddenIds, isHiddenFrom } from '../utils/hiddenPairs.js';
+import { joinPool, respondToPairing, getUserPoolStatus } from '../services/communityMovePairing.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -178,7 +179,8 @@ router.get('/', authenticate, async (req, res) => {
         { creatorId: req.userId },
         // Baddie proposals — show to Steppers
         { creator: { role: 'BADDIE' }, date: { gte: twoHoursFromNow } },
-        // Community moves (dummy or admin creator) — show to both roles
+        // Community moves — show to both roles (explicit flag or legacy inference)
+        { isCommunity: true, date: { gte: twoHoursFromNow } },
         { creator: { isDummy: true }, date: { gte: twoHoursFromNow } },
         { creator: { isAdmin: true }, date: { gte: twoHoursFromNow } },
       ];
@@ -189,7 +191,8 @@ router.get('/', authenticate, async (req, res) => {
       whereClause.OR = [
         { creatorId: req.userId },
         { creator: { role: 'STEPPER', isAdmin: false }, date: { gte: twoHoursFromNow } },
-        // Community moves (dummy or admin creator) — show to both roles
+        // Community moves — show to both roles (explicit flag or legacy inference)
+        { isCommunity: true, date: { gte: twoHoursFromNow } },
         { creator: { isDummy: true }, date: { gte: twoHoursFromNow } },
         { creator: { isAdmin: true }, date: { gte: twoHoursFromNow } },
       ];
@@ -214,7 +217,7 @@ router.get('/', authenticate, async (req, res) => {
       include: {
         creator: { include: { profile: true } },
         stepper: { include: { profile: true } },
-        _count: { select: { interests: true } },
+        _count: { select: { interests: true, communityMovePool: true } },
         interests: {
           take: 5,
           include: { user: { select: { id: true, role: true, profile: { select: { photos: true, displayName: true } } } } },
@@ -258,6 +261,10 @@ router.get('/', authenticate, async (req, res) => {
         selectedBaddieId: m.selectedBaddieId,
         stepperId: m.stepperId,
         creatorId: m.creatorId,
+        isCommunity: m.isCommunity,
+        vibeTagsCommunity: m.vibeTagsCommunity || [],
+        sourceUrl: m.sourceUrl,
+        poolCount: m._count.communityMovePool || 0,
         interestCount: m._count.interests,
         createdAt: m.createdAt,
         hasInterest: interestedMoveIds.has(m.id),
@@ -307,8 +314,8 @@ router.get('/', authenticate, async (req, res) => {
     }
 
     // User-created moves always show before Motion (community/dummy) moves
-    const userMoves = result.filter((m) => !m.creator.isDummy && !m.creator.isAdmin);
-    const communityMoves = result.filter((m) => m.creator.isDummy || m.creator.isAdmin);
+    const userMoves = result.filter((m) => !m.isCommunity && !m.creator.isDummy && !m.creator.isAdmin);
+    const communityMoves = result.filter((m) => m.isCommunity || m.creator.isDummy || m.creator.isAdmin);
     // Community moves: most interest first, then soonest expiration
     communityMoves.sort((a, b) => {
       if (b.interestCount !== a.interestCount) return b.interestCount - a.interestCount;
@@ -622,69 +629,14 @@ router.post('/:moveId/interest', authenticate, async (req, res) => {
     });
 
     if (isCommunityMove) {
-      // Community move matching: check for opposite-role users who already expressed interest
-      const oppositeRole = req.userRole === 'STEPPER' ? 'BADDIE' : 'STEPPER';
-      const oppositeInterests = await prisma.moveInterest.findMany({
-        where: {
-          moveId: move.id,
-          userId: { not: req.userId },
-          user: { role: oppositeRole },
-        },
-        include: { user: { include: { profile: { select: { displayName: true } } } } },
-      });
-
-      const userProfile = await prisma.profile.findUnique({
-        where: { userId: req.userId },
-        select: { displayName: true },
-      });
-
-      for (const oi of oppositeInterests) {
-        // Create match (upsert to avoid duplicates, order user IDs consistently)
-        const [u1, u2] = [req.userId, oi.userId].sort();
-        await prisma.match.upsert({
-          where: { user1Id_user2Id: { user1Id: u1, user2Id: u2 } },
-          update: {},
-          create: { user1Id: u1, user2Id: u2 },
-        });
-
-        // Notify both users
-        await prisma.notification.createMany({
-          data: [
-            {
-              userId: req.userId,
-              type: 'move_match',
-              title: 'Move Match!',
-              body: `You and ${oi.user.profile?.displayName || 'someone'} both want to go to "${move.title}"!`,
-              data: { moveId: move.id, matchedUserId: oi.userId },
-            },
-            {
-              userId: oi.userId,
-              type: 'move_match',
-              title: 'Move Match!',
-              body: `You and ${userProfile?.displayName || 'someone'} both want to go to "${move.title}"!`,
-              data: { moveId: move.id, matchedUserId: req.userId },
-            },
-          ],
-        });
-
-        // Emit socket events to both
-        try {
-          const { io } = await import('../../server.js');
-          if (io) {
-            io.to(req.userId).emit('match-notification', {
-              type: 'move_match',
-              moveId: move.id,
-              matchedUserId: oi.userId,
-              moveTitle: move.title,
-            });
-            io.to(oi.userId).emit('match-notification', {
-              type: 'move_match',
-              moveId: move.id,
-              matchedUserId: req.userId,
-              moveTitle: move.title,
-            });
-          }
-        } catch {}
+      // Community move: use pool-based FIFO matching
+      try {
+        const poolResult = await joinPool(move.id, req.userId);
+        // Interest record is still created above for backwards compat
+        return res.status(201).json({ ...interest, poolStatus: poolResult });
+      } catch (poolErr) {
+        // Pool join failed but interest was still recorded
+        console.error('Pool join error:', poolErr.message);
       }
     } else {
       // Regular move: notify move creator
@@ -1109,6 +1061,96 @@ router.delete('/interests/:interestId', authenticate, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Delete interest error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ===== Community Moves: Pool + Pairing Endpoints =====
+
+// "I'm Down" — join pool for a community move
+router.post('/:moveId/pool', authenticate, async (req, res) => {
+  try {
+    const result = await joinPool(req.params.moveId, req.userId);
+    res.status(201).json(result);
+  } catch (err) {
+    const status = err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+// Get user's pool/pairing status for a community move
+router.get('/:moveId/pool/status', authenticate, async (req, res) => {
+  try {
+    const result = await getUserPoolStatus(req.params.moveId, req.userId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Respond to a pairing (accept or pass)
+router.post('/pairings/:pairingId/respond', authenticate, async (req, res) => {
+  try {
+    const { accepted } = req.body;
+    if (typeof accepted !== 'boolean') {
+      return res.status(400).json({ error: 'accepted must be a boolean' });
+    }
+    const result = await respondToPairing(req.params.pairingId, req.userId, accepted);
+    res.json(result);
+  } catch (err) {
+    const status = err.message.includes('not found') ? 404 : 400;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+// Get active community moves (for MotionPicksBar)
+router.get('/community/picks', authenticate, async (req, res) => {
+  try {
+    const moves = await prisma.move.findMany({
+      where: {
+        isCommunity: true,
+        isActive: true,
+        status: 'OPEN',
+        date: { gte: new Date() },
+      },
+      include: {
+        _count: { select: { communityMovePool: true } },
+      },
+      orderBy: { date: 'asc' },
+      take: 10,
+    });
+
+    // Get user's pool statuses
+    const poolEntries = await prisma.communityMovePool.findMany({
+      where: {
+        userId: req.userId,
+        moveId: { in: moves.map((m) => m.id) },
+      },
+      select: { moveId: true, paired: true },
+    });
+    const poolMap = new Map(poolEntries.map((p) => [p.moveId, p]));
+
+    const result = moves.map((m) => {
+      const pool = poolMap.get(m.id);
+      return {
+        id: m.id,
+        title: m.title,
+        description: m.description,
+        photo: m.photo,
+        date: m.date,
+        location: m.location,
+        category: m.category,
+        vibeTagsCommunity: m.vibeTagsCommunity,
+        sourceUrl: m.sourceUrl,
+        poolCount: m._count.communityMovePool,
+        userStatus: pool ? (pool.paired ? 'paired' : 'in_pool') : 'not_joined',
+        expiresAt: m.expiresAt,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error('Community picks error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

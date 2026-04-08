@@ -11,8 +11,10 @@ import Broadcast from '../components/admin/Broadcast';
 import EmailCampaign from '../components/admin/EmailCampaign';
 import DeletionLog from '../components/admin/DeletionLog';
 import Referrals from '../components/admin/Referrals';
+import Activation from '../components/admin/Activation';
+import CommunityMoves from '../components/admin/CommunityMoves';
 import { useAuth } from '../context/AuthContext';
-import { BarChart3, AlertTriangle, Users, Sparkles, EyeOff, Settings, Megaphone, Mail, Trash2, Share2 } from 'lucide-react';
+import { BarChart3, AlertTriangle, Users, Sparkles, EyeOff, Settings, Megaphone, Mail, Trash2, Share2, Zap, Flame } from 'lucide-react';
 
 export default function Admin() {
   const { user } = useAuth();
@@ -29,6 +31,8 @@ export default function Admin() {
     { id: 'hidden', label: 'Hidden', icon: EyeOff },
     { id: 'broadcast', label: 'Broadcast', icon: Megaphone },
     { id: 'email', label: 'Email', icon: Mail },
+    { id: 'picks', label: 'Picks', icon: Flame },
+    { id: 'activation', label: 'Activation', icon: Zap },
     { id: 'deletions', label: 'Deletions', icon: Trash2 },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
@@ -60,6 +64,8 @@ export default function Admin() {
       {tab === 'hidden' && <HiddenPairs />}
       {tab === 'broadcast' && <Broadcast />}
       {tab === 'email' && <EmailCampaign />}
+      {tab === 'picks' && <CommunityMoves />}
+      {tab === 'activation' && <Activation />}
       {tab === 'deletions' && <DeletionLog />}
       {tab === 'settings' && <AdminSettings />}
     </AppLayout>

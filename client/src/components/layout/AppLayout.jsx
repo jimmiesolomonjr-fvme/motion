@@ -5,7 +5,7 @@ import BottomNav from './BottomNav';
 import { useNotifications } from '../../context/SocketContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Heart, X, Sparkles, Eye, Flame, AlertTriangle } from 'lucide-react';
+import { Heart, X, Sparkles, Eye, Flame, AlertTriangle, Star, Users } from 'lucide-react';
 import { optimizeCloudinaryUrl } from '../../utils/cloudinaryUrl';
 import UpdateBanner from '../ui/UpdateBanner';
 import InstallBanner from '../ui/InstallBanner';
@@ -49,6 +49,9 @@ export default function AppLayout({ children }) {
       case 'match': return <Heart className="text-gold" size={20} fill="currentColor" />;
       case 'profile_view': return <Eye className="text-purple-glow" size={20} />;
       case 'smf_pick': return <Flame className="text-orange-400" size={20} />;
+      case 'new_user_priority': return <Star className="text-green-400" size={20} />;
+      case 'community_move_paired': return <Users className="text-purple-400" size={20} />;
+      case 'community_move_confirmed': return <Heart className="text-green-400" size={20} fill="currentColor" />;
       default: return <Sparkles className="text-gold" size={20} />;
     }
   };
@@ -61,6 +64,12 @@ export default function AppLayout({ children }) {
       if (toast.data?.pickerId) navigate(`/profile/${toast.data.pickerId}`);
     } else if (toast.type === 'match') {
       navigate('/messages');
+    } else if (toast.type === 'new_user_priority' && toast.data?.targetUserId) {
+      navigate(`/profile/${toast.data.targetUserId}`);
+    } else if (toast.type === 'community_move_paired') {
+      navigate('/moves', { state: { tab: 'picks' } });
+    } else if (toast.type === 'community_move_confirmed' && toast.data?.conversationId) {
+      navigate(`/chat/${toast.data.conversationId}`);
     }
   };
 

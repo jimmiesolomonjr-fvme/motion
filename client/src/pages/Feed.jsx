@@ -11,6 +11,7 @@ import Modal from '../components/ui/Modal';
 import Avatar from '../components/ui/Avatar';
 import { Heart, LayoutGrid, Rows3, SlidersHorizontal, MessageCircle } from 'lucide-react';
 import StoryBar from '../components/stories/StoryBar';
+import MotionPicksBar from '../components/feed/MotionPicksBar';
 import { FeedSkeleton } from '../components/ui/Skeleton';
 import { haptic } from '../utils/haptics';
 
@@ -193,6 +194,7 @@ export default function Feed() {
   return (
     <AppLayout>
       {viewMode === 'grid' && <StoryBar />}
+      {viewMode === 'grid' && <MotionPicksBar />}
       <FeedFilters
         sort={sort} setSort={setSort}
         ageRange={ageRange} maxDistance={maxDistance}

@@ -22,6 +22,8 @@ import smfRoutes from './src/routes/smf.js';
 import { setupSocketHandlers } from './src/sockets/chat.js';
 import { startReengagementJob } from './src/jobs/reengagement.js';
 import { startStoryCleanupJob } from './src/jobs/storyCleanup.js';
+import { startFirstMessageGuaranteeJob } from './src/jobs/firstMessageGuarantee.js';
+import { startCommunityMovesJob } from './src/jobs/communityMoves.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -81,6 +83,8 @@ httpServer.listen(config.port, () => {
   console.log(`Motion server running on port ${config.port}`);
   startReengagementJob();
   startStoryCleanupJob();
+  startFirstMessageGuaranteeJob();
+  startCommunityMovesJob();
 });
 
 export { app, io };
