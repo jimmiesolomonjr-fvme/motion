@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
-import { Bot, Power, PowerOff, Trash2, Play, ChevronDown, ChevronUp, Activity, MessageCircle, Heart, MapPin, BarChart3, Upload, X, Camera } from 'lucide-react';
+import { Bot, Power, PowerOff, Trash2, Play, ChevronDown, ChevronUp, Activity, MessageCircle, Heart, MapPin, BarChart3, Upload, X, Camera, Crop, ImagePlus } from 'lucide-react';
 import ImageCropper from '../ui/ImageCropper';
 
 export default function SyntheticUsers() {
@@ -106,6 +106,13 @@ export default function SyntheticUsers() {
   const handlePhotoSlotClick = (index) => {
     setCropIndex(index);
     photoInputRef.current?.click();
+  };
+
+  const handleRecrop = (index) => {
+    const photo = expandedDetail?.photos?.[index];
+    if (!photo) return;
+    setCropIndex(index);
+    setCropSrc(photo);
   };
 
   const handlePhotoFileChange = (e) => {
@@ -288,14 +295,24 @@ export default function SyntheticUsers() {
                                 src={photo}
                                 alt=""
                                 className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                onClick={() => handlePhotoSlotClick(i)}
+                                onClick={() => handleRecrop(i)}
                               />
-                              <button
-                                onClick={() => handlePhotoDelete(i)}
-                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500/80 transition-colors"
-                              >
-                                <X size={10} className="text-white" />
-                              </button>
+                              <div className="absolute top-1 right-1 flex gap-1">
+                                <button
+                                  onClick={() => handlePhotoSlotClick(i)}
+                                  className="w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-cyan-500/80 transition-colors"
+                                  title="Replace"
+                                >
+                                  <ImagePlus size={9} className="text-white" />
+                                </button>
+                                <button
+                                  onClick={() => handlePhotoDelete(i)}
+                                  className="w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500/80 transition-colors"
+                                  title="Delete"
+                                >
+                                  <X size={10} className="text-white" />
+                                </button>
+                              </div>
                             </>
                           ) : (
                             <button
