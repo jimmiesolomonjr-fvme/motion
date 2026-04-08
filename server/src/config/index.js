@@ -41,6 +41,14 @@ export default {
     defaultLat: process.env.COMMUNITY_MOVES_LAT || '33.749',
     defaultLng: process.env.COMMUNITY_MOVES_LNG || '-84.388',
   },
+  synthetic: {
+    enabled: process.env.SYNTHETIC_USERS_ENABLED === 'true',
+    generationEnabled: process.env.SYNTHETIC_GENERATION_ENABLED === 'true',
+    llmApiKey: process.env.SYNTHETIC_USERS_LLM_API_KEY || process.env.ANTHROPIC_API_KEY || '',
+    maxConcurrent: parseInt(process.env.SYNTHETIC_MAX_CONCURRENT || '3'),
+    cycleIntervalMinutes: parseInt(process.env.SYNTHETIC_CYCLE_INTERVAL_MINUTES || '10'),
+    falApiKey: process.env.FAL_API_KEY || '',
+  },
   appVersion: process.env.APP_VERSION || '0.0.0',
   vapid: {
     publicKey: process.env.VAPID_PUBLIC_KEY,

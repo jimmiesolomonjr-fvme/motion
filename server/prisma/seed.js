@@ -444,6 +444,12 @@ async function main() {
     create: { key: 'showDummyUsers', value: 'true' },
   });
 
+  await prisma.appSetting.upsert({
+    where: { key: 'syntheticUsersEnabled' },
+    update: {},
+    create: { key: 'syntheticUsersEnabled', value: 'false' },
+  });
+
   // Email notification toggles (seeded as 'false' = disabled)
   await prisma.appSetting.upsert({
     where: { key: 'email_profile_view' },

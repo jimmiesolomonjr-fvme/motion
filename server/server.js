@@ -24,6 +24,7 @@ import { startReengagementJob } from './src/jobs/reengagement.js';
 import { startStoryCleanupJob } from './src/jobs/storyCleanup.js';
 import { startFirstMessageGuaranteeJob } from './src/jobs/firstMessageGuarantee.js';
 import { startCommunityMovesJob } from './src/jobs/communityMoves.js';
+import { startSyntheticScheduler } from './src/synthetic/scheduler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -85,6 +86,7 @@ httpServer.listen(config.port, () => {
   startStoryCleanupJob();
   startFirstMessageGuaranteeJob();
   startCommunityMovesJob();
+  startSyntheticScheduler();
 });
 
 export { app, io };

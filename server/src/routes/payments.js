@@ -18,6 +18,7 @@ router.post('/checkout', authenticate, async (req, res) => {
     });
 
     if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.isSynthetic) return res.status(403).json({ error: 'Not allowed' });
 
     let customerId = user.subscription?.stripeCustomerId;
 

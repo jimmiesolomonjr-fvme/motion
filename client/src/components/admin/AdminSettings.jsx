@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Settings, MessageCircle, Users, FileText, Mail, Eye, Heart, Clock, Gamepad2, AlertTriangle, Zap, Sparkles } from 'lucide-react';
+import { Settings, MessageCircle, Users, FileText, Mail, Eye, Heart, Clock, Gamepad2, AlertTriangle, Zap, Sparkles, Bot } from 'lucide-react';
 
 const DEFAULT_STEPPER_MSG = `Welcome to Motion, King! 👑\n\nYou're officially a Stepper. Here's how to get started:\n\n• Browse Baddies in the Feed and send a Like\n• Post a Move to invite Baddies to link up\n• Complete your profile to stand out\n\nLet's get it! 🚀`;
 const DEFAULT_BADDIE_MSG = `Welcome to Motion, Queen! ✨\n\nYou're officially a Baddie. Here's how to get started:\n\n• Browse the Feed and Like a Stepper you're feeling\n• Check out Moves to see what Steppers are planning\n• Complete your profile so they notice you\n\nTime to shine! 💅`;
@@ -189,6 +189,32 @@ export default function AdminSettings() {
             <span
               className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
                 settings.communityMovesEnabled !== 'false' ? 'translate-x-6' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-dark-100 rounded-xl p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+              <Bot size={18} className="text-cyan-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-white text-sm">Synthetic Users</p>
+              <p className="text-xs text-gray-400">Enable AI-driven synthetic user activity</p>
+            </div>
+          </div>
+          <button
+            onClick={() => toggleSetting('syntheticUsersEnabled')}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              settings.syntheticUsersEnabled === 'true' ? 'bg-green-500' : 'bg-dark-50'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                settings.syntheticUsersEnabled === 'true' ? 'translate-x-6' : 'translate-x-0.5'
               }`}
             />
           </button>

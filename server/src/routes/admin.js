@@ -1201,4 +1201,269 @@ router.delete('/community-moves/:moveId', authenticate, requireAdmin, async (req
   }
 });
 
+// ===== Synthetic Users Admin =====
+
+// Overview stats
+router.get('/synthetic/overview', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [total, activeToday, actionsToday, messagesToday, likesToday, movesToday] = await Promise.all([
+      prisma.syntheticProfile.count(),
+      prisma.syntheticProfile.count({ where: { lastActiveAt: { gte: todayStart } } }),
+      prisma.syntheticActionLog.count({ where: { createdAt: { gte: todayStart } } }),
+      prisma.syntheticActionLog.count({ where: { actionType: 'send_message', createdAt: { gte: todayStart } } }),
+      prisma.syntheticActionLog.count({ where: { actionType: 'like', createdAt: { gte: todayStart } } }),
+      prisma.syntheticActionLog.count({ where: { actionType: 'post_move', createdAt: { gte: todayStart } } }),
+    ]);
+
+    res.json({ total, activeToday, actionsToday, messagesToday, likesToday, movesToday });
+  } catch (error) {
+    console.error('Synthetic overview error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// List all synthetic users
+router.get('/synthetic/users', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const profiles = await prisma.syntheticProfile.findMany({
+      include: {
+        user: { include: { profile: true } },
+        _count: { select: { actions: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(profiles.map((sp) => ({
+      id: sp.id,
+      userId: sp.userId,
+      displayName: sp.user.profile?.displayName || 'Unknown',
+      role: sp.user.role,
+      photo: sp.user.profile?.photos?.[0] || null,
+      city: sp.user.profile?.city,
+      isActive: sp.isActive,
+      lastActiveAt: sp.lastActiveAt,
+      actionCount: sp._count.actions,
+      createdAt: sp.createdAt,
+    })));
+  } catch (error) {
+    console.error('Synthetic users list error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Single synthetic user detail
+router.get('/synthetic/users/:id', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const sp = await prisma.syntheticProfile.findUnique({
+      where: { id: req.params.id },
+      include: {
+        user: { include: { profile: true } },
+        actions: { orderBy: { createdAt: 'desc' }, take: 50 },
+      },
+    });
+    if (!sp) return res.status(404).json({ error: 'Not found' });
+
+    res.json({
+      id: sp.id,
+      userId: sp.userId,
+      displayName: sp.user.profile?.displayName,
+      role: sp.user.role,
+      photo: sp.user.profile?.photos?.[0] || null,
+      city: sp.user.profile?.city,
+      isActive: sp.isActive,
+      lastActiveAt: sp.lastActiveAt,
+      lastReflectionAt: sp.lastReflectionAt,
+      personaConfig: sp.personaConfig,
+      dailySchedule: sp.dailySchedule,
+      memoryStream: sp.memoryStream,
+      emotionalState: sp.emotionalState,
+      currentGoals: sp.currentGoals,
+      actions: sp.actions.map((a) => ({
+        id: a.id,
+        actionType: a.actionType,
+        targetUserId: a.targetUserId,
+        metadata: a.actionMetadata,
+        createdAt: a.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Synthetic user detail error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Toggle activate/deactivate
+router.put('/synthetic/users/:id/toggle', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const sp = await prisma.syntheticProfile.findUnique({ where: { id: req.params.id } });
+    if (!sp) return res.status(404).json({ error: 'Not found' });
+
+    const updated = await prisma.syntheticProfile.update({
+      where: { id: req.params.id },
+      data: { isActive: !sp.isActive },
+    });
+
+    res.json({ id: updated.id, isActive: updated.isActive });
+  } catch (error) {
+    console.error('Synthetic toggle error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Activate + run immediate cycle
+router.post('/synthetic/users/:id/activate', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const sp = await prisma.syntheticProfile.update({
+      where: { id: req.params.id },
+      data: { isActive: true },
+    });
+
+    // Run immediate cycle
+    try {
+      const { runAgentCycle } = await import('../synthetic/agentLoop.js');
+      runAgentCycle(sp.id).catch((err) => console.error('[synthetic] Immediate cycle error:', err.message));
+    } catch {}
+
+    res.json({ id: sp.id, isActive: true, cycleTriggered: true });
+  } catch (error) {
+    console.error('Synthetic activate error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Generate new persona (stub — behind feature flag)
+router.post('/synthetic/generate', authenticate, requireAdmin, async (req, res) => {
+  res.status(501).json({ error: 'Persona generation not yet implemented' });
+});
+
+// Import preset persona JSON
+router.post('/synthetic/import', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { persona } = req.body;
+    if (!persona?.email || !persona?.role || !persona?.displayName) {
+      return res.status(400).json({ error: 'Invalid persona: email, role, displayName required' });
+    }
+
+    const { validatePersonaQuality, seedPrebuiltPersonas } = await import('../synthetic/personaGenerator.js');
+    const { valid, errors } = validatePersonaQuality(persona);
+    if (!valid) {
+      return res.status(400).json({ error: `Validation failed: ${errors.join(', ')}` });
+    }
+
+    // Use the seeder with a single persona
+    const { PREBUILT_PERSONAS } = await import('../synthetic/personas.js');
+    // Temporarily add to list — the seeder is idempotent
+    PREBUILT_PERSONAS.push(persona);
+    const result = await seedPrebuiltPersonas();
+    PREBUILT_PERSONAS.pop(); // remove temp entry
+
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Synthetic import error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Purge ALL synthetic users + related data
+router.delete('/synthetic/purge', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const syntheticUsers = await prisma.user.findMany({
+      where: { isSynthetic: true },
+      select: { id: true },
+    });
+    const ids = syntheticUsers.map((u) => u.id);
+
+    if (ids.length === 0) {
+      return res.json({ purged: 0 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Synthetic-specific tables
+      await tx.syntheticActionLog.deleteMany({ where: { syntheticProfile: { userId: { in: ids } } } });
+      await tx.syntheticProfile.deleteMany({ where: { userId: { in: ids } } });
+
+      // Standard user data (same pattern as admin delete)
+      await tx.tip.deleteMany({ where: { OR: [{ tipperId: { in: ids } }, { creatorId: { in: ids } }] } });
+      await tx.messageReaction.deleteMany({ where: { userId: { in: ids } } });
+      const convos = await tx.conversation.findMany({
+        where: { OR: [{ user1Id: { in: ids } }, { user2Id: { in: ids } }] },
+        select: { id: true },
+      });
+      const convoIds = convos.map((c) => c.id);
+      if (convoIds.length > 0) {
+        await tx.message.deleteMany({ where: { conversationId: { in: convoIds } } });
+      }
+      await tx.conversation.deleteMany({ where: { id: { in: convoIds } } });
+      await tx.moveParticipant.deleteMany({ where: { baddieId: { in: ids } } });
+      const userMoves = await tx.move.findMany({ where: { creatorId: { in: ids } }, select: { id: true } });
+      const moveIds = userMoves.map((m) => m.id);
+      if (moveIds.length > 0) {
+        await tx.moveInterest.deleteMany({ where: { moveId: { in: moveIds } } });
+        await tx.savedMove.deleteMany({ where: { moveId: { in: moveIds } } });
+        await tx.moveParticipant.deleteMany({ where: { moveId: { in: moveIds } } });
+      }
+      await tx.moveInterest.deleteMany({ where: { userId: { in: ids } } });
+      await tx.savedMove.deleteMany({ where: { userId: { in: ids } } });
+      await tx.move.deleteMany({ where: { creatorId: { in: ids } } });
+      await tx.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
+      await tx.like.deleteMany({ where: { OR: [{ likerId: { in: ids } }, { likedId: { in: ids } }] } });
+      await tx.match.deleteMany({ where: { OR: [{ user1Id: { in: ids } }, { user2Id: { in: ids } }] } });
+      await tx.block.deleteMany({ where: { OR: [{ blockerId: { in: ids } }, { blockedId: { in: ids } }] } });
+      await tx.report.deleteMany({ where: { OR: [{ reporterId: { in: ids } }, { reportedId: { in: ids } }] } });
+      await tx.hiddenPair.deleteMany({ where: { OR: [{ user1Id: { in: ids } }, { user2Id: { in: ids } }] } });
+      await tx.notification.deleteMany({ where: { userId: { in: ids } } });
+      await tx.profileView.deleteMany({ where: { OR: [{ viewerId: { in: ids } }, { viewedId: { in: ids } }] } });
+      await tx.storyLike.deleteMany({ where: { userId: { in: ids } } });
+      await tx.storyView.deleteMany({ where: { viewerId: { in: ids } } });
+      await tx.story.deleteMany({ where: { userId: { in: ids } } });
+      await tx.profilePrompt.deleteMany({ where: { userId: { in: ids } } });
+      await tx.vibeAnswer.deleteMany({ where: { userId: { in: ids } } });
+      await tx.subscription.deleteMany({ where: { userId: { in: ids } } });
+      await tx.smfRound.deleteMany({ where: { playerId: { in: ids } } });
+      await tx.userActivation.deleteMany({ where: { userId: { in: ids } } });
+      await tx.profile.deleteMany({ where: { userId: { in: ids } } });
+      await tx.user.deleteMany({ where: { id: { in: ids } } });
+    });
+
+    res.json({ purged: ids.length });
+  } catch (error) {
+    console.error('Synthetic purge error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Analytics — synthetic-to-real activity ratio
+router.get('/synthetic/analytics', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const syntheticUserIds = (await prisma.user.findMany({
+      where: { isSynthetic: true },
+      select: { id: true },
+    })).map((u) => u.id);
+
+    const [synMessages, realMessages, synLikes, realLikes, synVibeAnswers, realVibeAnswers] = await Promise.all([
+      prisma.message.count({ where: { senderId: { in: syntheticUserIds }, createdAt: { gte: weekAgo } } }),
+      prisma.message.count({ where: { senderId: { notIn: syntheticUserIds }, createdAt: { gte: weekAgo } } }),
+      prisma.like.count({ where: { likerId: { in: syntheticUserIds }, createdAt: { gte: weekAgo } } }),
+      prisma.like.count({ where: { likerId: { notIn: syntheticUserIds }, createdAt: { gte: weekAgo } } }),
+      prisma.vibeAnswer.count({ where: { userId: { in: syntheticUserIds }, answeredAt: { gte: weekAgo } } }),
+      prisma.vibeAnswer.count({ where: { userId: { notIn: syntheticUserIds }, answeredAt: { gte: weekAgo } } }),
+    ]);
+
+    res.json({
+      messages: { synthetic: synMessages, real: realMessages, ratio: realMessages > 0 ? (synMessages / realMessages).toFixed(2) : 'N/A' },
+      likes: { synthetic: synLikes, real: realLikes, ratio: realLikes > 0 ? (synLikes / realLikes).toFixed(2) : 'N/A' },
+      vibeAnswers: { synthetic: synVibeAnswers, real: realVibeAnswers, ratio: realVibeAnswers > 0 ? (synVibeAnswers / realVibeAnswers).toFixed(2) : 'N/A' },
+    });
+  } catch (error) {
+    console.error('Synthetic analytics error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 export default router;
