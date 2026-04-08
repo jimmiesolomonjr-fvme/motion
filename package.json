@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "npm install --prefix client && npm install --prefix server && npm run build --prefix client && cd server && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} npx prisma generate && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node prisma/pre-migrate.js && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} npx prisma db push --accept-data-loss && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node prisma/seed.js && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node prisma/seed-moves.js && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node src/synthetic/seedSynthetic.js",
+    "build": "npm install --prefix client && npm install --prefix server && npm run build --prefix client && cd server && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} npx prisma generate && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node prisma/pre-migrate.js && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} npx prisma db push && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node prisma/seed.js && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node prisma/seed-moves.js && DATABASE_URL=${DATABASE_BUILD_URL:-$DATABASE_URL} node src/synthetic/seedSynthetic.js",
     "start": "npm start --prefix server"
   }
 }
