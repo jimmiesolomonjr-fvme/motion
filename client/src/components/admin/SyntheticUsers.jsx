@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
-import { Bot, Power, PowerOff, Trash2, Play, ChevronDown, ChevronUp, Activity, MessageCircle, Heart, MapPin, BarChart3, Upload } from 'lucide-react';
+import { Bot, Power, PowerOff, Trash2, Play, ChevronDown, ChevronUp, Activity, MessageCircle, Heart, MapPin, BarChart3, Upload, X, Camera } from 'lucide-react';
+import ImageCropper from '../ui/ImageCropper';
 
 export default function SyntheticUsers() {
   const [overview, setOverview] = useState(null);
@@ -15,6 +16,10 @@ export default function SyntheticUsers() {
   const [importJson, setImportJson] = useState('');
   const [importError, setImportError] = useState('');
   const [importing, setImporting] = useState(false);
+  const [cropSrc, setCropSrc] = useState(null);
+  const [cropIndex, setCropIndex] = useState(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef(null);
 
   const fetchData = async () => {
     try {
@@ -95,6 +100,53 @@ export default function SyntheticUsers() {
       setImportError(err.response?.data?.error || err.message || 'Invalid JSON');
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handlePhotoSlotClick = (index) => {
+    setCropIndex(index);
+    photoInputRef.current?.click();
+  };
+
+  const handlePhotoFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleCropComplete = async (blob) => {
+    if (cropIndex === null || !expandedDetail) return;
+    setPhotoUploading(true);
+    try {
+      const form = new FormData();
+      form.append('photo', blob, 'photo.webp');
+      const { data } = await api.post(
+        `/admin/synthetic/users/${expandedId}/photos?index=${cropIndex}`,
+        form,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setExpandedDetail((d) => ({ ...d, photos: data.photos, photo: data.photos[0] || null }));
+      setUsers((prev) => prev.map((u) => u.id === expandedId ? { ...u, photo: data.photos[0] || null } : u));
+    } catch (err) {
+      console.error('Photo upload error:', err);
+    } finally {
+      setPhotoUploading(false);
+      setCropSrc(null);
+      setCropIndex(null);
+    }
+  };
+
+  const handlePhotoDelete = async (index) => {
+    if (!expandedDetail) return;
+    try {
+      const { data } = await api.delete(`/admin/synthetic/users/${expandedId}/photos/${index}`);
+      setExpandedDetail((d) => ({ ...d, photos: data.photos, photo: data.photos[0] || null }));
+      setUsers((prev) => prev.map((u) => u.id === expandedId ? { ...u, photo: data.photos[0] || null } : u));
+    } catch (err) {
+      console.error('Photo delete error:', err);
     }
   };
 
@@ -222,6 +274,52 @@ export default function SyntheticUsers() {
             {/* Expanded Detail */}
             {expandedId === u.id && expandedDetail && (
               <div className="px-3 pb-3 border-t border-dark-50">
+                {/* Photos Grid */}
+                <div className="mt-3">
+                  <p className="text-xs font-semibold text-gray-400 mb-2">Photos</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {Array.from({ length: 4 }).map((_, i) => {
+                      const photo = expandedDetail.photos?.[i];
+                      return (
+                        <div key={i} className="relative aspect-square rounded-lg overflow-hidden bg-dark-50">
+                          {photo ? (
+                            <>
+                              <img
+                                src={photo}
+                                alt=""
+                                className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={() => handlePhotoSlotClick(i)}
+                              />
+                              <button
+                                onClick={() => handlePhotoDelete(i)}
+                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-red-500/80 transition-colors"
+                              >
+                                <X size={10} className="text-white" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handlePhotoSlotClick(i)}
+                              className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-dark-100 transition-colors"
+                              disabled={i > (expandedDetail.photos?.length || 0)}
+                            >
+                              <Camera size={14} className="text-gray-600" />
+                              <span className="text-[9px] text-gray-600">Add</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handlePhotoFileChange}
+                  />
+                </div>
+
                 {/* Memory Stream */}
                 {expandedDetail.memoryStream?.length > 0 && (
                   <div className="mt-3">
@@ -333,6 +431,27 @@ export default function SyntheticUsers() {
                 {importing ? 'Importing...' : 'Import'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo Cropper Modal */}
+      {cropSrc && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-100 rounded-2xl p-4 max-w-md w-full">
+            <h3 className="text-sm font-bold text-white mb-3">Crop Photo</h3>
+            {photoUploading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : (
+              <ImageCropper
+                imageSrc={cropSrc}
+                aspect={1}
+                onCropComplete={handleCropComplete}
+                onCancel={() => { setCropSrc(null); setCropIndex(null); }}
+              />
+            )}
           </div>
         </div>
       )}

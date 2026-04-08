@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/admin.js';
 import { sendEmail, sendBulkEmails, brandedTemplate } from '../services/email.js';
-import { deleteFromCloud } from '../middleware/upload.js';
+import { upload, uploadToCloud, deleteFromCloud } from '../middleware/upload.js';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -1272,6 +1272,7 @@ router.get('/synthetic/users/:id', authenticate, requireAdmin, async (req, res) 
       displayName: sp.user.profile?.displayName,
       role: sp.user.role,
       photo: sp.user.profile?.photos?.[0] || null,
+      photos: sp.user.profile?.photos || [],
       city: sp.user.profile?.city,
       isActive: sp.isActive,
       lastActiveAt: sp.lastActiveAt,
@@ -1291,6 +1292,79 @@ router.get('/synthetic/users/:id', authenticate, requireAdmin, async (req, res) 
     });
   } catch (error) {
     console.error('Synthetic user detail error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Upload/replace a synthetic user photo at a specific index
+router.post('/synthetic/users/:id/photos', authenticate, requireAdmin, upload.single('photo'), async (req, res) => {
+  try {
+    const sp = await prisma.syntheticProfile.findUnique({
+      where: { id: req.params.id },
+      include: { user: { include: { profile: true } } },
+    });
+    if (!sp) return res.status(404).json({ error: 'Not found' });
+
+    const index = parseInt(req.query.index ?? '0', 10);
+    const photos = sp.user.profile?.photos || [];
+
+    if (index < 0 || index > photos.length || index > 3) {
+      return res.status(400).json({ error: 'Invalid photo index' });
+    }
+
+    const url = await uploadToCloud(req.file, 'motion/profiles');
+
+    // Delete old photo if replacing
+    if (index < photos.length && photos[index]) {
+      await deleteFromCloud(photos[index]);
+    }
+
+    const updated = [...photos];
+    if (index < updated.length) {
+      updated[index] = url;
+    } else {
+      updated.push(url);
+    }
+
+    await prisma.profile.update({
+      where: { userId: sp.userId },
+      data: { photos: updated },
+    });
+
+    res.json({ photos: updated });
+  } catch (error) {
+    console.error('Synthetic photo upload error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Delete a synthetic user photo by index
+router.delete('/synthetic/users/:id/photos/:index', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const sp = await prisma.syntheticProfile.findUnique({
+      where: { id: req.params.id },
+      include: { user: { include: { profile: true } } },
+    });
+    if (!sp) return res.status(404).json({ error: 'Not found' });
+
+    const index = parseInt(req.params.index, 10);
+    const photos = sp.user.profile?.photos || [];
+
+    if (index < 0 || index >= photos.length) {
+      return res.status(400).json({ error: 'Invalid photo index' });
+    }
+
+    await deleteFromCloud(photos[index]);
+    const updated = photos.filter((_, i) => i !== index);
+
+    await prisma.profile.update({
+      where: { userId: sp.userId },
+      data: { photos: updated },
+    });
+
+    res.json({ photos: updated });
+  } catch (error) {
+    console.error('Synthetic photo delete error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
