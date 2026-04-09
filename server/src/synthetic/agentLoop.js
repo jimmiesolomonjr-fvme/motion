@@ -143,6 +143,10 @@ export async function runAgentCycle(syntheticProfileId) {
     }
   }
 
+  // Re-check profile still exists before updating (may have been purged mid-cycle)
+  const stillExists = await prisma.syntheticProfile.findUnique({ where: { id: syntheticProfileId }, select: { id: true } });
+  if (!stillExists) return;
+
   // Update lastActiveAt and lastOnline
   await prisma.syntheticProfile.update({
     where: { id: syntheticProfileId },
