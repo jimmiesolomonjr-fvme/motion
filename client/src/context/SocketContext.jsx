@@ -216,16 +216,28 @@ export function SocketProvider({ children }) {
 
     setSocket(newSocket);
 
-    // When PWA resumes from background, force immediate reconnect
+    // Heartbeat: update lastOnline every 5 minutes while tab is visible
+    const heartbeatInterval = setInterval(() => {
+      if (document.visibilityState === 'visible' && newSocket.connected) {
+        newSocket.emit('heartbeat');
+      }
+    }, 5 * 60 * 1000);
+
+    // When PWA resumes from background, force immediate reconnect + heartbeat
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible' && !newSocket.connected) {
-        newSocket.auth.token = localStorage.getItem('accessToken');
-        newSocket.connect();
+      if (document.visibilityState === 'visible') {
+        if (!newSocket.connected) {
+          newSocket.auth.token = localStorage.getItem('accessToken');
+          newSocket.connect();
+        } else {
+          newSocket.emit('heartbeat');
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
+      clearInterval(heartbeatInterval);
       document.removeEventListener('visibilitychange', handleVisibility);
       newSocket.disconnect();
     };

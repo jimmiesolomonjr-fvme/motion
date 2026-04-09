@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
-import { Bot, Power, PowerOff, Trash2, Play, ChevronDown, ChevronUp, Activity, MessageCircle, Heart, MapPin, BarChart3, Upload, X, Camera, Crop, ImagePlus } from 'lucide-react';
+import { Bot, Power, PowerOff, Trash2, Play, ChevronDown, ChevronUp, Activity, MessageCircle, Heart, MapPin, BarChart3, Upload, X, Camera, Crop, ImagePlus, Star } from 'lucide-react';
 import ImageCropper from '../ui/ImageCropper';
 
 export default function SyntheticUsers() {
@@ -143,6 +143,17 @@ export default function SyntheticUsers() {
       setPhotoUploading(false);
       setCropSrc(null);
       setCropIndex(null);
+    }
+  };
+
+  const handleSetAsProfile = async (index) => {
+    if (!expandedDetail || index === 0) return;
+    try {
+      const { data } = await api.put(`/admin/synthetic/users/${expandedId}/photos/reorder`, { fromIndex: index, toIndex: 0 });
+      setExpandedDetail((d) => ({ ...d, photos: data.photos, photo: data.photos[0] || null }));
+      setUsers((prev) => prev.map((u) => u.id === expandedId ? { ...u, photo: data.photos[0] || null } : u));
+    } catch (err) {
+      console.error('Set as profile error:', err);
     }
   };
 
@@ -297,7 +308,21 @@ export default function SyntheticUsers() {
                                 className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                                 onClick={() => handleRecrop(i)}
                               />
+                              {i === 0 && (
+                                <div className="absolute bottom-0 inset-x-0 bg-black/60 text-center py-0.5">
+                                  <span className="text-[9px] text-gold font-semibold">Profile</span>
+                                </div>
+                              )}
                               <div className="absolute top-1 right-1 flex gap-1">
+                                {i > 0 && (
+                                  <button
+                                    onClick={() => handleSetAsProfile(i)}
+                                    className="w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-gold/80 transition-colors"
+                                    title="Set as profile photo"
+                                  >
+                                    <Star size={9} className="text-gold" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => handlePhotoSlotClick(i)}
                                   className="w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-cyan-500/80 transition-colors"

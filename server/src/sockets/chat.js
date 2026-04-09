@@ -123,6 +123,14 @@ export function setupSocketHandlers(io) {
       }
     });
 
+    // Heartbeat — update lastOnline periodically for active users
+    socket.on('heartbeat', async () => {
+      await prisma.user.update({
+        where: { id: socket.userId },
+        data: { lastOnline: new Date() },
+      }).catch(() => {});
+    });
+
     // Typing indicator
     socket.on('typing', (data) => {
       socket.to(`conv:${data.conversationId}`).emit('user-typing', {

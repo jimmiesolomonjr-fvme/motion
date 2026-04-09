@@ -258,36 +258,37 @@ export default function Moves() {
 
   return (
     <AppLayout>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Flame className="text-gold" size={20} />
-          <h1 className="text-xl font-bold text-white">The Move</h1>
+      {/* Header row: title + tabs + new move button */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <Flame className="text-gold" size={18} />
+            <h1 className="text-lg font-bold text-white">The Move</h1>
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => setTab('browse')}
+              className={`px-3 py-1 rounded-full text-xs font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setTab('mine')}
+              className={`px-3 py-1 rounded-full text-xs font-medium ${tab === 'mine' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              Mine
+            </button>
+            <button
+              onClick={() => setTab('picks')}
+              className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${tab === 'picks' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
+            >
+              <Sparkles size={11} /> Picks
+            </button>
+          </div>
         </div>
-        <Button variant="gold" className="!px-3 !py-1.5 text-sm" onClick={() => setShowCreate(true)}>
-          <Plus size={16} className="inline mr-1" /> New Move
+        <Button variant="gold" className="!px-3 !py-1.5 text-xs" onClick={() => setShowCreate(true)}>
+          <Plus size={14} className="inline mr-0.5" /> New
         </Button>
-      </div>
-
-      {/* Tabs — same for everyone */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setTab('browse')}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'browse' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-        >
-          All Moves
-        </button>
-        <button
-          onClick={() => setTab('mine')}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium ${tab === 'mine' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-        >
-          My Moves
-        </button>
-        <button
-          onClick={() => setTab('picks')}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 ${tab === 'picks' ? 'bg-gold text-dark' : 'bg-dark-50 text-gray-400'}`}
-        >
-          <Sparkles size={14} /> Picks
-        </button>
       </div>
 
       {/* Content */}

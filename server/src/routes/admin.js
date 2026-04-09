@@ -1338,6 +1338,43 @@ router.post('/synthetic/users/:id/photos', authenticate, requireAdmin, upload.si
   }
 });
 
+// Reorder synthetic user photos (set as profile photo, etc.)
+router.put('/synthetic/users/:id/photos/reorder', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const sp = await prisma.syntheticProfile.findUnique({
+      where: { id: req.params.id },
+      include: { user: { include: { profile: true } } },
+    });
+    if (!sp) return res.status(404).json({ error: 'Not found' });
+
+    const { fromIndex, toIndex } = req.body;
+    const photos = sp.user.profile?.photos || [];
+
+    if (
+      typeof fromIndex !== 'number' || typeof toIndex !== 'number' ||
+      fromIndex < 0 || fromIndex >= photos.length ||
+      toIndex < 0 || toIndex >= photos.length ||
+      fromIndex === toIndex
+    ) {
+      return res.status(400).json({ error: 'Invalid fromIndex or toIndex' });
+    }
+
+    const updated = [...photos];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+
+    await prisma.profile.update({
+      where: { userId: sp.userId },
+      data: { photos: updated },
+    });
+
+    res.json({ photos: updated });
+  } catch (error) {
+    console.error('Synthetic photo reorder error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Delete a synthetic user photo by index
 router.delete('/synthetic/users/:id/photos/:index', authenticate, requireAdmin, async (req, res) => {
   try {
