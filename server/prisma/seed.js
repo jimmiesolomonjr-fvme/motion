@@ -219,9 +219,9 @@ async function main() {
   // Migrate videoIntro → photos before the column is dropped
   await migrateVideoIntroToPhotos();
 
-  // Delete all dummy users except Jasmine W
+  // Delete old dummy users except Jasmine W (skip synthetic users — they're managed separately)
   const dummyUsersToDelete = await prisma.user.findMany({
-    where: { isDummy: true, email: { notIn: ['jasmine.w@motion.app', 'motion@motion.app'] } },
+    where: { isDummy: true, isSynthetic: false, email: { notIn: ['jasmine.w@motion.app', 'motion@motion.app'] } },
     select: { id: true },
   });
   if (dummyUsersToDelete.length > 0) {
