@@ -455,7 +455,7 @@ router.get('/feed', authenticate, async (req, res) => {
         hasLiked: likedIds.has(user.id),
         isPlug: (referralCountMap.get(user.id) || 0) > 0,
         dateEnergy: getActiveEnergy(user),
-        isNew: new Date(user.createdAt).getTime() > Date.now() - 48 * 60 * 60 * 1000,
+        isNew: new Date(user.createdAt).getTime() > Date.now() - 48 * 60 * 60 * 1000 && !user.isSynthetic && !user.isDummy,
       };
     });
 
@@ -498,14 +498,16 @@ router.get('/feed', authenticate, async (req, res) => {
     }
     // 'active' and 'newest' are handled by the DB orderBy
 
-    // Boost new users (created in last 48h) — interleave near the top
+    // Boost new REAL users (created in last 48h) — interleave near the top
+    // Exclude synthetic/dummy users so they don't consume all boost slots
     if (sort === 'active' || sort === 'newest') {
       const boostCutoff = Date.now() - 48 * 60 * 60 * 1000;
       const boosted = [];
       const rest = [];
       for (const u of results) {
-        const created = users.find(x => x.id === u.id)?.createdAt;
-        if (created && new Date(created).getTime() > boostCutoff) boosted.push(u);
+        const dbUser = users.find(x => x.id === u.id);
+        const created = dbUser?.createdAt;
+        if (created && new Date(created).getTime() > boostCutoff && !dbUser?.isSynthetic && !dbUser?.isDummy) boosted.push(u);
         else rest.push(u);
       }
       if (boosted.length > 0) {
@@ -944,7 +946,7 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
         hasLiked: likedIds.has(user.id),
         isPlug: (referralCountMap.get(user.id) || 0) > 0,
         dateEnergy: getActiveEnergy(user),
-        isNew: new Date(user.createdAt).getTime() > Date.now() - 48 * 60 * 60 * 1000,
+        isNew: new Date(user.createdAt).getTime() > Date.now() - 48 * 60 * 60 * 1000 && !user.isSynthetic && !user.isDummy,
       };
     });
 
@@ -985,14 +987,15 @@ router.get('/feed/vertical', authenticate, async (req, res) => {
       });
     }
 
-    // Boost new users (created in last 48h) — interleave near the top
+    // Boost new REAL users (created in last 48h) — interleave near the top
     if (sort === 'active' || sort === 'newest') {
       const boostCutoff = Date.now() - 48 * 60 * 60 * 1000;
       const boosted = [];
       const rest = [];
       for (const u of results) {
-        const created = users.find(x => x.id === u.id)?.createdAt;
-        if (created && new Date(created).getTime() > boostCutoff) boosted.push(u);
+        const dbUser = users.find(x => x.id === u.id);
+        const created = dbUser?.createdAt;
+        if (created && new Date(created).getTime() > boostCutoff && !dbUser?.isSynthetic && !dbUser?.isDummy) boosted.push(u);
         else rest.push(u);
       }
       if (boosted.length > 0) {
