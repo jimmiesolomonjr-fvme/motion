@@ -779,6 +779,24 @@ async function executeSendMessage(synProfile) {
   const messageText = await callClaude(systemPrompt, msgPrompt, 150);
   if (!messageText) return;
 
+  // Mark the real user's messages as read before replying (read receipts)
+  await prisma.message.updateMany({
+    where: {
+      conversationId: targetConvo.id,
+      senderId: { not: synProfile.userId },
+      readAt: null,
+    },
+    data: { readAt: new Date() },
+  });
+
+  const io = await getIo();
+  if (io) {
+    io.to(otherId).emit('messages-read', {
+      conversationId: targetConvo.id,
+      readBy: synProfile.userId,
+    });
+  }
+
   const message = await prisma.message.create({
     data: {
       conversationId: targetConvo.id,
@@ -793,7 +811,6 @@ async function executeSendMessage(synProfile) {
     data: { lastMessageAt: new Date() },
   });
 
-  const io = await getIo();
   if (io) {
     io.to(otherId).emit('message-notification', {
       conversationId: targetConvo.id,

@@ -5,6 +5,27 @@ import { PREBUILT_PERSONAS } from './personas.js';
 const prisma = new PrismaClient();
 const SYNTHETIC_PASSWORD = 'Motion2024!';
 
+// Coordinates for all neighborhoods used by synthetic personas
+const CITY_COORDINATES = {
+  'Harlem, NYC':            { lat: 40.8116, lng: -73.9465 },
+  'Jersey City, NJ':        { lat: 40.7178, lng: -74.0431 },
+  'Tribeca, NYC':           { lat: 40.7163, lng: -74.0086 },
+  'Crown Heights, Brooklyn':{ lat: 40.6694, lng: -73.9422 },
+  'Hoboken, NJ':            { lat: 40.7440, lng: -74.0324 },
+  'Upper West Side, NYC':   { lat: 40.7870, lng: -73.9754 },
+  'Bushwick, Brooklyn':     { lat: 40.6944, lng: -73.9213 },
+  'Montclair, NJ':          { lat: 40.8259, lng: -74.2090 },
+  'Bed-Stuy, Brooklyn':     { lat: 40.6872, lng: -73.9418 },
+  'Newark, NJ':             { lat: 40.7357, lng: -74.1724 },
+  'Astoria, Queens':        { lat: 40.7644, lng: -73.9235 },
+  'The Bronx, NYC':         { lat: 40.8448, lng: -73.8648 },
+  'Fort Greene, Brooklyn':  { lat: 40.6892, lng: -73.9764 },
+};
+
+function jitterCoord(value) {
+  return value + (Math.random() - 0.5) * 0.02; // ±0.01° (~0.7 miles)
+}
+
 export function validatePersonaQuality(persona) {
   const errors = [];
 
@@ -69,7 +90,8 @@ export async function seedPrebuiltPersonas() {
       continue;
     }
 
-    // Create User
+    // Create User (with coordinates from city lookup)
+    const coords = CITY_COORDINATES[persona.city];
     const user = await prisma.user.create({
       data: {
         email: persona.email,
@@ -78,6 +100,10 @@ export async function seedPrebuiltPersonas() {
         isPremium: true,
         isSynthetic: true,
         isDummy: true,
+        ...(coords && {
+          locationLat: jitterCoord(coords.lat),
+          locationLng: jitterCoord(coords.lng),
+        }),
       },
     });
 
@@ -127,6 +153,28 @@ export async function seedPrebuiltPersonas() {
 
     console.log(`[synthetic] Created: ${persona.displayName} (${persona.role}) — ${persona.email}`);
     created++;
+  }
+
+  // Backfill coordinates for existing synthetic users missing them
+  const missingCoords = await prisma.user.findMany({
+    where: { isSynthetic: true, locationLat: null },
+    include: { profile: { select: { city: true } } },
+  });
+  let backfilled = 0;
+  for (const user of missingCoords) {
+    const coords = CITY_COORDINATES[user.profile?.city];
+    if (!coords) continue;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        locationLat: jitterCoord(coords.lat),
+        locationLng: jitterCoord(coords.lng),
+      },
+    });
+    backfilled++;
+  }
+  if (backfilled > 0) {
+    console.log(`[synthetic] Backfilled coordinates for ${backfilled} existing synthetic users`);
   }
 
   console.log(`[synthetic] Seeding complete: ${created} created, ${skipped} skipped`);
