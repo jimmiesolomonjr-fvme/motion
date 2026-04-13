@@ -8,6 +8,7 @@ import {
   getTimeWindowActions,
   isHighActivityDay,
 } from './realism.js';
+import { sendNotificationEmail } from '../utils/emailNotifications.js';
 
 const prisma = new PrismaClient();
 
@@ -246,6 +247,8 @@ async function executeBrowseProfiles(synProfile) {
   const io = await getIo();
   if (io) io.to(target.id).emit('notification', notification);
 
+  sendNotificationEmail(target.id, 'profile_view', synProfile.userId).catch(() => {});
+
   await logAction(synProfile.id, synProfile.userId, 'browse_profiles', target.id, { viewedName: target.profile?.displayName });
 
   // Evaluate for potential like using soft dealbreakers
@@ -292,6 +295,8 @@ async function executeLikeTarget(synProfile, target) {
 
   const io = await getIo();
   if (io) io.to(target.id).emit('notification', { type: 'like', count: 1 });
+
+  sendNotificationEmail(target.id, 'like', synProfile.userId).catch(() => {});
 
   // Check mutual like
   const mutualLike = await prisma.like.findUnique({
@@ -644,6 +649,7 @@ async function executePlaySmf(synProfile) {
     });
 
     if (io) io.to(pa.userId).emit('notification', notification);
+    sendNotificationEmail(pa.userId, 'smf_pick', synProfile.userId).catch(() => {});
   }
 
   await logAction(synProfile.id, synProfile.userId, 'play_smf', null, {
@@ -817,6 +823,8 @@ async function executeSendMessage(synProfile) {
       message,
     });
   }
+
+  sendNotificationEmail(otherId, 'message', synProfile.userId).catch(() => {});
 
   await logAction(synProfile.id, synProfile.userId, 'send_message', otherId, {
     conversationId: targetConvo.id,
